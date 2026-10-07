@@ -4,20 +4,20 @@ export const managementApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getCustomers: builder.query({
       query: (params) => ({
-        url: "admin/customers",
+        url: "customers",
         params,
       }),
       providesTags: ["Customer"],
     }),
     getCustomerById: builder.query({
       query: (id) => ({
-        url: `admin/customers/${id}`,
+        url: `customers/${id}`,
       }),
       providesTags: (result, error, id) => [{ type: "Customer", id }],
     }),
     createCustomer: builder.mutation({
       query: (data) => ({
-        url: "admin/customers",
+        url: "customers",
         method: "POST",
         body: data,
       }),
@@ -25,7 +25,7 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     updateCustomer: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `admin/customers/${id}`,
+        url: `customers/${id}`,
         method: "PATCH",
         body: data,
       }),
@@ -33,21 +33,21 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     deleteCustomer: builder.mutation({
       query: (id) => ({
-        url: `admin/customers/${id}`,
+        url: `customers/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Customer"],
     }),
     getCoupons: builder.query({
       query: (params) => ({
-        url: "admin/coupons",
+        url: "coupons",
         params,
       }),
       providesTags: ["Coupon"],
     }),
     createCoupon: builder.mutation({
       query: (data) => ({
-        url: "admin/coupons",
+        url: "coupons",
         method: "POST",
         body: data,
       }),
@@ -55,7 +55,7 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     updateCoupon: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `admin/coupons/${id}`,
+        url: `coupons/${id}`,
         method: "PATCH",
         body: data,
       }),
@@ -63,21 +63,21 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     deleteCoupon: builder.mutation({
       query: (id) => ({
-        url: `admin/coupons/${id}`,
+        url: `coupons/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Coupon"],
     }),
     getMedicineRequests: builder.query({
       query: (params) => ({
-        url: "admin/medicine-requests",
+        url: "medicine-requests",
         params,
       }),
       providesTags: ["MedicineRequest"],
     }),
     updateMedicineRequestStatus: builder.mutation({
       query: ({ id, status }) => ({
-        url: `admin/medicine-requests/${id}/status`,
+        url: `medicine-requests/${id}/status`,
         method: "PATCH",
         body: { status }
       }),
@@ -85,21 +85,21 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     getReports: builder.mutation({
       query: (type) => ({
-        url: `admin/reports/${type}`,
+        url: `reports/${type}`,
         method: "GET",
         responseHandler: (response) => response.blob(), // For downloading CSVs
       }),
     }),
     getNotifications: builder.query({
       query: (params) => ({
-        url: "admin/notifications",
+        url: "notifications",
         params,
       }),
       providesTags: ["Notification"],
     }),
     markNotificationRead: builder.mutation({
       query: (id) => ({
-        url: `admin/notifications/${id}/read`,
+        url: `notifications/${id}/read`,
         method: "POST",
       }),
       invalidatesTags: ["Notification"],
@@ -108,14 +108,14 @@ export const managementApi = apiSlice.injectEndpoints({
     // Staff Management
     getStaff: builder.query({
       query: (params) => ({
-        url: "admin/staff",
+        url: "staff",
         params,
       }),
       providesTags: ["Staff"],
     }),
     createStaff: builder.mutation({
       query: (data) => ({
-        url: "admin/staff",
+        url: "staff",
         method: "POST",
         body: data,
       }),
@@ -123,7 +123,7 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     updateStaff: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `admin/staff/${id}`,
+        url: `staff/${id}`,
         method: "PATCH",
         body: data,
       }),
@@ -131,38 +131,40 @@ export const managementApi = apiSlice.injectEndpoints({
     }),
     suspendStaff: builder.mutation({
       query: (id) => ({
-        url: `admin/staff/${id}/suspend`,
+        url: `staff/${id}`,
         method: "PATCH",
+        body: { status: 'suspended', isActive: false },
       }),
       invalidatesTags: ["Staff"],
     }),
     reactivateStaff: builder.mutation({
       query: (id) => ({
-        url: `admin/staff/${id}/reactivate`,
+        url: `staff/${id}`,
         method: "PATCH",
+        body: { status: 'active', isActive: true },
       }),
       invalidatesTags: ["Staff"],
     }),
     resetStaffPassword: builder.mutation({
       query: (id) => ({
-        url: `admin/staff/${id}/reset-password`,
+        url: `staff/${id}/reset-password`,
         method: "POST",
       }),
       invalidatesTags: ["Staff"],
     }),
     deleteStaff: builder.mutation({
       query: (id) => ({
-        url: `admin/staff/${id}`,
+        url: `staff/${id}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Staff"],
     }),
     getPermissionsRegistry: builder.query({
-      query: () => "admin/permissions",
+      query: () => "permissions",
     }),
     getStaffActivity: builder.query({
       query: ({ id, ...params }) => ({
-        url: `admin/staff/${id}/activity`,
+        url: `staff/${id}/activity`,
         params,
       }),
       providesTags: ["StaffActivity"],
@@ -170,12 +172,12 @@ export const managementApi = apiSlice.injectEndpoints({
     
     // Settings
     getSystemSettings: builder.query({
-      query: () => "admin/settings",
+      query: () => "settings",
       providesTags: ["SystemSetting"],
     }),
     updateSystemSettings: builder.mutation({
       query: (data) => ({
-        url: "admin/settings",
+        url: "settings",
         method: "PATCH",
         body: data,
       }),
@@ -185,21 +187,21 @@ export const managementApi = apiSlice.injectEndpoints({
     // Audit Logs
     getAuditLogs: builder.query({
       query: (params) => ({
-        url: "admin/audit-logs",
+        url: "audit-logs",
         params,
       }),
       providesTags: ["AuditLog"],
     }),
     getDashboardData: builder.query({
       query: (params) => ({
-        url: "admin/analytics/dashboard",
+        url: "analytics/dashboard",
         method: "GET",
         params
       }),
     }),
     getGlobalSearch: builder.query({
       query: (params) => ({
-        url: "admin/search",
+        url: "search",
         method: "GET",
         params
       }),

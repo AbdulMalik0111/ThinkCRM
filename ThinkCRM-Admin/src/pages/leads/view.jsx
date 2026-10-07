@@ -6,6 +6,10 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
 import { useGetLeadByIdQuery } from "@/store/api/leads/leadsApiSlice";
+import LeadActivities from "./LeadActivities";
+import LeadFollowUps from "./LeadFollowUps";
+import LeadMeasurements from "./LeadMeasurements";
+import LeadQuotations from "./LeadQuotations";
 
 const getStatusColor = (status) => {
   const map = {
@@ -145,6 +149,16 @@ const LeadView = () => {
           </Card>
         </div>
       </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <LeadMeasurements leadId={lead._id} />
+        <LeadQuotations leadId={lead._id} />
+      </div>
+
+      <LeadFollowUps leadId={lead._id} />
+
+      {/* Activity Timeline */}
+      <LeadActivities leadId={lead._id} />
     </div>
   );
 };

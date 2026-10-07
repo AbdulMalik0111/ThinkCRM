@@ -31,6 +31,11 @@ const Leads = lazy(() => import("./pages/leads"));
 const NewLead = lazy(() => import("./pages/leads/new"));
 const LeadView = lazy(() => import("./pages/leads/view"));
 const EditLead = lazy(() => import("./pages/leads/edit"));
+const Pipeline = lazy(() => import("./pages/leads/pipeline"));
+
+// Customers
+const Customers = lazy(() => import("./pages/customers"));
+const CustomerView = lazy(() => import("./pages/customers/view"));
 
 function App() {
   return (
@@ -52,13 +57,14 @@ function App() {
             {/* Leads */}
             <Route path="leads" element={<Leads />} />
             <Route path="leads/new" element={<NewLead />} />
+            <Route path="leads/pipeline" element={<Pipeline />} />
             <Route path="leads/:id" element={<LeadView />} />
             <Route path="leads/:id/edit" element={<EditLead />} />
             <Route path="leads/follow-ups" element={<div className="p-6">Follow-ups Component</div>} />
-            <Route path="leads/pipeline" element={<div className="p-6">Pipeline Component</div>} />
             
             {/* Customers */}
-            <Route path="customers" element={<div className="p-6">Customers Component</div>} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerView />} />
 
             {/* Staff */}
             <Route path="staff" element={<Staff />} />
@@ -75,7 +81,6 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
             <Route path="change-password" element={<ChangePassword />} />
-            <Route path="search" element={<SearchPage />} />
           </Route>
         </Route>
       </Routes>

@@ -7,9 +7,6 @@ import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
 import Radio from "@/components/ui/Radio";
 import Icon from "@/components/ui/Icon";
-import {
-  useGetPermissionsRegistryQuery,
-} from "@/store/api/management/managementApiSlice";
 
 const roleOptions = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -21,6 +18,17 @@ const roleOptions = [
   { value: "SUPPORT_STAFF", label: "Support Staff" },
 ];
 
+const PERMISSIONS_REGISTRY = {
+  "Leads": ["leads.view", "leads.create", "leads.update", "leads.delete", "leads.assign"],
+  "Customers": ["customers.view", "customers.create", "customers.update"],
+  "Quotations": ["quotations.view", "quotations.create", "quotations.send"],
+  "Measurements": ["measurements.view", "measurements.create", "measurements.update"],
+  "Staff": ["staff.view", "staff.create", "staff.update", "staff.delete"],
+  "Notifications": ["notifications.view"],
+  "Reports": ["reports.view"],
+  "Settings": ["settings.view", "settings.update"],
+};
+
 const StaffForm = ({ 
   initialData = null, 
   isEdit = false, 
@@ -28,7 +36,6 @@ const StaffForm = ({
   isLoading 
 }) => {
   const navigate = useNavigate();
-  const { data: registryData, isLoading: isRegistryLoading } = useGetPermissionsRegistryQuery();
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -54,7 +61,7 @@ const StaffForm = ({
     }
   }, [initialData]);
 
-  const permissionsRegistry = registryData?.data?.permissions || {};
+  const permissionsRegistry = PERMISSIONS_REGISTRY;
   const allAvailablePermissions = Object.values(permissionsRegistry).flat();
   const totalPermissionsCount = allAvailablePermissions.length;
   const selectedPermissionsCount = formData.assignedPermissions.length;
@@ -104,10 +111,6 @@ const StaffForm = ({
     e.preventDefault();
     onSubmit(formData);
   };
-
-  if (isRegistryLoading) {
-    return <div className="p-10 text-center">Loading form configuration...</div>;
-  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

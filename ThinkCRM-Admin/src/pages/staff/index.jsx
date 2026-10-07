@@ -74,7 +74,7 @@ const Staff = () => {
     search,
     status: statusFilter
   });
-  const staffList = data?.data?.staff || [];
+  const staffList = data?.data?.users || [];
   const totalPages = data?.data?.totalPages || 1;
 
   const [suspendStaff] = useSuspendStaffMutation();
@@ -209,16 +209,6 @@ const Staff = () => {
                           <Tooltip content={item.status === 'active' ? "Suspend" : "Reactivate"} placement="top">
                             <button className="action-btn text-lg" onClick={() => handleSuspend(item._id, item.status)} disabled={item.status === 'disabled'}>
                               <Icon icon={item.status === 'active' ? "heroicons:no-symbol" : "heroicons:check-circle"} className={item.status === 'active' ? "text-warning-500" : "text-success-500"} />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Reset Password" placement="top">
-                            <button className="action-btn text-lg" onClick={() => handleResetPassword(item._id)} disabled={item.status === 'disabled' || item.status === 'suspended'}>
-                              <Icon icon="heroicons:key" />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="View Activity" placement="top">
-                            <button className="action-btn text-lg" onClick={() => { setSelectedStaff(item); setShowActivity(true); }}>
-                              <Icon icon="heroicons:list-bullet" />
                             </button>
                           </Tooltip>
                           <Tooltip content="Delete" placement="top">
