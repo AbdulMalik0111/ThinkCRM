@@ -91,7 +91,7 @@ const Login = () => {
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-8">
           <div className="flex items-center justify-center mb-6">
-            <img src="/small-icon.png" alt="ThinkCRM Logo" className="h-16 w-auto object-contain rounded-md" />
+            <span className="text-4xl font-bold text-[#1e58c8] tracking-tight">ThinkCRM</span>
           </div>
           
           {view === "login" ? (
