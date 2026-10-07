@@ -81,13 +81,13 @@ const Navmenu = ({ menus }) => {
           if (item.isHeadr) {
             acc.push({ ...item, isPendingHeader: true });
           } else {
-            const hasPermission = !item.permission || (permissions && permissions.includes(item.permission));
+            const hasPermission = !item.permission || (permissions && (permissions.includes(item.permission) || permissions.includes('all')));
             
             // If this item has children, we also need to check if ANY child has permission
             let hasChildPermission = false;
             if (item.child) {
               hasChildPermission = item.child.some(child => 
-                !child.permission || (permissions && permissions.includes(child.permission))
+                !child.permission || (permissions && (permissions.includes(child.permission) || permissions.includes('all')))
               );
             }
 

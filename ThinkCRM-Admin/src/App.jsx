@@ -20,15 +20,17 @@ const Permissions = lazy(() => import("./pages/staff/permissions"));
 
 // Notifications & Reports
 const Notifications = lazy(() => import("./pages/notifications"));
-const Analytics = lazy(() => import("./pages/analytics"));
 const Reports = lazy(() => import("./pages/reports"));
-const ReportUsers = lazy(() => import("./pages/reports/users"));
 
 // System
 const Settings = lazy(() => import("./pages/settings"));
 const Profile = lazy(() => import("./pages/profile"));
 const ChangePassword = lazy(() => import("./pages/change-password"));
-const SearchPage = lazy(() => import("./pages/search"));
+// Leads
+const Leads = lazy(() => import("./pages/leads"));
+const NewLead = lazy(() => import("./pages/leads/new"));
+const LeadView = lazy(() => import("./pages/leads/view"));
+const EditLead = lazy(() => import("./pages/leads/edit"));
 
 function App() {
   return (
@@ -47,6 +49,17 @@ function App() {
             <Route index element={<HomeRedirect />} />
             <Route path="dashboard" element={<Dashboard />} />
             
+            {/* Leads */}
+            <Route path="leads" element={<Leads />} />
+            <Route path="leads/new" element={<NewLead />} />
+            <Route path="leads/:id" element={<LeadView />} />
+            <Route path="leads/:id/edit" element={<EditLead />} />
+            <Route path="leads/follow-ups" element={<div className="p-6">Follow-ups Component</div>} />
+            <Route path="leads/pipeline" element={<div className="p-6">Pipeline Component</div>} />
+            
+            {/* Customers */}
+            <Route path="customers" element={<div className="p-6">Customers Component</div>} />
+
             {/* Staff */}
             <Route path="staff" element={<Staff />} />
             <Route path="staff/new" element={<StaffNew />} />
@@ -54,11 +67,11 @@ function App() {
             <Route path="staff/roles" element={<Roles />} />
             <Route path="staff/permissions" element={<Permissions />} />
 
-            {/* Misc */}
-            <Route path="notifications" element={<Notifications />} />
-            <Route path="analytics" element={<Analytics />} />
+            {/* Reports & Notifications */}
             <Route path="reports" element={<Reports />} />
-            <Route path="reports/users" element={<ReportUsers />} />
+            <Route path="notifications" element={<Notifications />} />
+            
+            {/* System */}
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
             <Route path="change-password" element={<ChangePassword />} />

@@ -4,19 +4,12 @@ export const analyticsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getDashboardMetrics: builder.query({
       query: (params) => ({
-        url: "admin/analytics/dashboard",
+        url: "dashboard",
         params,
       }),
-      providesTags: ["Analytics"],
-    }),
-    getMedicineDemand: builder.query({
-      query: (params) => ({
-        url: "admin/analytics/medicine-demand",
-        params,
-      }),
-      providesTags: ["Analytics"],
+      providesTags: ["Dashboard"],
     }),
   }),
 });
 
-export const { useGetDashboardMetricsQuery, useGetMedicineDemandQuery } = analyticsApi;
+export const { useGetDashboardMetricsQuery } = analyticsApi;

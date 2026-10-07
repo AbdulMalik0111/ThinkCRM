@@ -22,6 +22,10 @@ export const authApi = apiSlice.injectEndpoints({
         body: data,
       }),
     }),
+    getMe: builder.query({
+      query: () => "auth/me",
+      providesTags: ["User"],
+    }),
   }),
 });
-export const { useLoginMutation, useLogoutMutation, useChangePasswordMutation } = authApi;
+export const { useLoginMutation, useLogoutMutation, useChangePasswordMutation, useGetMeQuery } = authApi;
