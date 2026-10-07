@@ -90,9 +90,8 @@ const Login = () => {
       <div className="bg-white rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[480px] p-8 md:p-10 relative z-10">
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-8">
-          <div className="flex items-center gap-2 mb-6">
-            <img src="/small-icon.png" alt="ThinkCRM Logo" className="w-10 h-10 object-contain rounded-md" />
-            <span className="text-2xl font-bold text-slate-900 tracking-tight">ThinkCRM</span>
+          <div className="flex items-center justify-center mb-6">
+            <img src="/small-icon.png" alt="ThinkCRM Logo" className="h-16 w-auto object-contain rounded-md" />
           </div>
           
           {view === "login" ? (
