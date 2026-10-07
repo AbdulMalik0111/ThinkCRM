@@ -36,8 +36,9 @@ const StaffEdit = () => {
       firstName: formData.firstName,
       lastName: formData.lastName,
       role: formData.role,
-      permissionMode: formData.permissionMode,
-      assignedPermissions: formData.assignedPermissions
+      permissions: formData.permissions,
+      status: formData.status,
+      isActive: formData.isActive
     };
     updateStaff(payload);
   };

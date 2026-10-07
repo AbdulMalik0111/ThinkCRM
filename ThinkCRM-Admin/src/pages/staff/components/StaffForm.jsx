@@ -9,13 +9,11 @@ import Radio from "@/components/ui/Radio";
 import Icon from "@/components/ui/Icon";
 
 const roleOptions = [
-  { value: "SUPER_ADMIN", label: "Super Admin" },
-  { value: "MANAGER", label: "Manager" },
-  { value: "PHARMACIST", label: "Pharmacist" },
-  { value: "INVENTORY_STAFF", label: "Inventory Staff" },
-  { value: "CASHIER", label: "Cashier" },
-  { value: "ORDER_STAFF", label: "Order Staff" },
-  { value: "SUPPORT_STAFF", label: "Support Staff" },
+  { value: "Owner", label: "Owner" },
+  { value: "Admin", label: "Admin" },
+  { value: "Sales Manager", label: "Sales Manager" },
+  { value: "Sales Executive", label: "Sales Executive" },
+  { value: "Staff", label: "Staff" },
 ];
 
 const PERMISSIONS_REGISTRY = {
@@ -42,7 +40,7 @@ const StaffForm = ({
     lastName: "",
     email: "",
     password: "",
-    role: "INVENTORY_STAFF",
+    role: "Staff",
     permissionMode: "INHERIT_ROLE",
     assignedPermissions: []
   });
@@ -54,7 +52,7 @@ const StaffForm = ({
         lastName: initialData.lastName || "",
         email: initialData.email || "",
         password: "", // Not edited here
-        role: initialData.role || "INVENTORY_STAFF",
+        role: initialData.role || "Staff",
         permissionMode: initialData.permissionMode || "INHERIT_ROLE",
         assignedPermissions: initialData.assignedPermissions || []
       });
@@ -109,7 +107,10 @@ const StaffForm = ({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      permissions: formData.assignedPermissions,
+    });
   };
 
   return (
