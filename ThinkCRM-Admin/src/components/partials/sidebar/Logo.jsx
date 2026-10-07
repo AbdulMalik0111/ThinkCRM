@@ -7,8 +7,8 @@ import useSemiDark from "@/hooks/useSemiDark";
 import useSkin from "@/hooks/useSkin";
 
 // using public logo
-// import MobileLogo from "@/assets/images/logo/logo-c.svg";
-// import MobileLogoWhite from "@/assets/images/logo/logo-c-white.svg";
+// import MobileLogo from "@/assets/images/logo/logo-c.jpeg";
+// import MobileLogoWhite from "@/assets/images/logo/logo-c-white.jpeg";
 const SidebarLogo = ({ menuHover }) => {
   const [isDark] = useDarkMode();
   const [collapsed, setMenuCollapsed] = useSidebar();

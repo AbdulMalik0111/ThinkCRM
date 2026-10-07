@@ -11,8 +11,8 @@ import useMobileMenu from "@/hooks/useMobileMenu";
 import Icon from "@/components/ui/Icon";
 
 // using public logo
-// import MobileLogo from "@/assets/images/logo/logo-c.svg";
-// import MobileLogoWhite from "@/assets/images/logo/logo-c-white.svg";
+// import MobileLogo from "@/assets/images/logo/logo-c.jpeg";
+// import MobileLogoWhite from "@/assets/images/logo/logo-c-white.jpeg";
 import svgRabitImage from "@/assets/images/svg/rabit.svg";
 
 const MobileMenu = ({ className = "custom-class" }) => {
