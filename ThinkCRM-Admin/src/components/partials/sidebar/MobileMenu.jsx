@@ -41,9 +41,7 @@ const MobileMenu = ({ className = "custom-class" }) => {
       <div className="logo-segment flex justify-between items-center bg-white dark:bg-slate-800 z-9 h-[85px]  px-4 ">
         <Link to="/dashboard">
           <div className="flex items-center space-x-4">
-            <div className="logo-icon">
-              <img src="/small-icon.png" alt="ThinkCRM Logo" className="w-10 h-10 object-contain rounded-md" />
-            </div>
+
             <div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 ThinkCRM

@@ -30,17 +30,18 @@ const SidebarLogo = ({ menuHover }) => {
     >
       <Link to="/dashboard">
         <div className="flex items-center space-x-4">
-          <div className="logo-icon">
-            <img src="/small-icon.png" alt="ThinkCRM Logo" className="w-10 h-10 object-contain rounded-md" />
-          </div>
-
-          {(!collapsed || menuHover) && (
+          {(!collapsed || menuHover) ? (
             <div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                 ThinkCRM
               </h1>
             </div>
+          ) : (
+            <div className="w-10 flex items-center justify-center">
+              <h1 className="text-xl font-bold text-[#1e58c8]">T</h1>
+            </div>
           )}
+
         </div>
       </Link>
 
