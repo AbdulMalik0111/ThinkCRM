@@ -1,29 +1,29 @@
 import React from "react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import Loading from "@/components/Loading";
-import { useGetPermissionsRegistryQuery } from "@/store/api/management/managementApiSlice";
 
 const Roles = () => {
-  const { data: response, isLoading, error } = useGetPermissionsRegistryQuery();
-
-  if (isLoading) return <Loading />;
-  if (error) return <div className="text-danger-500 p-4">Failed to load system roles registry.</div>;
-
-  const roles = response?.data?.roles || {};
+  const roles = {
+    Owner: ["leads.view", "leads.create", "leads.update", "leads.delete", "leads.assign", "customers.view", "customers.create", "customers.update", "customers.delete", "staff.view", "staff.create", "staff.update", "staff.delete", "reports.view", "settings.view", "settings.update"],
+    Admin: ["leads.view", "leads.create", "leads.update", "leads.assign", "customers.view", "customers.create", "customers.update", "staff.view", "staff.create", "staff.update", "reports.view", "settings.view", "settings.update"],
+    "Sales Manager": ["leads.view", "leads.create", "leads.update", "leads.assign", "customers.view", "customers.create", "customers.update", "reports.view"],
+    "Sales Executive": ["leads.view", "leads.create", "leads.update", "customers.view", "customers.create"],
+    Staff: ["leads.view", "customers.view"]
+  };
 
   const roleDescriptions = {
-    SUPER_ADMIN: "Full system authority. Has unrestricted access to all administrative modules, security controls, and financial operations.",
-    ADMIN: "Operational administrator. Manages products, inventory, orders, customer accounts, coupons, and reports.",
-    PHARMACIST: "Clinical fulfillment specialist. Manages prescription verification queues, medicine batch allocations, and expiry auditing.",
-    DELIVERY: "Logistics coordinator. Views active dispatched orders and manages delivery status updates."
+    Owner: "Full system authority. Has unrestricted access to all modules, staff management, and system settings.",
+    Admin: "Operational administrator. Manages leads, customers, staff members, and settings.",
+    "Sales Manager": "Manages sales teams, assigns leads, views performance reports, and manages customers.",
+    "Sales Executive": "Handles individual sales pipeline. Can create, view, and update assigned leads and customers.",
+    Staff: "Basic access. Can view assigned leads and customers."
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h4 className="text-xl font-bold text-slate-900 dark:text-white">System Roles & RBAC Matrix</h4>
+          <h4 className="text-xl font-bold text-slate-900 dark:text-white">System Roles & Permissions</h4>
           <p className="text-xs text-slate-500 mt-1">Live role definition registry mapped to granular operational capabilities.</p>
         </div>
       </div>

@@ -2,9 +2,13 @@ import cron from 'node-cron';
 import { FollowUp } from '../models/FollowUp.js';
 import { logActivity } from '../services/activity.service.js';
 import { createNotification } from '../services/notification.service.js';
+import { startCronJobs } from '../services/cron.service.js';
 import { logger } from '../utils/logger.js';
 
 export const startJobs = () => {
+  // Start email reminder cron jobs
+  startCronJobs();
+
   // Run every hour to check for overdue follow-ups
   cron.schedule('0 * * * *', async () => {
     try {

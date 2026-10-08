@@ -38,3 +38,16 @@ export const getLeadFollowUps = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getAllFollowUps = async (req, res, next) => {
+  try {
+    const followUps = await followupService.getAllFollowUps();
+    res.status(200).json({
+      success: true,
+      message: 'All follow-ups fetched successfully',
+      data: { followUps },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

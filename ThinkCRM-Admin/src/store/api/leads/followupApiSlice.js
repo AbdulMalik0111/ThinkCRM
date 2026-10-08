@@ -31,11 +31,16 @@ export const followupApi = apiSlice.injectEndpoints({
         "Dashboard"
       ] : ["FollowUp", "Dashboard"],
     }),
+    getAllFollowUps: builder.query({
+      query: () => "follow-ups",
+      providesTags: ["FollowUp"],
+    }),
   }),
 });
 
 export const {
   useGetLeadFollowUpsQuery,
+  useGetAllFollowUpsQuery,
   useCreateFollowUpMutation,
   useUpdateFollowUpMutation,
 } = followupApi;

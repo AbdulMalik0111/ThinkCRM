@@ -89,7 +89,7 @@ const SearchModal = () => {
           onClick={openModal}
         >
           <Icon icon="heroicons-outline:search" className="text-slate-400 text-lg" />
-          <span className="xl:inline-block hidden">Search... </span>
+          <span className="xl:inline-block hidden">Search leads, customers...</span>
         </button>
       </div>
 
@@ -131,7 +131,7 @@ const SearchModal = () => {
                     </div>
                     <ComboboxInput
                       className="bg-transparent outline-none focus:outline-none border-none w-full flex-1 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-lg"
-                      placeholder="Search orders, customers, products..."
+                      placeholder="Search leads, customers..."
                       onChange={(event) => setQuery(event.target.value)}
                       value={query}
                       autoFocus

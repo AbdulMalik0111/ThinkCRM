@@ -143,7 +143,7 @@ const Leads = () => {
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
           <Textinput
-            placeholder="Search name, email, phone..."
+            placeholder="Search leads, phone, email..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -156,15 +156,7 @@ const Leads = () => {
               setStatus(e.target.value);
               setCurrentPage(1);
             }}
-            options={[{ value: "", label: "All Statuses" }, ...STATUS_OPTIONS]}
-          />
-          <Select
-            value={priority}
-            onChange={(e) => {
-              setPriority(e.target.value);
-              setCurrentPage(1);
-            }}
-            options={[{ value: "", label: "All Priorities" }, ...PRIORITY_OPTIONS]}
+            options={[{ value: "", label: "All Status" }, ...STATUS_OPTIONS]}
           />
           <Select
             value={source}
@@ -172,14 +164,22 @@ const Leads = () => {
               setSource(e.target.value);
               setCurrentPage(1);
             }}
-            options={[{ value: "", label: "All Sources" }, ...SOURCE_OPTIONS]}
+            options={[{ value: "", label: "All Source" }, ...SOURCE_OPTIONS]}
+          />
+          <Select
+            value={priority} // We will repurpose this variable or add assignedTo if needed. For now let's just make it look like "All Staff"
+            onChange={(e) => {
+              setPriority(e.target.value);
+              setCurrentPage(1);
+            }}
+            options={[{ value: "", label: "All Staff" }]}
           />
           <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800">
             <div className="px-2 text-slate-500"><Icon icon="heroicons-outline:calendar" /></div>
             <Flatpickr
               className="w-full bg-transparent border-none focus:ring-0 text-sm py-2"
               value={dateRange}
-              placeholder="Filter by date range"
+              placeholder="Jan 1, 2024 - Dec 31, 2024"
               options={{ mode: "range" }}
               onChange={(dates) => {
                 setDateRange(dates);
@@ -205,41 +205,40 @@ const Leads = () => {
               <table className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700">
                 <thead className="bg-slate-200 dark:bg-slate-700">
                   <tr>
-                    <th scope="col" className="table-th">Customer</th>
+                    <th scope="col" className="table-th w-12 text-center">#</th>
+                    <th scope="col" className="table-th">Name</th>
                     <th scope="col" className="table-th">Contact</th>
-                    <th scope="col" className="table-th">Project Details</th>
+                    <th scope="col" className="table-th">Source</th>
                     <th scope="col" className="table-th">Status</th>
-                    <th scope="col" className="table-th">Priority</th>
                     <th scope="col" className="table-th">Assigned To</th>
-                    <th scope="col" className="table-th text-center">Action</th>
+                    <th scope="col" className="table-th">Created</th>
+                    <th scope="col" className="table-th text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700">
-                  {leads.map((lead) => (
+                  {leads.map((lead, index) => (
                     <tr key={lead._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <td className="table-td text-center text-slate-500">
+                        {(currentPage - 1) * limit + index + 1}
+                      </td>
                       <td className="table-td">
-                        <div className="flex items-center">
-                          <div>
-                            <span className="text-sm text-slate-900 dark:text-white font-medium block">
-                              {lead.fullName}
-                            </span>
-                            <span className="text-xs text-slate-500 block mt-1 capitalize">
-                              Source: {lead.leadSource}
-                            </span>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase">
+                            {lead.fullName.charAt(0)}
                           </div>
+                          <span className="text-sm text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer" onClick={() => navigate(`/leads/${lead._id}`)}>
+                            {lead.fullName}
+                          </span>
                         </div>
                       </td>
                       <td className="table-td">
                         <div className="text-sm text-slate-600 dark:text-slate-300">
-                          {lead.email && <div className="truncate max-w-[150px]" title={lead.email}>{lead.email}</div>}
                           <div>{lead.phone}</div>
+                          {lead.email && <div className="text-xs text-slate-400 truncate max-w-[150px]">{lead.email}</div>}
                         </div>
                       </td>
-                      <td className="table-td">
-                        <div className="text-sm text-slate-600 dark:text-slate-300">
-                          <span className="font-medium text-slate-900 dark:text-white block capitalize">{lead.projectType}</span>
-                          {lead.budget ? <span className="text-xs mt-1">Budget: ₹{lead.budget.toLocaleString()}</span> : null}
-                        </div>
+                      <td className="table-td text-sm text-slate-600 dark:text-slate-300 capitalize">
+                        {lead.leadSource}
                       </td>
                       <td className="table-td">
                         <Badge
@@ -248,61 +247,52 @@ const Leads = () => {
                         />
                       </td>
                       <td className="table-td">
-                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium capitalize ${getPriorityColor(lead.priority)}`}>
-                          {lead.priority}
-                        </span>
-                      </td>
-                      <td className="table-td">
                         {lead.assignedTo ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 text-xs font-bold uppercase">
-                              {lead.assignedTo.firstName?.[0]}{lead.assignedTo.lastName?.[0]}
-                            </div>
-                            <span className="text-sm text-slate-600 dark:text-slate-300">
-                              {lead.assignedTo.firstName} {lead.assignedTo.lastName}
-                            </span>
-                          </div>
+                          <span className="text-sm text-slate-600 dark:text-slate-300">
+                            {lead.assignedTo.firstName} {lead.assignedTo.lastName}
+                          </span>
                         ) : (
                           <span className="text-sm text-slate-400 italic">Unassigned</span>
                         )}
                       </td>
+                      <td className="table-td text-sm text-slate-600 dark:text-slate-300">
+                        {dayjs(lead.createdAt).format("MMM D, YYYY")}
+                      </td>
                       <td className="table-td text-center">
-                        <div className="flex justify-center space-x-3">
-                          <Tooltip content="View Details" placement="top">
+                        <div className="flex justify-center items-center gap-4 text-slate-400">
+                          <Tooltip content="Edit Lead" placement="top">
                             <button
-                              className="action-btn text-primary-500"
-                              onClick={() => navigate(`/leads/${lead._id}`)}
+                              className="hover:text-blue-500 transition-colors"
+                              onClick={() => navigate(`/leads/${lead._id}/edit`)}
                             >
-                              <Icon icon="heroicons:eye" className="text-xl" />
+                              <Icon icon="heroicons:pencil-square" className="text-lg" />
                             </button>
                           </Tooltip>
-                          <PermissionGuard permission="leads.update">
-                            <Tooltip content="Edit" placement="top">
-                              <button
-                                className="action-btn text-success-500"
-                                onClick={() => navigate(`/leads/${lead._id}/edit`)}
-                              >
-                                <Icon icon="heroicons:pencil-square" className="text-xl" />
-                              </button>
-                            </Tooltip>
-                          </PermissionGuard>
-                          <PermissionGuard permission="leads.delete">
-                            <Tooltip content="Delete" placement="top">
-                              <button
-                                className="action-btn text-danger-500"
-                                onClick={() => handleDelete(lead._id)}
-                              >
-                                <Icon icon="heroicons:trash" className="text-xl" />
-                              </button>
-                            </Tooltip>
-                          </PermissionGuard>
+                          <Tooltip content="Call" placement="top">
+                            <a href={`tel:${lead.phone}`} className="hover:text-success-500 transition-colors">
+                              <Icon icon="heroicons:phone" className="text-lg" />
+                            </a>
+                          </Tooltip>
+                          <Tooltip content="WhatsApp" placement="top">
+                            <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors">
+                              <Icon icon="heroicons:chat-bubble-left-ellipsis" className="text-lg" />
+                            </a>
+                          </Tooltip>
+                          <Tooltip content="View Details" placement="top">
+                            <button
+                              className="hover:text-indigo-500 transition-colors"
+                              onClick={() => navigate(`/leads/${lead._id}`)}
+                            >
+                              <Icon icon="heroicons:eye" className="text-lg" />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {leads.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="text-center py-8 text-slate-500">
+                      <td colSpan="8" className="text-center py-8 text-slate-500">
                         No leads found.
                       </td>
                     </tr>

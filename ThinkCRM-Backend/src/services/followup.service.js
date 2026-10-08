@@ -74,3 +74,10 @@ export const updateFollowUp = async (followUpId, data, updatedBy) => {
 export const getLeadFollowUps = async (leadId) => {
   return await FollowUp.find({ leadId }).sort({ scheduledAt: 1 }).populate('assignedTo', 'firstName lastName');
 };
+
+export const getAllFollowUps = async () => {
+  return await FollowUp.find()
+    .sort({ scheduledAt: 1 })
+    .populate('assignedTo', 'firstName lastName')
+    .populate('leadId', 'fullName company email phone status');
+};

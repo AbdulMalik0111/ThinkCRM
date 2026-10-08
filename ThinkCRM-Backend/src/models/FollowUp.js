@@ -49,6 +49,18 @@ const followUpSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    reminder10mSent: {
+      type: Boolean,
+      default: false,
+    },
+    reminder5mSent: {
+      type: Boolean,
+      default: false,
+    },
+    reminder0mSent: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

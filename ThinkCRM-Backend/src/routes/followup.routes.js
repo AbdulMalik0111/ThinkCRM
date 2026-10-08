@@ -8,6 +8,8 @@ const router = express.Router();
 
 router.use(protect);
 
+router.get('/', requirePermission('leads.view'), followupController.getAllFollowUps);
+
 router
   .route('/:id')
   .patch(

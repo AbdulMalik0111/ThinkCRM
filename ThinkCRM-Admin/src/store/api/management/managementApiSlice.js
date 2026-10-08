@@ -83,12 +83,12 @@ export const managementApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["MedicineRequest"],
     }),
-    getReports: builder.mutation({
+    getReports: builder.query({
       query: (type) => ({
         url: `reports/${type}`,
         method: "GET",
-        responseHandler: (response) => response.blob(), // For downloading CSVs
       }),
+      providesTags: ["Report"],
     }),
     getNotifications: builder.query({
       query: (params) => ({
@@ -221,7 +221,7 @@ export const {
   useDeleteCouponMutation,
   useGetMedicineRequestsQuery,
   useUpdateMedicineRequestStatusMutation,
-  useGetReportsMutation,
+  useGetReportsQuery,
   useGetNotificationsQuery,
   useMarkNotificationReadMutation,
   useGetStaffQuery,

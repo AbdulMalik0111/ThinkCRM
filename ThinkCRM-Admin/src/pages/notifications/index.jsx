@@ -41,23 +41,14 @@ const Notifications = () => {
       handleMarkAsRead(notif._id);
     }
     
-    if (!notif.referenceType || !notif.referenceId) return;
+    if (!notif.entityType || !notif.entityId) return;
 
-    switch (notif.referenceType) {
-      case 'Order':
-        navigate(`/orders/${notif.referenceId}`);
-        break;
-      case 'Purchase':
-        navigate(`/purchases/${notif.referenceId}`);
-        break;
-      case 'Product':
-        navigate(`/catalog/products/${notif.referenceId}`);
-        break;
-      case 'Batch':
-        navigate(`/inventory/expiry`);
-        break;
-      case 'MedicineRequest':
-        navigate(`/medicine-requests/${notif.referenceId}`);
+    switch (notif.entityType) {
+      case 'Lead':
+      case 'FollowUp':
+      case 'Quotation':
+      case 'Measurement':
+        navigate(`/leads/${notif.entityId}`);
         break;
       default:
         break;
@@ -103,19 +94,22 @@ const Notifications = () => {
 
   const getIconForNotification = (title) => {
     const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes("order") || lowerTitle.includes("purchase")) return "heroicons-outline:shopping-bag";
-    if (lowerTitle.includes("stock") || lowerTitle.includes("inventory")) return "heroicons-outline:cube";
-    if (lowerTitle.includes("prescription") || lowerTitle.includes("medical")) return "heroicons-outline:document-text";
-    if (lowerTitle.includes("alert") || lowerTitle.includes("warning") || lowerTitle.includes("expired")) return "heroicons-outline:exclamation";
-    if (lowerTitle.includes("success")) return "heroicons-outline:check-circle";
+    if (lowerTitle.includes("lead")) return "heroicons-outline:user";
+    if (lowerTitle.includes("follow") || lowerTitle.includes("due")) return "heroicons-outline:calendar";
+    if (lowerTitle.includes("measurement")) return "heroicons-outline:scissors";
+    if (lowerTitle.includes("quotation")) return "heroicons-outline:document-text";
+    if (lowerTitle.includes("alert") || lowerTitle.includes("warning") || lowerTitle.includes("overdue")) return "heroicons-outline:exclamation-triangle";
+    if (lowerTitle.includes("success") || lowerTitle.includes("won")) return "heroicons-outline:check-circle";
     return "heroicons-outline:bell";
   };
 
   const getColorForNotification = (title) => {
     const lowerTitle = title.toLowerCase();
-    if (lowerTitle.includes("alert") || lowerTitle.includes("warning") || lowerTitle.includes("failed") || lowerTitle.includes("expired")) return "text-danger-500 bg-danger-50 dark:bg-danger-500/10";
-    if (lowerTitle.includes("success") || lowerTitle.includes("approved")) return "text-success-500 bg-success-50 dark:bg-success-500/10";
-    if (lowerTitle.includes("order") || lowerTitle.includes("prescription")) return "text-primary-500 bg-primary-50 dark:bg-primary-500/10";
+    if (lowerTitle.includes("alert") || lowerTitle.includes("warning") || lowerTitle.includes("failed") || lowerTitle.includes("overdue")) return "text-danger-500 bg-danger-50 dark:bg-danger-500/10";
+    if (lowerTitle.includes("success") || lowerTitle.includes("won")) return "text-success-500 bg-success-50 dark:bg-success-500/10";
+    if (lowerTitle.includes("lead") || lowerTitle.includes("measurement")) return "text-primary-500 bg-primary-50 dark:bg-primary-500/10";
+    if (lowerTitle.includes("quotation")) return "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10";
+    if (lowerTitle.includes("follow")) return "text-warning-500 bg-warning-50 dark:bg-warning-500/10";
     return "text-slate-500 bg-slate-100 dark:bg-slate-700/50";
   };
 

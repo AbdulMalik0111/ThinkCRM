@@ -33,6 +33,11 @@ const LeadFollowUps = ({ leadId }) => {
     type: "call",
     scheduledAt: [new Date()],
     notes: "",
+    reminders: {
+      tenMin: true,
+      fiveMin: true,
+      exact: true
+    }
   });
 
   if (isLoading) return <Loading />;
@@ -40,7 +45,12 @@ const LeadFollowUps = ({ leadId }) => {
   const followUps = data?.data?.followUps || [];
 
   const handleOpenModal = () => {
-    setFormData({ type: "call", scheduledAt: [new Date()], notes: "" });
+    setFormData({ 
+      type: "call", 
+      scheduledAt: [new Date()], 
+      notes: "",
+      reminders: { tenMin: true, fiveMin: true, exact: true }
+    });
     setIsModalOpen(true);
   };
 
@@ -53,6 +63,9 @@ const LeadFollowUps = ({ leadId }) => {
           type: formData.type,
           scheduledAt: formData.scheduledAt[0].toISOString(),
           notes: formData.notes,
+          reminder10mSent: !formData.reminders.tenMin,
+          reminder5mSent: !formData.reminders.fiveMin,
+          reminder0mSent: !formData.reminders.exact,
         }
       }).unwrap();
       toast.success("Follow-up scheduled");
@@ -149,6 +162,38 @@ const LeadFollowUps = ({ leadId }) => {
             value={formData.notes}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+            <label className="form-label mb-2 block">Email Reminders</label>
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input 
+                  type="checkbox" 
+                  checked={formData.reminders.tenMin} 
+                  onChange={(e) => setFormData({ ...formData, reminders: { ...formData.reminders, tenMin: e.target.checked } })}
+                  className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span className="text-sm text-slate-700 dark:text-slate-300">10 minutes before</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input 
+                  type="checkbox" 
+                  checked={formData.reminders.fiveMin} 
+                  onChange={(e) => setFormData({ ...formData, reminders: { ...formData.reminders, fiveMin: e.target.checked } })}
+                  className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span className="text-sm text-slate-700 dark:text-slate-300">5 minutes before</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <input 
+                  type="checkbox" 
+                  checked={formData.reminders.exact} 
+                  onChange={(e) => setFormData({ ...formData, reminders: { ...formData.reminders, exact: e.target.checked } })}
+                  className="rounded border-slate-300 dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span className="text-sm text-slate-700 dark:text-slate-300">At scheduled time</span>
+              </label>
+            </div>
+          </div>
         </form>
       </Modal>
     </Card>

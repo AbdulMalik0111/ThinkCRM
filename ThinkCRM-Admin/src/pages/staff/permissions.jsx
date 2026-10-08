@@ -6,20 +6,22 @@ import Loading from "@/components/Loading";
 import { useGetPermissionsRegistryQuery } from "@/store/api/management/managementApiSlice";
 
 const Permissions = () => {
-  const { data: response, isLoading } = useGetPermissionsRegistryQuery();
-  const permissionsGrouped = response?.data?.permissions || {};
+  const permissionsGrouped = {
+    Leads: ["leads.view", "leads.create", "leads.update", "leads.delete", "leads.assign"],
+    Customers: ["customers.view", "customers.create", "customers.update", "customers.delete"],
+    Staff: ["staff.view", "staff.create", "staff.update", "staff.delete"],
+    Reports: ["reports.view"],
+    Settings: ["settings.view", "settings.update"],
+  };
   const modules = Object.entries(permissionsGrouped);
   const totalPermissions = modules.reduce((acc, [, perms]) => acc + perms.length, 0);
 
-  if (isLoading) return <Loading />;
-
   const moduleIcons = {
-    Catalog: "heroicons:shopping-cart",
-    Inventory: "heroicons:cube",
-    Purchases: "heroicons:truck",
-    Orders: "heroicons:shopping-bag",
+    Leads: "heroicons:user",
     Customers: "heroicons:users",
-    System: "heroicons:cog-6-tooth",
+    Staff: "heroicons:briefcase",
+    Reports: "heroicons:chart-bar",
+    Settings: "heroicons:cog-6-tooth",
   };
 
   return (

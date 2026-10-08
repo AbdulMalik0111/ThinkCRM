@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useGetLeadsQuery, useUpdateLeadMutation } from "@/store/api/leads/leadsApiSlice";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
 import Loading from "@/components/Loading";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 // Define the exact statuses based on the backend schema
@@ -21,6 +23,7 @@ const STATUS_COLUMNS = [
 ];
 
 const Pipeline = () => {
+  const navigate = useNavigate();
   // Fetch all leads without pagination limit for the board
   const { data: response, isLoading, refetch } = useGetLeadsQuery({ limit: 1000 });
   const [updateLead] = useUpdateLeadMutation();
@@ -73,8 +76,24 @@ const Pipeline = () => {
         <div>
           <h4 className="font-bold text-2xl text-slate-900 dark:text-white">Lead Pipeline</h4>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Drag and drop leads to update their status
+            Drag and drop leads to update status
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-md">
+            <button className="px-3 py-1.5 rounded bg-white dark:bg-slate-700 shadow-sm text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
+              <Icon icon="heroicons:view-columns" /> Board View
+            </button>
+            <button onClick={() => navigate("/leads")} className="px-3 py-1.5 rounded text-sm font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-2">
+              <Icon icon="heroicons:list-bullet" /> List View
+            </button>
+          </div>
+          <Button
+            icon="heroicons-outline:plus"
+            text="Add Lead"
+            className="btn-primary h-10"
+            onClick={() => navigate("/leads/new")}
+          />
         </div>
       </div>
 
@@ -112,31 +131,40 @@ const Pipeline = () => {
                       key={lead._id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, lead._id)}
-                      className="bg-white dark:bg-slate-800 p-4 rounded shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing group"
+                      onClick={() => navigate(`/leads/${lead._id}`)}
+                      className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing group"
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="font-semibold text-slate-900 dark:text-white text-sm">
-                          {lead.fullName}
-                        </span>
-                        {lead.priority === 'high' || lead.priority === 'urgent' ? (
-                          <Icon icon="heroicons:fire" className="text-danger-500 text-lg" />
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase shrink-0">
+                          {lead.fullName.charAt(0)}
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="font-semibold text-slate-900 dark:text-white text-sm truncate">
+                            {lead.fullName}
+                          </div>
+                          <div className="text-xs text-slate-500 truncate capitalize">
+                            {lead.leadSource}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="text-xs text-slate-600 dark:text-slate-400 mb-3 space-y-1.5">
+                        {lead.budget ? (
+                          <div className="font-medium text-slate-900 dark:text-white">
+                            ₹{lead.budget.toLocaleString()}
+                          </div>
                         ) : null}
                       </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                          <Icon icon="heroicons:phone" /> {lead.phone}
-                        </div>
-                        <div className="flex items-center gap-1.5 capitalize">
-                          <Icon icon="heroicons:briefcase" /> {lead.projectType}
-                        </div>
-                      </div>
+
                       <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                          {lead.leadId}
-                        </span>
-                        <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                          {lead.assignedTo ? `${lead.assignedTo.firstName?.[0]}${lead.assignedTo.lastName?.[0]}` : "?"}
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase">
+                            {lead.assignedTo ? `${lead.assignedTo.firstName?.[0]}${lead.assignedTo.lastName?.[0]}` : "?"}
+                          </div>
                         </div>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                           <Icon icon="heroicons:clock" /> {new Date(lead.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
                       </div>
                     </div>
                   ))}

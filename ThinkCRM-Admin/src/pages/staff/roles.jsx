@@ -6,11 +6,14 @@ import Loading from "@/components/Loading";
 import { useGetPermissionsRegistryQuery } from "@/store/api/management/managementApiSlice";
 
 const Roles = () => {
-  const { data: response, isLoading } = useGetPermissionsRegistryQuery();
-  const roles = response?.data?.roles || {};
+  const roles = {
+    Owner: ["leads.view", "leads.create", "leads.update", "leads.delete", "leads.assign", "customers.view", "customers.create", "customers.update", "customers.delete", "staff.view", "staff.create", "staff.update", "staff.delete", "reports.view", "settings.view", "settings.update"],
+    Admin: ["leads.view", "leads.create", "leads.update", "leads.assign", "customers.view", "customers.create", "customers.update", "staff.view", "staff.create", "staff.update", "reports.view", "settings.view", "settings.update"],
+    "Sales Manager": ["leads.view", "leads.create", "leads.update", "leads.assign", "customers.view", "customers.create", "customers.update", "reports.view"],
+    "Sales Executive": ["leads.view", "leads.create", "leads.update", "customers.view", "customers.create"],
+    Staff: ["leads.view", "customers.view"]
+  };
   const roleEntries = Object.entries(roles);
-
-  if (isLoading) return <Loading />;
 
   return (
     <div className="space-y-6">

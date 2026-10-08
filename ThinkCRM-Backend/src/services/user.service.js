@@ -17,8 +17,41 @@ export const createUser = async (userData) => {
 };
 
 export const getAllUsers = async (query = {}) => {
-  const users = await User.find(query).select('-passwordHash -refreshToken');
-  return users;
+  const { page = 1, limit = 50, search = '', status } = query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  
+  let filter = {};
+  if (status) {
+    filter.status = status;
+  }
+  
+  if (search) {
+    filter.$or = [
+      { firstName: { $regex: search, $options: 'i' } },
+      { lastName: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } },
+      { role: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  // exclude deleted staff
+  filter.deletedAt = { $exists: false };
+
+  const users = await User.find(filter)
+    .select('-passwordHash -refreshToken')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+    
+  const total = await User.countDocuments(filter);
+  const totalPages = Math.ceil(total / parseInt(limit));
+
+  return {
+    users,
+    total,
+    totalPages,
+    currentPage: parseInt(page),
+  };
 };
 
 export const getUserById = async (userId) => {

@@ -32,6 +32,7 @@ const NewLead = lazy(() => import("./pages/leads/new"));
 const LeadView = lazy(() => import("./pages/leads/view"));
 const EditLead = lazy(() => import("./pages/leads/edit"));
 const Pipeline = lazy(() => import("./pages/leads/pipeline"));
+const FollowUpsCalendar = lazy(() => import("./pages/leads/followups"));
 
 // Customers
 const Customers = lazy(() => import("./pages/customers"));
@@ -60,7 +61,7 @@ function App() {
             <Route path="leads/pipeline" element={<Pipeline />} />
             <Route path="leads/:id" element={<LeadView />} />
             <Route path="leads/:id/edit" element={<EditLead />} />
-            <Route path="leads/follow-ups" element={<div className="p-6">Follow-ups Component</div>} />
+            <Route path="leads/follow-ups" element={<FollowUpsCalendar />} />
             
             {/* Customers */}
             <Route path="customers" element={<Customers />} />

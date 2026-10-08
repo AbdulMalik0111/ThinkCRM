@@ -149,174 +149,139 @@ const EditLead = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Main Info */}
-          <div className="lg:col-span-2 space-y-5">
-            <Card title="Customer Information">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Textinput
-                  label="Full Name *"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  placeholder="Enter full name"
-                  required
-                />
-                <Textinput
-                  label="Email Address"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Enter email address"
-                />
-                <Textinput
-                  label="Phone Number *"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Primary phone number"
-                  required
-                />
-                <Textinput
-                  label="Alternate Phone"
-                  name="alternatePhone"
-                  value={formData.alternatePhone}
-                  onChange={handleChange}
-                  placeholder="Optional"
-                />
-              </div>
-            </Card>
-
-            <Card title="Project Details">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                <Select
-                  label="Project Type *"
-                  name="projectType"
-                  value={formData.projectType}
-                  onChange={handleChange}
-                  options={PROJECT_TYPE_OPTIONS}
-                  required
-                />
-                <Textinput
-                  label="Estimated Budget (₹)"
-                  type="number"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleChange}
-                  placeholder="e.g. 500000"
-                />
-              </div>
-              <Textarea
-                label="Project Description"
-                name="projectDescription"
-                value={formData.projectDescription}
-                onChange={handleChange}
-                placeholder="Detailed requirements..."
-                row={4}
-              />
-            </Card>
-
-            <Card title="Location Information">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                <Textinput
-                  label="Address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
-                <Textinput
-                  label="Location Area"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                />
-                <Textinput
-                  label="City"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                />
-                <Textinput
-                  label="State"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                />
-                <Textinput
-                  label="Pincode"
-                  name="pincode"
-                  value={formData.pincode}
-                  onChange={handleChange}
-                />
-              </div>
-            </Card>
-          </div>
-
-          {/* Sidebar Info */}
-          <div className="space-y-5">
-            <Card title="Lead Meta">
-              <div className="space-y-5">
-                <Select
-                  label="Status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  options={STATUS_OPTIONS}
-                />
-                <Select
-                  label="Lead Source"
-                  name="leadSource"
-                  value={formData.leadSource}
-                  onChange={handleChange}
-                  options={LEAD_SOURCE_OPTIONS}
-                />
-                <Select
-                  label="Priority"
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  options={PRIORITY_OPTIONS}
-                />
-                <div>
-                  <label className="form-label block text-sm mb-2 text-slate-900 dark:text-slate-300">
-                    Expected Start Date
-                  </label>
-                  <Flatpickr
-                    className="form-control py-2"
-                    value={formData.expectedStartDate}
-                    onChange={(date) => setFormData((prev) => ({ ...prev, expectedStartDate: date }))}
-                    placeholder="Select Date"
-                  />
-                </div>
-              </div>
-            </Card>
-
-            <Card title="Internal Notes">
-              <Textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                placeholder="Add any internal notes about this lead..."
-                row={4}
-              />
-            </Card>
+      <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
+        
+        {/* Left Sidebar Navigation Placeholder */}
+        <div className="w-full lg:w-1/4">
+          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-2">
+            <ul className="space-y-1">
+              <li>
+                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                  <Icon icon="heroicons:information-circle" className="text-lg" />
+                  Basic Information
+                </button>
+              </li>
+              <li>
+                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
+                  <Icon icon="heroicons:briefcase" className="text-lg" />
+                  Project Information
+                </button>
+              </li>
+              <li>
+                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
+                  <Icon icon="heroicons:users" className="text-lg" />
+                  Assignment & status
+                </button>
+              </li>
+              <li>
+                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
+                  <Icon icon="heroicons:document-text" className="text-lg" />
+                  Notes & Files
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 mt-6">
-          <Button
-            text="Cancel"
-            className="btn-light"
-            onClick={() => navigate(`/leads/${id}`)}
-          />
-          <Button
-            text={isLoading ? "Saving..." : "Update Lead"}
-            className="btn-primary"
-            type="submit"
-            disabled={isLoading}
-          />
+        {/* Right Form Area */}
+        <div className="w-full lg:w-3/4">
+          <Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+              <Textinput
+                label="Full Name *"
+                name="fullName"
+                value={formData.fullName}
+                onChange={handleChange}
+                placeholder="Enter full name"
+                required
+              />
+              <Textinput
+                label="Phone *"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Phone number"
+                required
+              />
+              <Textinput
+                label="Email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Email address"
+              />
+              <Select
+                label="Source"
+                name="leadSource"
+                value={formData.leadSource}
+                onChange={handleChange}
+                options={LEAD_SOURCE_OPTIONS}
+              />
+              <Select
+                label="Project Type"
+                name="projectType"
+                value={formData.projectType}
+                onChange={handleChange}
+                options={PROJECT_TYPE_OPTIONS}
+              />
+              <Textinput
+                label="Location"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="e.g. Mumbai"
+              />
+              <Textinput
+                label="Budget (₹)"
+                type="number"
+                name="budget"
+                value={formData.budget}
+                onChange={handleChange}
+                placeholder="e.g. 500000"
+              />
+              <Select
+                label="Priority"
+                name="priority"
+                value={formData.priority}
+                onChange={handleChange}
+                options={PRIORITY_OPTIONS}
+              />
+              <Select
+                label="Status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                options={STATUS_OPTIONS}
+              />
+            </div>
+            
+            <div className="mb-6">
+               <Textarea
+                label="Enquiry Details"
+                name="projectDescription"
+                value={formData.projectDescription}
+                onChange={handleChange}
+                placeholder="Interested in modular kitchen with modern design..."
+                row={4}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-5 border-t border-slate-200 dark:border-slate-700">
+              <Button
+                text="Cancel"
+                className="btn-light"
+                onClick={() => navigate(`/leads/${id}`)}
+                type="button"
+              />
+              <Button
+                text={isLoading ? "Saving..." : "Save Lead"}
+                className="btn-primary"
+                type="submit"
+                disabled={isLoading}
+              />
+            </div>
+          </Card>
         </div>
       </form>
     </div>

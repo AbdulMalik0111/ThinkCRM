@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Textinput from "@/components/ui/Textinput";
+import Textarea from "@/components/ui/Textarea";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useGetSystemSettingsQuery, useUpdateSystemSettingsMutation } from "@/store/api/management/managementApiSlice";
@@ -39,73 +40,92 @@ const Settings = () => {
   }
 
   return (
-    <div className="space-y-5">
-      <Card title="System Settings">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 inline-block ltr:pr-4 rtl:pl-4 mb-2 sm:mb-0">
+            System Settings
+          </h4>
+          <div className="text-sm text-slate-500">
+            Manage your company information, emails, and system preferences.
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        
+        {/* Company Settings */}
+        <Card title="Company Information">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Textinput
-              name="STORE_NAME"
-              label="Store Name"
+              name="companyName"
+              label="Company Name"
               type="text"
               register={register}
               placeholder="ThinkCRM"
-              error={errors.STORE_NAME}
+              error={errors.companyName}
             />
             <Textinput
-              name="SUPPORT_EMAIL"
-              label="Support Email"
+              name="companyEmail"
+              label="Company Email"
               type="email"
               register={register}
-              placeholder="support@thinkcrm.com"
-              error={errors.SUPPORT_EMAIL}
+              placeholder="contact@example.com"
+              error={errors.companyEmail}
             />
             <Textinput
-              name="CONTACT_NUMBER"
-              label="Contact Number"
+              name="companyPhone"
+              label="Company Phone"
               type="text"
               register={register}
-              placeholder="1800-000-0000"
-              error={errors.CONTACT_NUMBER}
+              placeholder="+1234567890"
+              error={errors.companyPhone}
             />
-            <Textinput
-              name="MIN_ORDER_VALUE"
-              label="Minimum Order Value (₹)"
-              type="number"
-              register={register}
-              placeholder="100"
-              error={errors.MIN_ORDER_VALUE}
-            />
-            <Textinput
-              name="FREE_SHIPPING_THRESHOLD"
-              label="Free Shipping Threshold (₹)"
-              type="number"
-              register={register}
-              placeholder="500"
-              error={errors.FREE_SHIPPING_THRESHOLD}
-            />
+            <div className="md:col-span-2">
+              <Textarea
+                name="companyAddress"
+                label="Company Address"
+                register={register}
+                placeholder="123 Business Park, City, Country"
+                error={errors.companyAddress}
+              />
+            </div>
           </div>
-          
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
-            <Textinput
-              name="STORE_ADDRESS"
-              label="Store Address"
-              type="text"
-              register={register}
-              placeholder="123 Pharma St, Medical District"
-              error={errors.STORE_ADDRESS}
-            />
-          </div>
+        </Card>
 
-          <div className="flex justify-end pt-4">
-            <Button
-              type="submit"
-              text="Save Settings"
-              className="btn-primary"
-              isLoading={isUpdating}
+        {/* Email Settings */}
+        <Card title="Email Configuration">
+          <div className="text-sm text-slate-500 mb-4">
+            Email configuration (SMTP) is managed via environment variables for security. Contact your administrator to change SMTP credentials.
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Textinput
+              name="emailSettings.senderName"
+              label="Default Sender Name"
+              type="text"
+              register={register}
+              placeholder="ThinkCRM System"
+            />
+            <Textinput
+              name="emailSettings.senderEmail"
+              label="Default Reply-To Email"
+              type="email"
+              register={register}
+              placeholder="no-reply@example.com"
             />
           </div>
-        </form>
-      </Card>
+        </Card>
+
+        {/* Action Bar */}
+        <div className="flex justify-end pt-4">
+          <Button
+            type="submit"
+            text="Save All Settings"
+            className="btn-primary"
+            isLoading={isUpdating}
+          />
+        </div>
+      </form>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { Lead } from '../models/Lead.js';
 import { FollowUp } from '../models/FollowUp.js';
 import { Measurement } from '../models/Measurement.js';
 import { Quotation } from '../models/Quotation.js';
+import { Customer } from '../models/Customer.js';
 
 export const getDashboardStats = async (req, res, next) => {
   try {
@@ -22,6 +23,7 @@ export const getDashboardStats = async (req, res, next) => {
       sentQuotations,
       wonLeads,
       lostLeads,
+      activeCustomers,
     ] = await Promise.all([
       Lead.countDocuments({ isDeleted: false }),
       Lead.countDocuments({ status: 'new', isDeleted: false }),
@@ -33,6 +35,7 @@ export const getDashboardStats = async (req, res, next) => {
       Quotation.countDocuments({ status: 'sent' }),
       Lead.countDocuments({ status: 'won', isDeleted: false }),
       Lead.countDocuments({ status: 'lost', isDeleted: false }),
+      Customer.countDocuments({ status: 'active', isDeleted: false }),
     ]);
 
     const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(2) : 0;
@@ -50,6 +53,7 @@ export const getDashboardStats = async (req, res, next) => {
         sentQuotations,
         wonLeads,
         lostLeads,
+        activeCustomers,
         conversionRate,
       },
     });
