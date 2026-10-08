@@ -310,14 +310,14 @@ const Dashboard = () => {
       _id: "fu-3",
       title: "Follow up with Amit Singh",
       scheduledFormatted: "Tomorrow, 11:00 AM",
-      type: "meeting",
+      type: "follow_up",
       leadId: { _id: "demo-3", fullName: "Amit Singh" },
     },
     {
       _id: "fu-4",
       title: "Contract review with Sneha Reddy",
       scheduledFormatted: "Tomorrow, 04:30 PM",
-      type: "call",
+      type: "contract",
       leadId: { _id: "demo-4", fullName: "Sneha Reddy" },
     },
   ];
@@ -338,24 +338,117 @@ const Dashboard = () => {
       })
     : fallbackFollowUps;
 
-  // Status Badge Styling Helper
+  // Status Badge Styling Helper with clean visible colors & dot indicators
   const getStatusBadge = (status) => {
     const s = (status || "").toLowerCase().replace("_", " ");
     switch (s) {
       case "new":
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800">New</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+            New
+          </span>
+        );
       case "follow up":
       case "follow_up":
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Follow Up</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
+            Follow Up
+          </span>
+        );
+      case "contacted":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-300 dark:border-sky-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-600" />
+            Contacted
+          </span>
+        );
+      case "attempted":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+            Attempted
+          </span>
+        );
       case "quotation":
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800">Quotation</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-600" />
+            Quotation
+          </span>
+        );
       case "won":
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Won</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+            Won
+          </span>
+        );
       case "lost":
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 border border-rose-200 dark:border-rose-800">Lost</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+            Lost
+          </span>
+        );
       default:
-        return <span className="px-2.5 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 capitalize">{s}</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-semibold bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 capitalize">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+            {s}
+          </span>
+        );
     }
+  };
+
+  // Helper for lead initials
+  const getLeadInitials = (name) => {
+    if (!name) return "L";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  // Helper for follow-up styling and icons (Rich, distinct, clearly visible)
+  const getFollowUpTypeConfig = (type, title = "") => {
+    const t = (type || "").toLowerCase();
+    const titleLower = (title || "").toLowerCase();
+
+    if (t === "contract" || titleLower.includes("contract")) {
+      return {
+        icon: "heroicons:document-text",
+        colorClass: "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+      };
+    }
+    if (t === "follow_up" || t === "followup" || titleLower.includes("follow up") || titleLower.includes("followup")) {
+      return {
+        icon: "heroicons:arrow-path",
+        colorClass: "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800",
+      };
+    }
+    if (t === "site_visit" || titleLower.includes("site visit") || titleLower.includes("visit")) {
+      return {
+        icon: "heroicons:map-pin",
+        colorClass: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
+      };
+    }
+    if (t === "meeting" || titleLower.includes("meeting")) {
+      return {
+        icon: "heroicons:calendar",
+        colorClass: "bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800",
+      };
+    }
+    if (t === "call" || titleLower.includes("call")) {
+      return {
+        icon: "heroicons:phone",
+        colorClass: "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
+      };
+    }
+    return {
+      icon: "heroicons:clock",
+      colorClass: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    };
   };
 
   return (
@@ -609,31 +702,36 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 4. BOTTOM OPERATIONAL TABLES (14px Legible Content, Clean Borders) */}
+      {/* 4. BOTTOM OPERATIONAL TABLES (Professional Executive B2B Layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Left Column: Recent Leads */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
-          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 mb-3">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">
-              Recent Leads
-            </h3>
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80 mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                Recent Leads
+              </h3>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                Latest {recentLeadsList.length}
+              </span>
+            </div>
             <Link
               to="/leads"
-              className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5"
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 inline-flex items-center gap-1 transition-colors"
             >
               <span>View All Leads</span>
-              <Icon icon="heroicons:arrow-right" className="text-sm" />
+              <Icon icon="heroicons:arrow-right" className="text-xs" />
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-3 px-2">Customer</th>
-                  <th className="py-3 px-2">Status</th>
-                  <th className="py-3 px-2">Budget</th>
-                  <th className="py-3 px-2 text-right">Action</th>
+                <tr className="border-b border-slate-100 dark:border-slate-800/80 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <th className="py-2.5 px-3">Customer</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Budget</th>
+                  <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
@@ -641,29 +739,39 @@ const Dashboard = () => {
                   <tr
                     key={lead._id}
                     onClick={() => navigate(`/leads/${lead._id}`)}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors group"
                   >
-                    <td className="py-3 px-2">
-                      <div className="font-bold text-slate-900 dark:text-white hover:text-blue-600 transition-colors">
-                        {lead.fullName}
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center font-bold text-xs text-slate-800 dark:text-slate-200 shrink-0 group-hover:border-blue-400 dark:group-hover:border-blue-600 transition-colors">
+                          {getLeadInitials(lead.fullName)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                            {lead.fullName}
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                            {lead.phone || lead.email || "No contact"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 font-medium">{lead.phone || lead.email}</div>
                     </td>
-                    <td className="py-3 px-2">
+                    <td className="py-3 px-3">
                       {getStatusBadge(lead.status)}
                     </td>
-                    <td className="py-3 px-2 font-semibold text-slate-800 dark:text-slate-200">
-                      {lead.budget ? `₹${lead.budget.toLocaleString()}` : "—"}
+                    <td className="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200 text-sm whitespace-nowrap">
+                      {lead.budget ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
                     </td>
-                    <td className="py-3 px-2 text-right">
+                    <td className="py-3 px-3 text-right whitespace-nowrap">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/leads/${lead._id}`);
                         }}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 border border-slate-200 dark:border-slate-700 rounded hover:bg-white dark:hover:bg-slate-800 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded transition-colors"
                       >
-                        View
+                        <span>View</span>
+                        <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
                       </button>
                     </td>
                   </tr>
@@ -675,66 +783,67 @@ const Dashboard = () => {
 
         {/* Right Column: Overdue & Upcoming Follow-ups */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
-          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800 mb-3">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">
-              Overdue / Upcoming Follow-ups
-            </h3>
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800/80 mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                Overdue / Upcoming Follow-ups
+              </h3>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                Active
+              </span>
+            </div>
             <Link
               to="/leads/follow-ups"
-              className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1.5"
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 inline-flex items-center gap-1 transition-colors"
             >
               <span>View All</span>
-              <Icon icon="heroicons:arrow-right" className="text-sm" />
+              <Icon icon="heroicons:arrow-right" className="text-xs" />
             </Link>
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-            {upcomingFollowUpsList.map((fu) => (
-              <div
-                key={fu._id}
-                onClick={() => {
-                  if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
-                  else navigate("/leads/follow-ups");
-                }}
-                className="py-3.5 px-2 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-9 h-9 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900 flex items-center justify-center shrink-0">
-                    <Icon
-                      icon={
-                        fu.type === "call"
-                          ? "heroicons:phone"
-                          : fu.type === "site_visit"
-                          ? "heroicons:map-pin"
-                          : "heroicons:calendar"
-                      }
-                      className="text-base"
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                      {fu.title}
+            {upcomingFollowUpsList.map((fu) => {
+              const typeCfg = getFollowUpTypeConfig(fu.type, fu.title);
+              return (
+                <div
+                  key={fu._id}
+                  onClick={() => {
+                    if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
+                    else navigate("/leads/follow-ups");
+                  }}
+                  className="py-3 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${typeCfg.colorClass}`}>
+                      <Icon icon={typeCfg.icon} className="text-lg" />
                     </div>
-                    <div className="text-xs text-slate-500 font-medium font-mono mt-0.5">
-                      {fu.scheduledFormatted}
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                        {fu.title}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                        <Icon icon="heroicons:clock" className="text-xs text-slate-400 shrink-0" />
+                        <span className="truncate">{fu.scheduledFormatted}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
-                      else navigate("/leads/follow-ups");
-                    }}
-                    className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600 border border-slate-200 dark:border-slate-700 rounded hover:bg-white dark:hover:bg-slate-800 transition-colors"
-                  >
-                    Open Lead
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
+                        else navigate("/leads/follow-ups");
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 rounded transition-colors"
+                    >
+                      <span>Open Lead</span>
+                      <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
