@@ -59,9 +59,9 @@ function App() {
             <Route path="leads" element={<Leads />} />
             <Route path="leads/new" element={<NewLead />} />
             <Route path="leads/pipeline" element={<Pipeline />} />
+            <Route path="leads/follow-ups" element={<FollowUpsCalendar />} />
             <Route path="leads/:id" element={<LeadView />} />
             <Route path="leads/:id/edit" element={<EditLead />} />
-            <Route path="leads/follow-ups" element={<FollowUpsCalendar />} />
             
             {/* Customers */}
             <Route path="customers" element={<Customers />} />

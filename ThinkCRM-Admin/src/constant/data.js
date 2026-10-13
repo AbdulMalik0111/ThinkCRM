@@ -77,11 +77,6 @@ export const menuItems = [
     permission: "reports.view",
   },
   {
-    title: "Notifications",
-    icon: "heroicons-outline:bell",
-    link: "notifications",
-  },
-  {
     title: "Settings",
     icon: "heroicons-outline:cog",
     link: "settings",

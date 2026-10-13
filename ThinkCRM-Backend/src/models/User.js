@@ -82,8 +82,6 @@ userSchema.pre('save', async function (next) {
 
 // Exclude soft deleted users by default
 userSchema.pre(/^find/, function (next) {
-  this.find({ deletedAt: { $ne: null } }); // wait, it should be deletedAt: null or $exists: false. Actually, it's better to just do deletedAt: null
-  // wait, the previous line is wrong. It should be `{ deletedAt: null }`. Let's fix this.
   this.find({ deletedAt: null });
   next();
 });

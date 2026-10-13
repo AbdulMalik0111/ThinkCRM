@@ -45,6 +45,7 @@ const PRIORITY_OPTIONS = [
 const NewLead = () => {
   const navigate = useNavigate();
   const [createLead, { isLoading }] = useCreateLeadMutation();
+  const [activeSection, setActiveSection] = useState("basic");
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -89,6 +90,13 @@ const NewLead = () => {
     }
   };
 
+  const sections = [
+    { id: "basic", label: "Basic Information", icon: "heroicons:information-circle" },
+    { id: "project", label: "Project Information", icon: "heroicons:briefcase" },
+    { id: "assignment", label: "Assignment & status", icon: "heroicons:users" },
+    { id: "notes", label: "Notes & Files", icon: "heroicons:document-text" },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex justify-between items-center">
@@ -102,34 +110,25 @@ const NewLead = () => {
 
       <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
         
-        {/* Left Sidebar Navigation Placeholder (visual only for now as requested by design) */}
         <div className="w-full lg:w-1/4">
           <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-2">
             <ul className="space-y-1">
-              <li>
-                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                  <Icon icon="heroicons:information-circle" className="text-lg" />
-                  Basic Information
-                </button>
-              </li>
-              <li>
-                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
-                  <Icon icon="heroicons:briefcase" className="text-lg" />
-                  Project Information
-                </button>
-              </li>
-              <li>
-                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
-                  <Icon icon="heroicons:users" className="text-lg" />
-                  Assignment & status
-                </button>
-              </li>
-              <li>
-                <button type="button" className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-md">
-                  <Icon icon="heroicons:document-text" className="text-lg" />
-                  Notes & Files
-                </button>
-              </li>
+              {sections.map((section) => (
+                <li key={section.id}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-md ${
+                      activeSection === section.id
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                    }`}
+                  >
+                    <Icon icon={section.icon} className="text-lg" />
+                    {section.label}
+                  </button>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -137,7 +136,7 @@ const NewLead = () => {
         {/* Right Form Area */}
         <div className="w-full lg:w-3/4">
           <Card>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+            {activeSection === "basic" && <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
               <Textinput
                 label="Full Name *"
                 name="fullName"
@@ -169,6 +168,9 @@ const NewLead = () => {
                 onChange={handleChange}
                 options={LEAD_SOURCE_OPTIONS}
               />
+            </div>}
+
+            {activeSection === "project" && <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
               <Select
                 label="Project Type"
                 name="projectType"
@@ -191,6 +193,19 @@ const NewLead = () => {
                 onChange={handleChange}
                 placeholder="e.g. 500000"
               />
+              <Textinput
+                label="Expected Start Date"
+                type="date"
+                name="expectedStartDate"
+                value={formData.expectedStartDate[0] || ""}
+                onChange={(e) => setFormData((prev) => ({
+                  ...prev,
+                  expectedStartDate: e.target.value ? [new Date(e.target.value)] : [],
+                }))}
+              />
+            </div>}
+
+            {activeSection === "assignment" && <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
               <Select
                 label="Priority"
                 name="priority"
@@ -198,10 +213,21 @@ const NewLead = () => {
                 onChange={handleChange}
                 options={PRIORITY_OPTIONS}
               />
-            </div>
-            
-            <div className="mb-6">
-               <Textarea
+            </div>}
+
+            {activeSection === "notes" && <div className="mb-6">
+              <Textarea
+                label="Notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="Add notes about this lead..."
+                row={6}
+              />
+            </div>}
+
+            {activeSection === "project" && <div className="mb-6">
+              <Textarea
                 label="Enquiry Details"
                 name="projectDescription"
                 value={formData.projectDescription}
@@ -209,7 +235,7 @@ const NewLead = () => {
                 placeholder="Interested in modular kitchen with modern design..."
                 row={4}
               />
-            </div>
+            </div>}
 
             <div className="flex justify-end space-x-3 pt-5 border-t border-slate-200 dark:border-slate-700">
               <Button

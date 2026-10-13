@@ -11,11 +11,22 @@ const PORT = process.env.PORT || 5000;
 const startServer = async () => {
   try {
     await connectDB();
-    
-    startJobs();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
+      startJobs();
       logger.info(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    });
+
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        logger.error(
+          `Port ${PORT} is already in use. Stop the other server or set a different PORT in the environment.`
+        );
+      } else {
+        logger.error({ err: error }, 'Failed to start HTTP server');
+      }
+
+      process.exit(1);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

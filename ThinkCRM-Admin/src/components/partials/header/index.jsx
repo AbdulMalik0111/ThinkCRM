@@ -10,7 +10,6 @@ import useSkin from "@/hooks/useSkin";
 import Logo from "./Tools/Logo";
 import SearchModal from "./Tools/SearchModal";
 import Profile from "./Tools/Profile";
-import Notification from "./Tools/Notification";
 import useRtl from "@/hooks/useRtl";
 import useMobileMenu from "@/hooks/useMobileMenu";
 import MonoChrome from "./Tools/MonoChrome";
@@ -117,7 +116,6 @@ const Header = ({ className = "custom-class" }) => {
           <div className="nav-tools flex items-center lg:space-x-6 space-x-3 rtl:space-x-reverse">
             <SwitchDark />
             <MonoChrome />
-            {width >= breakpoints.md && <Notification />}
             {width >= breakpoints.md && <Profile />}
             {width <= breakpoints.md && (
               <div

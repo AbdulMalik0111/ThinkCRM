@@ -10,3 +10,8 @@ body, html, .no-scrollbar {
   -ms-overflow-style: none !important;  /* IE and Edge */
   scrollbar-width: none !important;  /* Firefox */
 }
+
+/* Keep the admin panel flat without component drop shadows. */
+*, *::before, *::after {
+  box-shadow: none !important;
+}
