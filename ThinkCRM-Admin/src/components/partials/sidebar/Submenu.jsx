@@ -43,8 +43,8 @@ const Submenu = ({
                       onClick={() => toggleMultiMenu(j)}
                       className={`${
                         activeMultiMenu
-                          ? " text-black dark:text-white font-medium"
-                          : "text-slate-600 dark:text-slate-300"
+                          ? " text-black dark:text-white font-semibold"
+                          : "text-slate-700 dark:text-slate-200 font-semibold"
                       } text-sm flex space-x-3 items-center transition-all duration-150 cursor-pointer rtl:space-x-reverse`}
                     >
                       <span
@@ -77,8 +77,8 @@ const Submenu = ({
                       <span
                         className={`${
                           isActive
-                            ? " text-black dark:text-white font-medium"
-                            : "text-slate-600 dark:text-slate-300"
+                            ? " text-black dark:text-white font-semibold"
+                            : "text-slate-700 dark:text-slate-200 font-semibold"
                         } text-sm flex space-x-3 items-center transition-all duration-150 rtl:space-x-reverse`}
                       >
                         <span

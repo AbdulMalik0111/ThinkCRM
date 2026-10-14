@@ -70,7 +70,7 @@ const Staff = () => {
     setSearchParams(updated);
   };
 
-  const { data, isLoading, error } = useGetStaffQuery({
+  const { data, isLoading, error, refetch } = useGetStaffQuery({
     page,
     limit: 50,
     search,
@@ -88,9 +88,14 @@ const Staff = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [confirmAction, setConfirmAction] = useState({ show: false, action: null, message: "", title: "" });
 
-  // Quick View & Delete State
+  // Quick View, Delete & Suspend State
   const [quickViewStaff, setQuickViewStaff] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    staff: null,
+    isLoading: false,
+  });
+  const [suspendConfirm, setSuspendConfirm] = useState({
     isOpen: false,
     staff: null,
     isLoading: false,
@@ -99,17 +104,26 @@ const Staff = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleSuspend = async (id, status) => {
+  const handleConfirmSuspendStaff = async () => {
+    if (!suspendConfirm.staff) return;
+    const { _id: id, status, firstName, lastName, name } = suspendConfirm.staff;
+    const staffName = `${firstName || ""} ${lastName || ""}`.trim() || name || "Staff member";
+    const isSuspending = status === "active";
+
     try {
-      if (status === 'active') {
+      setSuspendConfirm((prev) => ({ ...prev, isLoading: true }));
+      if (isSuspending) {
         await suspendStaff(id).unwrap();
-        toast.success("Staff suspended");
+        toast.success(`${staffName}'s account has been suspended`);
       } else {
         await reactivateStaff(id).unwrap();
-        toast.success("Staff reactivated");
+        toast.success(`${staffName}'s account has been reactivated`);
       }
+      setSuspendConfirm({ isOpen: false, staff: null, isLoading: false });
+      refetch();
     } catch (err) {
-      toast.error(err?.data?.message || "Action failed");
+      toast.error(err?.data?.message || `Failed to ${isSuspending ? "suspend" : "reactivate"} staff`);
+      setSuspendConfirm((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -285,7 +299,13 @@ const Staff = () => {
             {
               label: item.status === "active" ? "Suspend Account" : "Reactivate Account",
               icon: item.status === "active" ? "heroicons:no-symbol" : "heroicons:check-circle",
-              onClick: () => handleSuspend(item._id, item.status),
+              onClick: () => {
+                setSuspendConfirm({
+                  isOpen: true,
+                  staff: item,
+                  isLoading: false,
+                });
+              },
               disabled: item.status === "disabled",
             },
             { divider: true },
@@ -472,6 +492,136 @@ const Staff = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Suspend / Reactivate Confirmation Modal */}
+      <Modal
+        title={suspendConfirm.staff?.status === "active" ? "Suspend Staff Account" : "Reactivate Staff Account"}
+        activeModal={suspendConfirm.isOpen}
+        onClose={suspendConfirm.isLoading ? () => {} : () => setSuspendConfirm({ isOpen: false, staff: null, isLoading: false })}
+        className="max-w-[540px] font-inter"
+        centered={true}
+      >
+        {suspendConfirm.staff && (
+          <div className="pt-2 pb-1 font-inter">
+            {/* Centered Circular Badge */}
+            <div
+              className={`h-16 w-16 rounded-full border flex items-center justify-center mx-auto mb-4 ${
+                suspendConfirm.staff.status === "active"
+                  ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/40"
+                  : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/40"
+              }`}
+            >
+              <Icon
+                icon={suspendConfirm.staff.status === "active" ? "heroicons-outline:no-symbol" : "heroicons-outline:check-circle"}
+                className={`text-3xl ${
+                  suspendConfirm.staff.status === "active" ? "text-amber-500" : "text-emerald-500"
+                }`}
+              />
+            </div>
+
+            {/* Question */}
+            <h3 className="text-base md:text-lg font-bold text-slate-900 dark:text-white text-center mb-2 px-2">
+              {suspendConfirm.staff.status === "active"
+                ? `Are you sure you want to suspend this staff account?`
+                : `Are you sure you want to reactivate this staff account?`}
+            </h3>
+
+            {/* Explanation */}
+            <p className="text-xs md:text-[13px] text-slate-500 dark:text-slate-400 text-center max-w-md mx-auto mb-5 leading-relaxed">
+              {suspendConfirm.staff.status === "active" ? (
+                <>
+                  <strong className="font-semibold text-slate-700 dark:text-slate-200">
+                    {`${suspendConfirm.staff.firstName || ""} ${suspendConfirm.staff.lastName || ""}`.trim() || suspendConfirm.staff.name}
+                  </strong>{" "}
+                  will be temporarily suspended and unable to log in to ThinkCRM. Existing records and activities will remain safe.
+                </>
+              ) : (
+                <>
+                  <strong className="font-semibold text-slate-700 dark:text-slate-200">
+                    {`${suspendConfirm.staff.firstName || ""} ${suspendConfirm.staff.lastName || ""}`.trim() || suspendConfirm.staff.name}
+                  </strong>{" "}
+                  will regain immediate access to ThinkCRM and resume their assigned role and permissions.
+                </>
+              )}
+            </p>
+
+            {/* Warning Alert Banner Box */}
+            <div
+              className={`border rounded-xl p-3.5 flex items-center gap-3 text-left mb-6 ${
+                suspendConfirm.staff.status === "active"
+                  ? "bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60"
+                  : "bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60"
+              }`}
+            >
+              <div
+                className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
+                  suspendConfirm.staff.status === "active"
+                    ? "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
+                    : "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400"
+                }`}
+              >
+                <Icon
+                  icon={suspendConfirm.staff.status === "active" ? "heroicons-outline:exclamation-triangle" : "heroicons-outline:information-circle"}
+                  className="text-lg"
+                />
+              </div>
+              <div>
+                <p
+                  className={`text-xs font-bold ${
+                    suspendConfirm.staff.status === "active" ? "text-amber-700 dark:text-amber-300" : "text-emerald-700 dark:text-emerald-300"
+                  }`}
+                >
+                  {suspendConfirm.staff.status === "active"
+                    ? "Temporary Account Suspension"
+                    : "Immediate Account Reactivation"}
+                </p>
+                <p
+                  className={`text-xs mt-0.5 ${
+                    suspendConfirm.staff.status === "active"
+                      ? "text-amber-600/90 dark:text-amber-400/80"
+                      : "text-emerald-600/90 dark:text-emerald-400/80"
+                  }`}
+                >
+                  {suspendConfirm.staff.status === "active"
+                    ? "This user can be reactivated at any time by an administrator."
+                    : "The user will be able to log in immediately with their existing password."}
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/80">
+              <button
+                type="button"
+                className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition disabled:opacity-50"
+                onClick={() => setSuspendConfirm({ isOpen: false, staff: null, isLoading: false })}
+                disabled={suspendConfirm.isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 ${
+                  suspendConfirm.staff.status === "active"
+                    ? "bg-amber-600 hover:bg-amber-700 active:bg-amber-800"
+                    : "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800"
+                }`}
+                onClick={handleConfirmSuspendStaff}
+                disabled={suspendConfirm.isLoading}
+              >
+                {suspendConfirm.isLoading && (
+                  <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+                )}
+                <span>
+                  {suspendConfirm.isLoading
+                    ? (suspendConfirm.staff.status === "active" ? "Suspending Account..." : "Reactivating Account...")
+                    : (suspendConfirm.staff.status === "active" ? "Suspend Account" : "Reactivate Account")}
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

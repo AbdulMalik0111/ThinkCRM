@@ -11,7 +11,7 @@ export const menuItems = [
   },
   {
     title: "Leads",
-    icon: "heroicons-outline:users",
+    icon: "heroicons-outline:target",
     link: "#",
     permission: "leads.view",
     child: [
@@ -49,16 +49,9 @@ export const menuItems = [
   },
   {
     title: "Staff",
-    icon: "heroicons-outline:user-group",
-    link: "#",
+    icon: "heroicons-outline:identification",
+    link: "staff",
     permission: "users.view",
-    child: [
-      {
-        childtitle: "All Staff",
-        childlink: "staff",
-        permission: "users.view",
-      },
-    ],
   },
   {
     title: "Reports",

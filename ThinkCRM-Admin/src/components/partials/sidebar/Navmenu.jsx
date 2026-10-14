@@ -116,13 +116,13 @@ const Navmenu = ({ menus }) => {
                   <span className="menu-icon grow-0">
                     <Icon icon={item.icon} />
                   </span>
-                  <div className="text-box grow">{item.title}</div>
+                  <div className="text-box grow font-semibold">{item.title}</div>
                   {item.badge && <span className="menu-badge">{item.badge}</span>}
                 </NavLink>
               )}
               {/* only for menulabel */}
               {item.isHeadr && !item.child && (
-                <div className="menulabel">{item.title}</div>
+                <div className="menulabel font-bold">{item.title}</div>
               )}
               {/*    !!sub menu parent   */}
               {item.child && (
@@ -138,7 +138,7 @@ const Navmenu = ({ menus }) => {
                     <span className="menu-icon">
                       <Icon icon={item.icon} />
                     </span>
-                    <div className="text-box">{item.title}</div>
+                    <div className="text-box font-semibold">{item.title}</div>
                   </div>
                   <div className="flex-0">
                     <div

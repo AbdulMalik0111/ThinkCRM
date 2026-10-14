@@ -225,13 +225,14 @@ const Customers = () => {
         minWidth: 150,
         flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter font-medium text-slate-700 dark:text-slate-200 text-[13.5px] whitespace-nowrap">
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
             {params.value || "—"}
           </span>
         ),
       },
       {
         headerName: "Project Type",
+        field: "projectType",
         minWidth: 140,
         flex: 1,
         valueGetter: (params) => {
@@ -239,7 +240,7 @@ const Customers = () => {
           return c?.projectType || c?.projects?.[0]?.projectType || "Modular Kitchen";
         },
         cellRenderer: (params) => (
-          <span className="font-inter text-slate-600 dark:text-slate-200 text-[13.5px]">
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px]">
             {params.value}
           </span>
         ),
