@@ -5,7 +5,13 @@ const activitySchema = new mongoose.Schema(
     leadId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lead',
-      required: true,
+      required: false,
+      index: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      required: false,
       index: true,
     },
     type: {
@@ -26,6 +32,16 @@ const activitySchema = new mongoose.Schema(
         'note_added',
         'file_uploaded',
         'staff_changed',
+        'customer_created',
+        'customer_updated',
+        'customer_deleted',
+        'customer_note_added',
+        'customer_file_uploaded',
+        'customer_email_sent',
+        'customer_call_logged',
+        'customer_whatsapp_sent',
+        'project_created',
+        'project_updated',
       ],
     },
     description: {

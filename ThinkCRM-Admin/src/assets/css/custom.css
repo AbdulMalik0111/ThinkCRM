@@ -1,3 +1,10 @@
+/* Global Typography - Inter Only */
+*, *::before, *::after, body, html, input, button, select, textarea, .ag-theme-alpine, .ag-root-wrapper {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 body::-webkit-scrollbar,
 html::-webkit-scrollbar,
@@ -11,7 +18,190 @@ body, html, .no-scrollbar {
   scrollbar-width: none !important;  /* Firefox */
 }
 
-/* Keep the admin panel flat without component drop shadows. */
+/* Keep the admin panel flat without component drop shadows */
 *, *::before, *::after {
   box-shadow: none !important;
+}
+
+/* ==========================================================================
+   GLOBAL MINIMUM FONT SIZES & TYPOGRAPHY STANDARDS
+   Requirements:
+   - No normal UI text smaller than 14px (14px and above).
+   - Dropdown select items: >= 14.5px, weight increased by 100 to 600 (semi-bold), slightly larger padding.
+   - Table body & headers: 14px - 14.5px minimum
+   - Form inputs, buttons, dropdowns: 14.5px minimum
+   - Card headings: 16-18px, font weight: 650
+   - Page titles: 26-30px, font weight: 750
+   ========================================================================== */
+
+/* Elevate tiny text to minimum 14px */
+.text-xs,
+[class*="text-[10px]"],
+[class*="text-[11px]"],
+[class*="text-[12px]"],
+[class*="text-[13px]"] {
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+/* Table cells, inputs, selects, textareas, labels, and buttons >= 14px - 14.5px */
+.table-td,
+.table-th,
+.form-control,
+input,
+textarea,
+label,
+.form-label,
+.btn,
+.ag-cell,
+.ag-header-cell-text {
+  font-size: 14px !important;
+}
+
+/* Dropdown selects: 14.5px, boldened (+100 weight -> 600), larger comfortable padding */
+select,
+.select,
+select.form-control {
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+  line-height: 1.5 !important;
+  min-height: 42px !important;
+}
+
+label,
+.form-label {
+  font-weight: 600 !important;
+  color: #334155 !important;
+}
+
+.dark label,
+.dark .form-label {
+  color: #cbd5e1 !important;
+}
+
+/* Table headers & card titles */
+.table-th,
+.ag-header-cell-text {
+  font-size: 14px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* Consistent font weights - boosted by ~100 */
+button,
+.btn {
+  font-size: 14px !important;
+  font-weight: 650 !important;
+}
+
+/* Badges & Tooltips >= 14px */
+.badge,
+[class*="badge"] {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+}
+
+/* Breadcrumbs >= 14px */
+.breadcrumb,
+.breadcrumbs {
+  font-size: 14px !important;
+  font-weight: 550 !important;
+}
+
+/* Page titles */
+h2,
+.page-title {
+  font-size: 26px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Section & Card Headings */
+h3 {
+  font-size: 19px !important;
+  font-weight: 700 !important;
+}
+
+h4 {
+  font-size: 16px !important;
+  font-weight: 650 !important;
+}
+
+/* Secondary descriptions */
+.text-slate-400,
+.text-slate-500,
+p.text-xs {
+  font-size: 14px !important;
+  font-weight: 450 !important;
+}
+
+/* Dropdown menu items >= 14.5px and weight 600 */
+[role="menuitem"],
+.dropdown-item {
+  font-size: 14.5px !important;
+  font-weight: 600 !important;
+}
+
+/* ==========================================================================
+   AG GRID THEME HARMONIZATION WITH THINKCRM DESIGN SYSTEM
+   ========================================================================== */
+.ag-theme-alpine {
+  --ag-font-family: 'Inter', sans-serif !important;
+  --ag-font-size: 14px !important;
+  --ag-grid-size: 8px !important;
+  --ag-row-height: 54px !important;
+  --ag-header-height: 46px !important;
+  --ag-border-color: #e2e8f0 !important;
+  --ag-header-background-color: #f8fafc !important;
+  --ag-header-foreground-color: #64748b !important;
+  --ag-data-color: #1e293b !important;
+  --ag-row-hover-color: #f8fafc !important;
+  --ag-selected-row-background-color: #eff6ff !important;
+  --ag-odd-row-background-color: #ffffff !important;
+  --ag-cell-horizontal-padding: 16px !important;
+  border: none !important;
+}
+
+.dark .ag-theme-alpine {
+  --ag-border-color: #334155 !important;
+  --ag-header-background-color: #0f172a !important;
+  --ag-header-foreground-color: #94a3b8 !important;
+  --ag-data-color: #f1f5f9 !important;
+  --ag-row-hover-color: #1e293b !important;
+  --ag-selected-row-background-color: #1e3a8a !important;
+  --ag-odd-row-background-color: #1e293b !important;
+}
+
+/* Clean AG Grid borderless wrapper */
+.ag-root-wrapper {
+  border: none !important;
+  border-radius: 0.75rem !important;
+}
+
+.ag-header-cell {
+  border-right: none !important;
+}
+
+.ag-row {
+  border-bottom: 1px solid #f1f5f9 !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.dark .ag-row {
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* Animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

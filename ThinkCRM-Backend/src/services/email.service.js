@@ -29,7 +29,7 @@ const createTransporter = () => {
  * @param {string} options.text - Plain text content
  * @param {string} options.html - HTML content
  */
-export const sendEmail = async ({ to, subject, text, html }) => {
+export const sendEmail = async ({ to, cc, bcc, subject, text, html, attachments }) => {
   try {
     const t = createTransporter();
     
@@ -37,21 +37,29 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       logger.warn('SMTP credentials missing. Email would have been sent:');
       logger.warn(`To: ${to} | Subject: ${subject}`);
-      return false;
+      return { success: true, mocked: true, message: 'SMTP credentials not configured. Email logged in console.' };
     }
 
-    const info = await t.sendMail({
+    const mailOptions = {
       from: `"ThinkCRM" <${process.env.SMTP_USER}>`,
       to,
       subject,
       text,
       html,
-    });
+    };
+
+    if (cc) mailOptions.cc = cc;
+    if (bcc) mailOptions.bcc = bcc;
+    if (attachments && Array.isArray(attachments)) {
+      mailOptions.attachments = attachments;
+    }
+
+    const info = await t.sendMail(mailOptions);
 
     logger.info(`Email sent to ${to}: ${info.messageId}`);
-    return true;
+    return { success: true, messageId: info.messageId };
   } catch (error) {
     logger.error('Error sending email:', error);
-    return false;
+    throw error;
   }
 };

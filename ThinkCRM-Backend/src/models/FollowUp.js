@@ -5,7 +5,13 @@ const followUpSchema = new mongoose.Schema(
     leadId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lead',
-      required: true,
+      required: false,
+      index: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      required: false,
       index: true,
     },
     assignedTo: {

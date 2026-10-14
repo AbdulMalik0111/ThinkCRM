@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
@@ -8,10 +8,7 @@ import Textinput from "@/components/ui/Textinput";
 import Select from "@/components/ui/Select";
 import Badge from "@/components/ui/Badge";
 import Tooltip from "@/components/ui/Tooltip";
-import Pagination from "@/components/ui/Pagination";
 import AdminListToolbar from "@/components/shared/AdminListToolbar";
-import EmptyState from "@/components/shared/EmptyState";
-import ErrorState from "@/components/shared/ErrorState";
 import Loading from "@/components/Loading";
 import { toast } from "react-toastify";
 import {
@@ -26,8 +23,12 @@ import {
   useGetPermissionsRegistryQuery,
 } from "@/store/api/management/managementApiSlice";
 import dayjs from "dayjs";
-import Checkbox from "@/components/ui/Checkbox";
-import Radio from "@/components/ui/Radio";
+
+// Shared Grid & Action Components
+import DataGrid from "@/components/ui/DataGrid";
+import RowActions from "@/components/ui/RowActions";
+import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 const StaffActivity = ({ staffId }) => {
   const { data, isLoading } = useGetStaffActivityQuery({ id: staffId });
@@ -86,9 +87,16 @@ const Staff = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [confirmAction, setConfirmAction] = useState({ show: false, action: null, message: "", title: "" });
 
+  // Quick View & Delete State
+  const [quickViewStaff, setQuickViewStaff] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    staff: null,
+    isLoading: false,
+  });
+
   const location = useLocation();
   const navigate = useNavigate();
-
 
   const handleSuspend = async (id, status) => {
     try {
@@ -123,22 +131,173 @@ const Staff = () => {
     });
   };
 
-  const handleDelete = (id) => {
-    setConfirmAction({
-      show: true,
-      title: "Delete Staff",
-      message: "Are you sure you want to delete this staff member? This action cannot be undone.",
-      action: async () => {
-        try {
-          await deleteStaff(id).unwrap();
-          toast.success("Staff deleted successfully");
-        } catch (err) {
-          toast.error(err?.data?.message || "Failed to delete staff");
-        }
-        setConfirmAction({ show: false, action: null, message: "", title: "" });
-      }
-    });
+  const handleConfirmDeleteStaff = async () => {
+    if (!deleteConfirm.staff) return;
+    try {
+      setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+      await deleteStaff(deleteConfirm.staff._id).unwrap();
+      toast.success("Staff deleted successfully");
+      setDeleteConfirm({ isOpen: false, staff: null, isLoading: false });
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete staff");
+      setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+    }
   };
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        headerName: "Staff Member",
+        minWidth: 200,
+        flex: 1.5,
+        cellRenderer: (params) => {
+          const item = params.data;
+          if (!item) return null;
+          const name = `${item.firstName || ""} ${item.lastName || ""}`.trim() || item.name || "User";
+          return (
+            <div className="flex items-center gap-3 py-1 font-inter">
+              <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-primary-600 uppercase border border-slate-200 dark:border-slate-700 flex-shrink-0">
+                {name.charAt(0)}
+              </div>
+              <div className="truncate">
+                <span className="font-semibold text-slate-900 dark:text-white block truncate text-sm">
+                  {name}
+                </span>
+                <span className="text-xs text-slate-400 block truncate">
+                  {item.role || "Staff"}
+                </span>
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: "Email",
+        field: "email",
+        minWidth: 180,
+        flex: 1.2,
+        cellRenderer: (params) => (
+          <span className="font-inter text-slate-600 dark:text-slate-300 truncate">
+            {params.value || "—"}
+          </span>
+        ),
+      },
+      {
+        headerName: "Role",
+        field: "role",
+        minWidth: 130,
+        flex: 1,
+        cellClass: "font-inter font-medium text-slate-700 dark:text-slate-200 capitalize",
+      },
+      {
+        headerName: "Permissions",
+        field: "permissionMode",
+        minWidth: 130,
+        flex: 1,
+        cellRenderer: (params) => {
+          const isCustom = params.value === "CUSTOM";
+          return (
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${
+                isCustom
+                  ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+                  : "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+              }`}
+            >
+              {isCustom ? "Custom" : "Inherited"}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: "Status",
+        field: "status",
+        minWidth: 120,
+        flex: 0.9,
+        cellRenderer: (params) => {
+          const status = params.value || "active";
+          const styles = {
+            active: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+            suspended: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+            disabled: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+          };
+          return (
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${
+                styles[status] || styles.active
+              }`}
+            >
+              {status}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: "Actions",
+        pinned: "right",
+        width: 76,
+        minWidth: 76,
+        maxWidth: 80,
+        sortable: false,
+        filter: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center overflow-visible",
+        cellRenderer: (params) => {
+          const item = params.data;
+          if (!item) return null;
+
+          const actions = [
+            {
+              label: "Quick View",
+              icon: "heroicons-outline:eye",
+              onClick: () => setQuickViewStaff(item),
+            },
+            {
+              label: "View Activity",
+              icon: "heroicons-outline:clock",
+              onClick: () => {
+                setSelectedStaff(item);
+                setShowActivity(true);
+              },
+            },
+            {
+              label: "Edit Staff",
+              icon: "heroicons-outline:pencil-square",
+              onClick: () => navigate(`/staff/${item._id}/edit`, { state: { staff: item } }),
+            },
+            {
+              label: "Reset Password",
+              icon: "heroicons-outline:key",
+              onClick: () => handleResetPassword(item._id),
+            },
+            {
+              label: item.status === "active" ? "Suspend Account" : "Reactivate Account",
+              icon: item.status === "active" ? "heroicons:no-symbol" : "heroicons:check-circle",
+              onClick: () => handleSuspend(item._id, item.status),
+              disabled: item.status === "disabled",
+            },
+            { divider: true },
+            {
+              label: "Delete Staff",
+              icon: "heroicons-outline:trash",
+              variant: "danger",
+              disabled: item.status === "disabled",
+              onClick: () => {
+                setDeleteConfirm({
+                  isOpen: true,
+                  staff: item,
+                  isLoading: false,
+                });
+              },
+            },
+          ];
+
+          return <RowActions actions={actions} label="Staff actions" align="right" />;
+        },
+      },
+    ],
+    [navigate]
+  );
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorState message="Error loading staff members" />;
@@ -168,96 +327,113 @@ const Staff = () => {
         onReset={() => setSearchParams({})}
       />
 
-      <Card noborder>
-        <div className="overflow-x-auto -mx-6">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-slate-100 dark:divide-slate-700">
-                <thead className="bg-slate-50 dark:bg-slate-700">
-                  <tr>
-                    <th className="table-th">Name</th>
-                    <th className="table-th">Email</th>
-                    <th className="table-th">Role</th>
-                    <th className="table-th">Permissions</th>
-                    <th className="table-th">Status</th>
-                    <th className="table-th text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700">
-                  {staffList.map((item) => (
-                    <tr key={item._id}>
-                      <td className="table-td">{item.firstName} {item.lastName}</td>
-                      <td className="table-td">{item.email}</td>
-                      <td className="table-td">{item.role}</td>
-                      <td className="table-td">
-                        {item.permissionMode === 'CUSTOM' ? (
-                          <Badge label="Custom" className="bg-info-500 text-white" />
-                        ) : (
-                          <Badge label="Inherited" className="bg-secondary-500 text-white" />
-                        )}
-                      </td>
-                      <td className="table-td">
-                        <Badge label={item.status} className={item.status === 'active' ? 'bg-success-500 text-white' : item.status === 'suspended' ? 'bg-warning-500 text-white' : 'bg-danger-500 text-white'} />
-                      </td>
-                      <td className="table-td p-4 text-center">
-                        <div className="flex space-x-3 rtl:space-x-reverse">
-                          <Tooltip content="Edit" placement="top">
-                            <button className="action-btn text-lg" onClick={() => navigate(`/staff/${item._id}/edit`, { state: { staff: item } })}>
-                              <Icon icon="heroicons:pencil-square" />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content={item.status === 'active' ? "Suspend" : "Reactivate"} placement="top">
-                            <button className="action-btn text-lg" onClick={() => handleSuspend(item._id, item.status)} disabled={item.status === 'disabled'}>
-                              <Icon icon={item.status === 'active' ? "heroicons:no-symbol" : "heroicons:check-circle"} className={item.status === 'active' ? "text-warning-500" : "text-success-500"} />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Delete" placement="top">
-                            <button className="action-btn text-lg" onClick={() => handleDelete(item._id)} disabled={item.status === 'disabled'}>
-                              <Icon icon="heroicons:trash" className="text-danger-500" />
-                            </button>
-                          </Tooltip>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {staffList.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="p-0">
-                        <EmptyState 
-                          title="No staff members found" 
-                          description="No staff members matching your criteria." 
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="p-5 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-            <Pagination
-              currentPage={page}
-              totalPages={totalPages}
-              handlePageChange={(newPage) => updateParams({ page: newPage })}
-            />
-          </div>
-        )}
-      </Card>
+      {/* Staff AG Grid Table */}
+      <DataGrid
+        rowData={staffList}
+        columnDefs={columnDefs}
+        pagination={totalPages > 1 || staffList.length > 10}
+        paginationData={{
+          page,
+          limit: 50,
+          total: totalPages * 50,
+          totalPages,
+        }}
+        onPageChange={(newPage) => updateParams({ page: newPage })}
+        isLoading={isLoading}
+        emptyMessage="No staff members matching your criteria"
+      />
 
-
+      {/* Staff Activity Modal */}
       <Modal
         activeModal={showActivity}
         onClose={() => setShowActivity(false)}
-        title={`Activity: ${selectedStaff?.firstName}`}
+        title={`Activity: ${selectedStaff?.firstName || ""}`}
         themeClass="bg-slate-900"
         centered={true}
       >
         {selectedStaff && <StaffActivity staffId={selectedStaff._id} />}
       </Modal>
 
+      {/* Reusable Quick View Drawer for Staff */}
+      <QuickViewDrawer
+        isOpen={Boolean(quickViewStaff)}
+        onClose={() => setQuickViewStaff(null)}
+        title={`${quickViewStaff?.firstName || ""} ${quickViewStaff?.lastName || ""}`.trim() || quickViewStaff?.name}
+        subtitle={`Staff ID: ${quickViewStaff?._id?.slice(-6) || "—"}`}
+        badge={
+          quickViewStaff?.status && (
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {quickViewStaff.status}
+            </span>
+          )
+        }
+        onViewDetails={() => {
+          setSelectedStaff(quickViewStaff);
+          setShowActivity(true);
+        }}
+        onEdit={() =>
+          navigate(`/staff/${quickViewStaff?._id}/edit`, {
+            state: { staff: quickViewStaff },
+          })
+        }
+        groups={[
+          {
+            title: "Staff Details",
+            items: [
+              { label: "Email", value: quickViewStaff?.email },
+              { label: "Phone", value: quickViewStaff?.phone || "Not specified" },
+              { label: "Role", value: quickViewStaff?.role },
+              {
+                label: "Permissions Mode",
+                value:
+                  quickViewStaff?.permissionMode === "CUSTOM"
+                    ? "Custom Override"
+                    : "Inherited from Role",
+              },
+            ],
+          },
+          {
+            title: "Activity & System Information",
+            items: [
+              {
+                label: "Status",
+                value: quickViewStaff?.status || "Active",
+              },
+              {
+                label: "Department",
+                value: quickViewStaff?.department || "General Administration",
+              },
+              {
+                label: "Joined Date",
+                value: quickViewStaff?.createdAt
+                  ? dayjs(quickViewStaff.createdAt).format("MMM D, YYYY")
+                  : "—",
+              },
+            ],
+          },
+        ]}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, staff: null, isLoading: false })
+        }
+        onConfirm={handleConfirmDeleteStaff}
+        title="Delete Staff Member"
+        entityName={
+          deleteConfirm.staff
+            ? `${deleteConfirm.staff.firstName || ""} ${deleteConfirm.staff.lastName || ""}`.trim() ||
+              deleteConfirm.staff.name
+            : "this staff member"
+        }
+        message="Are you sure you want to delete this staff account? All past activities, logs, and audit entries associated with this account will be permanently preserved."
+        isLoading={deleteConfirm.isLoading}
+        confirmText="Delete Staff"
+      />
+
+      {/* Generic Confirmation Modal (for password reset, etc.) */}
       <Modal
         activeModal={confirmAction.show}
         onClose={() => setConfirmAction({ show: false, action: null, message: "", title: "" })}

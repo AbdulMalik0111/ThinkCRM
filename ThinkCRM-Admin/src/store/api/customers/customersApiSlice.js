@@ -7,11 +7,25 @@ export const customersApi = apiSlice.injectEndpoints({
         url: "customers",
         params,
       }),
-      providesTags: ["Customer"],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.customers.map(({ _id }) => ({ type: "Customer", id: _id })),
+              { type: "Customer", id: "LIST" },
+            ]
+          : [{ type: "Customer", id: "LIST" }],
     }),
     getCustomerById: builder.query({
       query: (id) => `customers/${id}`,
       providesTags: (result, error, id) => [{ type: "Customer", id }],
+    }),
+    createCustomer: builder.mutation({
+      query: (data) => ({
+        url: "customers",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: [{ type: "Customer", id: "LIST" }, "Dashboard", "Lead"],
     }),
     convertLeadToCustomer: builder.mutation({
       query: (sourceLeadId) => ({
@@ -19,7 +33,7 @@ export const customersApi = apiSlice.injectEndpoints({
         method: "POST",
         body: { sourceLeadId },
       }),
-      invalidatesTags: ["Customer", "Lead", "Dashboard"],
+      invalidatesTags: [{ type: "Customer", id: "LIST" }, "Customer", "Lead", "Dashboard"],
     }),
     updateCustomer: builder.mutation({
       query: ({ id, data }) => ({
@@ -29,8 +43,72 @@ export const customersApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (result, error, { id }) => [
         { type: "Customer", id },
-        "Customer",
+        { type: "Customer", id: "LIST" },
       ],
+    }),
+    deleteCustomer: builder.mutation({
+      query: (id) => ({
+        url: `customers/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [{ type: "Customer", id: "LIST" }],
+    }),
+    addCustomerNote: builder.mutation({
+      query: ({ id, content }) => ({
+        url: `customers/${id}/notes`,
+        method: "POST",
+        body: { content },
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
+    }),
+    deleteCustomerNote: builder.mutation({
+      query: ({ id, noteId }) => ({
+        url: `customers/${id}/notes/${noteId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
+    }),
+    addCustomerDocument: builder.mutation({
+      query: ({ id, documentData }) => ({
+        url: `customers/${id}/documents`,
+        method: "POST",
+        body: documentData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
+    }),
+    deleteCustomerDocument: builder.mutation({
+      query: ({ id, docId }) => ({
+        url: `customers/${id}/documents/${docId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
+    }),
+    addCustomerProject: builder.mutation({
+      query: ({ id, projectData }) => ({
+        url: `customers/${id}/projects`,
+        method: "POST",
+        body: projectData,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: "Customer", id },
+        { type: "Customer", id: "LIST" },
+      ],
+    }),
+    createCustomerFollowUp: builder.mutation({
+      query: ({ id, data }) => ({
+        url: `customers/${id}/follow-ups`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }, "FollowUp", "Dashboard"],
+    }),
+    sendCustomerEmail: builder.mutation({
+      query: ({ id, emailData }) => ({
+        url: `customers/${id}/email`,
+        method: "POST",
+        body: emailData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
     }),
   }),
 });
@@ -38,6 +116,15 @@ export const customersApi = apiSlice.injectEndpoints({
 export const {
   useGetCustomersQuery,
   useGetCustomerByIdQuery,
+  useCreateCustomerMutation,
   useConvertLeadToCustomerMutation,
   useUpdateCustomerMutation,
+  useDeleteCustomerMutation,
+  useAddCustomerNoteMutation,
+  useDeleteCustomerNoteMutation,
+  useAddCustomerDocumentMutation,
+  useDeleteCustomerDocumentMutation,
+  useAddCustomerProjectMutation,
+  useCreateCustomerFollowUpMutation,
+  useSendCustomerEmailMutation,
 } = customersApi;

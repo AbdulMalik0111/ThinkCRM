@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
@@ -6,7 +6,6 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Textinput from "@/components/ui/Textinput";
 import Select from "@/components/ui/Select";
-import Pagination from "@/components/ui/Pagination";
 import Tooltip from "@/components/ui/Tooltip";
 import { useGetLeadsQuery, useDeleteLeadMutation } from "@/store/api/leads/leadsApiSlice";
 import Loading from "@/components/Loading";
@@ -14,6 +13,12 @@ import PermissionGuard from "@/components/PermissionGuard";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import Flatpickr from "react-flatpickr";
+
+// Shared Grid & Action Components
+import DataGrid from "@/components/ui/DataGrid";
+import RowActions from "@/components/ui/RowActions";
+import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
@@ -53,9 +58,9 @@ const getStatusColor = (status) => {
 };
 
 const getPriorityColor = (priority) => {
-  if (priority === "high") return "text-danger-500 bg-danger-50";
-  if (priority === "medium") return "text-amber-500 bg-amber-50";
-  return "text-success-500 bg-success-50";
+  if (priority === "high") return "text-danger-500 bg-danger-50 border border-danger-200";
+  if (priority === "medium") return "text-amber-500 bg-amber-50 border border-amber-200";
+  return "text-success-500 bg-success-50 border border-success-200";
 };
 
 const Leads = () => {
@@ -68,6 +73,14 @@ const Leads = () => {
   const [priority, setPriority] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [sortBy, setSortBy] = useState("-createdAt");
+
+  // Quick View & Delete state
+  const [quickViewLead, setQuickViewLead] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({
+    isOpen: false,
+    lead: null,
+    isLoading: false,
+  });
 
   const queryParams = {
     page: currentPage,
@@ -88,17 +101,211 @@ const Leads = () => {
   const totalPages = response?.data?.totalPages || 1;
   const totalLeads = response?.data?.total || 0;
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this lead?")) {
-      try {
-        await deleteLead(id).unwrap();
-        toast.success("Lead deleted successfully");
-        refetch();
-      } catch (err) {
-        toast.error(err?.data?.message || "Failed to delete lead");
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm.lead) return;
+    try {
+      setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
+      await deleteLead(deleteConfirm.lead._id).unwrap();
+      toast.success("Lead deleted successfully");
+      setDeleteConfirm({ isOpen: false, lead: null, isLoading: false });
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete lead");
+      setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
     }
   };
+
+  const columnDefs = useMemo(
+    () => [
+      {
+        headerName: "#",
+        valueGetter: (params) => (currentPage - 1) * limit + params.node.rowIndex + 1,
+        width: 65,
+        minWidth: 55,
+        maxWidth: 75,
+        sortable: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
+        headerClass: "text-center",
+      },
+      {
+        headerName: "Lead Name",
+        field: "fullName",
+        minWidth: 200,
+        flex: 1.5,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          return (
+            <div className="flex items-center gap-3 py-1 font-inter">
+              <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase text-xs flex-shrink-0">
+                {lead.fullName?.charAt(0) || "L"}
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(`/leads/${lead._id}`)}
+                className="font-semibold text-slate-900 dark:text-white hover:text-primary-600 transition text-left truncate text-sm"
+              >
+                {lead.fullName}
+              </button>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: "Phone",
+        field: "phone",
+        minWidth: 130,
+        flex: 1,
+        cellClass: "font-inter font-medium text-slate-600 dark:text-slate-300",
+      },
+      {
+        headerName: "Email",
+        field: "email",
+        minWidth: 160,
+        flex: 1.2,
+        cellRenderer: (params) => (
+          <span className="text-slate-500 font-inter truncate">
+            {params.value || "—"}
+          </span>
+        ),
+      },
+      {
+        headerName: "Source",
+        field: "leadSource",
+        minWidth: 110,
+        flex: 0.9,
+        cellRenderer: (params) => (
+          <span className="font-inter capitalize text-slate-600 dark:text-slate-300">
+            {params.value || "—"}
+          </span>
+        ),
+      },
+      {
+        headerName: "Status",
+        field: "status",
+        minWidth: 120,
+        flex: 0.9,
+        cellRenderer: (params) => {
+          const val = params.value || "new";
+          return (
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter text-white ${getStatusColor(
+                val
+              )}`}
+            >
+              {val}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: "Priority",
+        field: "priority",
+        minWidth: 110,
+        flex: 0.8,
+        cellRenderer: (params) => {
+          const val = params.value || "medium";
+          return (
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${getPriorityColor(
+                val
+              )}`}
+            >
+              {val}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: "Assigned To",
+        minWidth: 140,
+        flex: 1,
+        valueGetter: (params) => {
+          const u = params.data?.assignedTo;
+          return u ? `${u.firstName || ""} ${u.lastName || ""}`.trim() : "Unassigned";
+        },
+        cellClass: "font-inter text-slate-600 dark:text-slate-300",
+      },
+      {
+        headerName: "Created",
+        field: "createdAt",
+        minWidth: 110,
+        flex: 0.9,
+        cellRenderer: (params) => (
+          <span className="font-inter text-slate-500 text-xs">
+            {params.value ? dayjs(params.value).format("MMM D, YYYY") : "—"}
+          </span>
+        ),
+      },
+      {
+        headerName: "Actions",
+        pinned: "right",
+        width: 76,
+        minWidth: 76,
+        maxWidth: 80,
+        sortable: false,
+        filter: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center overflow-visible",
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+
+          const actions = [
+            {
+              label: "Quick View",
+              icon: "heroicons-outline:eye",
+              onClick: () => setQuickViewLead(lead),
+            },
+            {
+              label: "View Full Profile",
+              icon: "heroicons-outline:user",
+              onClick: () => navigate(`/leads/${lead._id}`),
+            },
+            {
+              label: "Edit Lead",
+              icon: "heroicons-outline:pencil-square",
+              onClick: () => navigate(`/leads/${lead._id}/edit`),
+            },
+            lead.phone && {
+              label: "Call Lead",
+              icon: "heroicons-outline:phone",
+              onClick: () => {
+                window.location.href = `tel:${lead.phone}`;
+              },
+            },
+            lead.phone && {
+              label: "Chat on WhatsApp",
+              icon: "heroicons:chat-bubble-left-ellipsis",
+              onClick: () => {
+                window.open(
+                  `https://wa.me/${lead.phone.replace(/\D/g, "")}`,
+                  "_blank"
+                );
+              },
+            },
+            { divider: true },
+            {
+              label: "Delete Lead",
+              icon: "heroicons-outline:trash",
+              variant: "danger",
+              onClick: () => {
+                setDeleteConfirm({
+                  isOpen: true,
+                  lead: lead,
+                  isLoading: false,
+                });
+              },
+            },
+          ];
+
+          return <RowActions actions={actions} label="Lead actions" align="right" />;
+        },
+      },
+    ],
+    [currentPage, limit, navigate]
+  );
 
   const handleFilterReset = () => {
     setSearch("");
@@ -197,126 +404,112 @@ const Leads = () => {
         )}
       </Card>
 
-      {/* Table */}
-      <Card noborder>
-        <div className="overflow-x-auto -mx-6">
-          <div className="inline-block min-w-full align-middle">
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-slate-100 table-fixed dark:divide-slate-700">
-                <thead className="bg-slate-200 dark:bg-slate-700">
-                  <tr>
-                    <th scope="col" className="table-th w-12 text-center">#</th>
-                    <th scope="col" className="table-th">Name</th>
-                    <th scope="col" className="table-th">Contact</th>
-                    <th scope="col" className="table-th">Source</th>
-                    <th scope="col" className="table-th">Status</th>
-                    <th scope="col" className="table-th">Assigned To</th>
-                    <th scope="col" className="table-th">Created</th>
-                    <th scope="col" className="table-th text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100 dark:bg-slate-800 dark:divide-slate-700">
-                  {leads.map((lead, index) => (
-                    <tr key={lead._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                      <td className="table-td text-center text-slate-500">
-                        {(currentPage - 1) * limit + index + 1}
-                      </td>
-                      <td className="table-td">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase">
-                            {lead.fullName.charAt(0)}
-                          </div>
-                          <span className="text-sm text-blue-600 dark:text-blue-400 font-semibold hover:underline cursor-pointer" onClick={() => navigate(`/leads/${lead._id}`)}>
-                            {lead.fullName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="table-td">
-                        <div className="text-sm text-slate-600 dark:text-slate-300">
-                          <div>{lead.phone}</div>
-                          {lead.email && <div className="text-xs text-slate-400 truncate max-w-[150px]">{lead.email}</div>}
-                        </div>
-                      </td>
-                      <td className="table-td text-sm text-slate-600 dark:text-slate-300 capitalize">
-                        {lead.leadSource}
-                      </td>
-                      <td className="table-td">
-                        <Badge
-                          label={lead.status}
-                          className={`${getStatusColor(lead.status)} text-white capitalize`}
-                        />
-                      </td>
-                      <td className="table-td">
-                        {lead.assignedTo ? (
-                          <span className="text-sm text-slate-600 dark:text-slate-300">
-                            {lead.assignedTo.firstName} {lead.assignedTo.lastName}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-slate-400 italic">Unassigned</span>
-                        )}
-                      </td>
-                      <td className="table-td text-sm text-slate-600 dark:text-slate-300">
-                        {dayjs(lead.createdAt).format("MMM D, YYYY")}
-                      </td>
-                      <td className="table-td text-center">
-                        <div className="flex justify-center items-center gap-4 text-slate-400">
-                          <Tooltip content="Edit Lead" placement="top">
-                            <button
-                              className="hover:text-blue-500 transition-colors"
-                              onClick={() => navigate(`/leads/${lead._id}/edit`)}
-                            >
-                              <Icon icon="heroicons:pencil-square" className="text-lg" />
-                            </button>
-                          </Tooltip>
-                          <Tooltip content="Call" placement="top">
-                            <a href={`tel:${lead.phone}`} className="hover:text-success-500 transition-colors">
-                              <Icon icon="heroicons:phone" className="text-lg" />
-                            </a>
-                          </Tooltip>
-                          <Tooltip content="WhatsApp" placement="top">
-                            <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition-colors">
-                              <Icon icon="heroicons:chat-bubble-left-ellipsis" className="text-lg" />
-                            </a>
-                          </Tooltip>
-                          <Tooltip content="View Details" placement="top">
-                            <button
-                              className="hover:text-indigo-500 transition-colors"
-                              onClick={() => navigate(`/leads/${lead._id}`)}
-                            >
-                              <Icon icon="heroicons:eye" className="text-lg" />
-                            </button>
-                          </Tooltip>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {leads.length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="text-center py-8 text-slate-500">
-                        No leads found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      {/* Leads AG Grid Table */}
+      <DataGrid
+        rowData={leads}
+        columnDefs={columnDefs}
+        pagination={true}
+        paginationData={{
+          page: currentPage,
+          limit,
+          total: totalLeads,
+          totalPages,
+        }}
+        onPageChange={(newPage) => setCurrentPage(newPage)}
+        onPageSizeChange={(newLimit) => {
+          setLimit(newLimit);
+          setCurrentPage(1);
+        }}
+        isLoading={isFetching}
+        emptyMessage="No leads found"
+      />
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-between items-center mt-6">
-            <span className="text-sm text-slate-500">
-              Showing {(currentPage - 1) * limit + 1} to {Math.min(currentPage * limit, totalLeads)} of {totalLeads} entries
+      {/* Reusable Quick View Drawer for Leads */}
+      <QuickViewDrawer
+        isOpen={Boolean(quickViewLead)}
+        onClose={() => setQuickViewLead(null)}
+        title={quickViewLead?.fullName}
+        subtitle={`Source: ${quickViewLead?.leadSource || "Direct"}`}
+        badge={
+          quickViewLead?.status && (
+            <span
+              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize text-white ${getStatusColor(
+                quickViewLead.status
+              )}`}
+            >
+              {quickViewLead.status}
             </span>
-            <Pagination
-              totalPages={totalPages}
-              currentPage={currentPage}
-              handlePageChange={setCurrentPage}
-            />
-          </div>
-        )}
-      </Card>
+          )
+        }
+        onViewDetails={() => navigate(`/leads/${quickViewLead?._id}`)}
+        onEdit={() => navigate(`/leads/${quickViewLead?._id}/edit`)}
+        groups={[
+          {
+            title: "Contact Information",
+            items: [
+              { label: "Phone", value: quickViewLead?.phone },
+              { label: "Email", value: quickViewLead?.email || "No email" },
+              {
+                label: "Assigned To",
+                value: quickViewLead?.assignedTo
+                  ? `${quickViewLead.assignedTo.firstName || ""} ${quickViewLead.assignedTo.lastName || ""}`.trim()
+                  : "Unassigned",
+              },
+              { label: "Priority", value: quickViewLead?.priority || "Medium" },
+            ],
+          },
+          {
+            title: "Project & Requirement",
+            items: [
+              {
+                label: "Project Type",
+                value:
+                  quickViewLead?.projectType ||
+                  quickViewLead?.requirement ||
+                  "General Inquiry",
+              },
+              {
+                label: "Budget",
+                value: quickViewLead?.budget
+                  ? `₹${Number(quickViewLead.budget).toLocaleString("en-IN")}`
+                  : "Not specified",
+              },
+              {
+                label: "City / Location",
+                value: quickViewLead?.city || quickViewLead?.location || "—",
+              },
+              {
+                label: "Created Date",
+                value: quickViewLead?.createdAt
+                  ? dayjs(quickViewLead.createdAt).format("MMM D, YYYY")
+                  : "—",
+              },
+              {
+                label: "Notes / Description",
+                value:
+                  quickViewLead?.notes ||
+                  quickViewLead?.description ||
+                  "No notes available",
+                fullWidth: true,
+              },
+            ],
+          },
+        ]}
+      />
+
+      {/* Reusable Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        onClose={() =>
+          setDeleteConfirm({ isOpen: false, lead: null, isLoading: false })
+        }
+        onConfirm={handleConfirmDelete}
+        title="Delete Lead"
+        entityName={deleteConfirm.lead?.fullName || "this lead"}
+        message="Are you sure you want to delete this lead? Associated follow-ups and activity logs will be archived."
+        isLoading={deleteConfirm.isLoading}
+        confirmText="Delete Lead"
+      />
     </div>
   );
 };

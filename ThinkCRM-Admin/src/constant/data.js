@@ -39,7 +39,7 @@ export const menuItems = [
   },
   {
     title: "Customers",
-    icon: "heroicons-outline:user-circle",
+    icon: "heroicons-outline:user-group",
     link: "customers",
     permission: "customers.view",
   },
@@ -57,16 +57,6 @@ export const menuItems = [
         childtitle: "All Staff",
         childlink: "staff",
         permission: "users.view",
-      },
-      {
-        childtitle: "Roles",
-        childlink: "staff/roles",
-        permission: "roles.view",
-      },
-      {
-        childtitle: "Permissions",
-        childlink: "staff/permissions",
-        permission: "roles.view",
       },
     ],
   },

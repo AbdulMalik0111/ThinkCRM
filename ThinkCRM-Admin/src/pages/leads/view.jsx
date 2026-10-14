@@ -6,6 +6,8 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
 import { useGetLeadByIdQuery } from "@/store/api/leads/leadsApiSlice";
+import { useConvertLeadToCustomerMutation } from "@/store/api/customers/customersApiSlice";
+import { toast } from "react-toastify";
 import LeadActivities from "./LeadActivities";
 import LeadFollowUps from "./LeadFollowUps";
 import LeadMeasurements from "./LeadMeasurements";
@@ -30,6 +32,22 @@ const LeadView = () => {
   const navigate = useNavigate();
   const { data, isLoading, error } = useGetLeadByIdQuery(id);
   const [activeTab, setActiveTab] = useState("overview");
+  const [convertLeadToCustomer, { isLoading: isConverting }] = useConvertLeadToCustomerMutation();
+
+  const handleConvertToCustomer = async () => {
+    try {
+      const res = await convertLeadToCustomer(id).unwrap();
+      toast.success("Lead converted to customer successfully!");
+      const customerId = res?.data?.customer?._id || res?._id;
+      if (customerId) {
+        navigate(`/customers/${customerId}`);
+      } else {
+        navigate("/customers");
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to convert lead to customer");
+    }
+  };
 
   if (isLoading) return <Loading />;
   if (error) return <div>Error loading lead details.</div>;
@@ -178,7 +196,14 @@ const LeadView = () => {
                   <Button icon="heroicons:calendar" text="Schedule Measurement" className="w-full btn-primary bg-indigo-600 hover:bg-indigo-700" />
                   <Button icon="heroicons:document-arrow-up" text="Upload Quotation" className="w-full btn-primary bg-emerald-600 hover:bg-emerald-700" />
                   <Button icon="heroicons:paper-airplane" text="Send Quotation" className="w-full btn-primary bg-sky-600 hover:bg-sky-700" />
-                  <Button icon="heroicons:user-plus" text="Convert to Customer" className="w-full btn-dark" />
+                  <Button
+                    icon="heroicons:user-plus"
+                    text={isConverting ? "Converting..." : "Convert to Customer"}
+                    className="w-full btn-dark"
+                    onClick={handleConvertToCustomer}
+                    isLoading={isConverting}
+                    disabled={isConverting}
+                  />
                 </div>
               </Card>
               

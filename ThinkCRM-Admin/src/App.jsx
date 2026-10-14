@@ -37,6 +37,7 @@ const FollowUpsCalendar = lazy(() => import("./pages/leads/followups"));
 // Customers
 const Customers = lazy(() => import("./pages/customers"));
 const CustomerView = lazy(() => import("./pages/customers/view"));
+const CustomerForm = lazy(() => import("./pages/customers/CustomerForm"));
 
 function App() {
   return (
@@ -65,7 +66,9 @@ function App() {
             
             {/* Customers */}
             <Route path="customers" element={<Customers />} />
+            <Route path="customers/new" element={<CustomerForm />} />
             <Route path="customers/:id" element={<CustomerView />} />
+            <Route path="customers/:id/edit" element={<CustomerForm />} />
 
             {/* Staff */}
             <Route path="staff" element={<Staff />} />

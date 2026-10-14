@@ -14,7 +14,7 @@ router
   .post(
     requirePermission('customers.create'),
     validate(createCustomerSchema),
-    customerController.convertLeadToCustomer
+    customerController.createCustomer
   );
 
 router
@@ -24,6 +24,35 @@ router
     requirePermission('customers.update'),
     validate(updateCustomerSchema),
     customerController.updateCustomer
-  );
+  )
+  .delete(requirePermission('customers.delete'), customerController.deleteCustomer);
+
+router
+  .route('/:id/notes')
+  .post(requirePermission('customers.update'), customerController.addCustomerNote);
+
+router
+  .route('/:id/notes/:noteId')
+  .delete(requirePermission('customers.update'), customerController.deleteCustomerNote);
+
+router
+  .route('/:id/documents')
+  .post(requirePermission('customers.update'), customerController.addCustomerDocument);
+
+router
+  .route('/:id/documents/:docId')
+  .delete(requirePermission('customers.update'), customerController.deleteCustomerDocument);
+
+router
+  .route('/:id/projects')
+  .post(requirePermission('customers.update'), customerController.addCustomerProject);
+
+router
+  .route('/:id/follow-ups')
+  .post(requirePermission('customers.update'), customerController.createCustomerFollowUp);
+
+router
+  .route('/:id/email')
+  .post(requirePermission('customers.update'), customerController.sendCustomerEmail);
 
 export default router;
