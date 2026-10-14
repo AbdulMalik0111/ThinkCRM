@@ -51,7 +51,7 @@ const Select = ({
             name={name}
             className={`${
               error ? " has-error" : " "
-            } form-control py-2  appearance-none ${className}  `}
+            } form-control py-2 appearance-none !bg-none ${className}  `}
             placeholder={placeholder}
             readOnly={readonly}
             disabled={disabled}
@@ -83,7 +83,7 @@ const Select = ({
             onChange={onChange}
             className={`${
               error ? " has-error" : " "
-            } form-control py-2 appearance-none ${className}  `}
+            } form-control py-2 appearance-none !bg-none ${className}  `}
             placeholder={placeholder}
             readOnly={readonly}
             disabled={disabled}
@@ -112,9 +112,9 @@ const Select = ({
         )}
 
         {/* icon */}
-        <div className="flex text-xl absolute ltr:right-[14px] rtl:left-[14px] top-1/2 -translate-y-1/2 space-x-1 rtl:space-x-reverse pointer-events-none">
-          <span className=" relative -right-2 inline-block text-slate-900 dark:text-slate-300 pointer-events-none">
-            <Icon icon="heroicons:chevron-down" />
+        <div className="flex items-center text-sm absolute ltr:right-[14px] rtl:left-[14px] top-1/2 -translate-y-1/2 space-x-1 rtl:space-x-reverse pointer-events-none">
+          <span className="inline-block text-slate-400 dark:text-slate-500 pointer-events-none">
+            <Icon icon="heroicons-outline:chevron-down" className="text-base" />
           </span>
           {error && (
             <span className="text-danger-500">

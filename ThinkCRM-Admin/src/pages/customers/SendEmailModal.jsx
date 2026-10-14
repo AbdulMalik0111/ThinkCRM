@@ -311,19 +311,22 @@ const SendEmailModal = ({ isOpen, onClose, customer }) => {
 
         {/* Footer Actions */}
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-          <Button
+          <button
             type="button"
-            text="Cancel"
-            className="btn-outline-dark text-xs py-2 px-4"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={onClose}
-          />
-          <Button
-            type="submit"
-            text={isLoading ? "Sending..." : "Send Email"}
-            className="btn-primary bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-5 font-semibold"
-            isLoading={isLoading}
             disabled={isLoading}
-          />
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
+            disabled={isLoading}
+          >
+            {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+            <span>{isLoading ? "Sending..." : "Send Email"}</span>
+          </button>
         </div>
       </form>
     </Modal>

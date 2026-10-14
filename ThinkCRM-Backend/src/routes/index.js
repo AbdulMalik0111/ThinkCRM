@@ -9,6 +9,7 @@ import customerRoutes from './customer.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
+import uploadRoutes from './upload.routes.js';
 
 const router = express.Router();
 
@@ -26,5 +27,6 @@ router.use('/customers', customerRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reports', reportRoutes);
 router.use('/settings', settingRoutes);
+router.use('/upload', uploadRoutes);
 
 export default router;

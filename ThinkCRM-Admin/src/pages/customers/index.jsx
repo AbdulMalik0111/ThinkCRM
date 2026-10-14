@@ -58,8 +58,6 @@ const Customers = () => {
   const [projectType, setProjectType] = useState("all");
   const [status, setStatus] = useState("all");
   const [assignedStaff, setAssignedStaff] = useState("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
 
   // Export & Import states
   const [isExporting, setIsExporting] = useState(false);
@@ -75,7 +73,6 @@ const Customers = () => {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState(null);
   const [emailCustomer, setEmailCustomer] = useState(null);
   const [whatsAppCustomer, setWhatsAppCustomer] = useState(null);
   const [followUpCustomer, setFollowUpCustomer] = useState(null);
@@ -89,7 +86,6 @@ const Customers = () => {
     ...(projectType !== "all" && { projectType }),
     ...(status !== "all" && { status }),
     ...(assignedStaff !== "all" && { assignedStaff }),
-    ...(startDate && endDate && { startDate, endDate }),
   };
 
   const { data: response, isLoading, isFetching, refetch } = useGetCustomersQuery(queryParams);
@@ -135,8 +131,6 @@ const Customers = () => {
     setProjectType("all");
     setStatus("all");
     setAssignedStaff("all");
-    setStartDate("");
-    setEndDate("");
     setPage(1);
   };
 
@@ -261,12 +255,13 @@ const Customers = () => {
         },
       },
       {
+        field: "totalValue",
         headerName: "Total Value",
         minWidth: 130,
         flex: 1,
         valueGetter: (params) => {
           const c = params.data;
-          return c?.totalValue || c?.projects?.[0]?.budget || 0;
+          return Number(c?.totalValue ?? c?.projects?.[0]?.budget ?? 0);
         },
         cellRenderer: (params) => (
           <span className="font-inter font-bold text-slate-900 dark:text-white text-[14px]">
@@ -365,7 +360,6 @@ const Customers = () => {
         ...(projectType !== "all" && { projectType }),
         ...(status !== "all" && { status }),
         ...(assignedStaff !== "all" && { assignedStaff }),
-        ...(startDate && endDate && { startDate, endDate }),
       };
 
       const result = await store
@@ -612,18 +606,6 @@ const Customers = () => {
             })),
           },
         ]}
-        dateRange={startDate && endDate ? { startDate, endDate } : null}
-        onDateRangeChange={(dates) => {
-          if (dates && dates.length === 2) {
-            setStartDate(dayjs(dates[0]).format("YYYY-MM-DD"));
-            setEndDate(dayjs(dates[1]).format("YYYY-MM-DD"));
-            setPage(1);
-          } else {
-            setStartDate("");
-            setEndDate("");
-            setPage(1);
-          }
-        }}
         onClearFilters={handleClearFilters}
         onRefresh={() => refetch()}
         isRefreshing={isFetching}
@@ -662,22 +644,6 @@ const Customers = () => {
         </div>
       )}
 
-      {/* 2. Edit Customer Modal */}
-      {editingCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CustomerForm
-              isModal={true}
-              customerId={editingCustomer._id}
-              initialData={editingCustomer}
-              onClose={() => {
-                setEditingCustomer(null);
-                refetch();
-              }}
-            />
-          </div>
-        </div>
-      )}
 
       {/* 3. CSV Import Modal */}
       <ImportCustomerModal
@@ -736,7 +702,8 @@ const Customers = () => {
           navigate(`/customers/${quickViewCustomer?._id}`);
         }}
         onEdit={() => {
-          setEditingCustomer(quickViewCustomer);
+          navigate(`/customers/${quickViewCustomer?._id}/edit`);
+          setQuickViewCustomer(null);
         }}
         groups={[
           {

@@ -97,7 +97,11 @@ export const deleteCustomerNote = async (req, res, next) => {
 
 export const addCustomerDocument = async (req, res, next) => {
   try {
-    const documents = await customerService.addCustomerDocument(req.params.id, req.body, req.user._id);
+    const documents = await customerService.addCustomerDocument(
+      req.params.id,
+      { ...req.body, file: req.file },
+      req.user._id
+    );
     res.status(201).json({
       success: true,
       message: 'Document added successfully',

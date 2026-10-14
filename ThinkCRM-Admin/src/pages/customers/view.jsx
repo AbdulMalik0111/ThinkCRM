@@ -21,7 +21,6 @@ import SendWhatsAppModal from "./SendWhatsAppModal";
 import ScheduleFollowUpModal from "./ScheduleFollowUpModal";
 import AddProjectModal from "./AddProjectModal";
 import UploadDocumentModal from "./UploadDocumentModal";
-import CustomerForm from "./CustomerForm";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import Modal from "@/components/ui/Modal";
 
@@ -84,7 +83,6 @@ const CustomerView = () => {
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Customer Deletion State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -218,6 +216,33 @@ const CustomerView = () => {
       window.location.href = `tel:${customer.phone}`;
     } else {
       toast.info("No phone number available for this customer.");
+    }
+  };
+
+  const handleDownloadFile = async (url, fileName) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName || "document";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      let dlUrl = url;
+      if (url && url.includes("/upload/")) {
+        dlUrl = url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(fileName || "document")}/`);
+      }
+      const a = document.createElement("a");
+      a.href = dlUrl;
+      a.download = fileName || "document";
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
@@ -1108,14 +1133,21 @@ const CustomerView = () => {
                 <div className="flex items-center gap-2">
                   <a
                     href={doc.url}
-                    download={doc.name}
                     target="_blank"
-                    rel="noreferrer"
-                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-primary-600 hover:bg-slate-100 transition"
+                    rel="noopener noreferrer"
+                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-primary-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                    title="View Document"
+                  >
+                    <Icon icon="heroicons-outline:eye" className="text-sm" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadFile(doc.url, doc.name)}
+                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-300 dark:hover:bg-slate-700 transition"
                     title="Download File"
                   >
                     <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
-                  </a>
+                  </button>
                   <button
                     type="button"
                     onClick={() =>
@@ -1325,21 +1357,7 @@ const CustomerView = () => {
         onClose={() => setIsDocumentModalOpen(false)}
         customerId={customer._id}
       />
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CustomerForm
-              isModal={true}
-              customerId={customer._id}
-              initialData={customer}
-              onClose={() => {
-                setIsEditModalOpen(false);
-                refetch();
-              }}
-            />
-          </div>
-        </div>
-      )}
+
 
       {/* Edit Note Modal */}
       {editingNote && (

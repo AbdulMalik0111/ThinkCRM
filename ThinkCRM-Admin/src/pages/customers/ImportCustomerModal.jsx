@@ -365,32 +365,35 @@ const ImportCustomerModal = ({ isOpen, onClose, onSuccess }) => {
 
         {/* Modal Footer Actions */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
-          <Button
+          <button
             type="button"
-            text={importResult ? "Close" : "Cancel"}
-            className="btn-outline-dark text-xs px-4 py-2"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={handleModalClose}
             disabled={isLoading}
-          />
+          >
+            {importResult ? "Close" : "Cancel"}
+          </button>
 
           {!importResult && (
-            <Button
+            <button
               type="button"
-              text={isLoading ? "Importing..." : `Import ${parsedData.length || ""} Customers`}
-              className="btn-primary text-xs px-5 py-2 font-semibold"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
               onClick={handleExecuteImport}
               disabled={isLoading || parsedData.length === 0}
-              isLoading={isLoading}
-            />
+            >
+              {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+              <span>{isLoading ? "Importing..." : `Import ${parsedData.length || ""} Customers`}</span>
+            </button>
           )}
 
           {importResult && (
-            <Button
+            <button
               type="button"
-              text="Import More"
-              className="btn-outline-primary text-xs px-4 py-2"
+              className="px-5 py-2.5 rounded-xl border border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-800 hover:bg-primary-100 text-xs md:text-sm font-semibold transition"
               onClick={resetState}
-            />
+            >
+              Import More
+            </button>
           )}
         </div>
       </div>

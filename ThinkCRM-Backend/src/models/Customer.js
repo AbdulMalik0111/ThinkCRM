@@ -155,6 +155,7 @@ const customerSchema = new mongoose.Schema(
         },
         fileType: String,
         size: Number,
+        publicId: String,
         category: {
           type: String,
           default: 'Other',

@@ -147,7 +147,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
       title="Upload Customer Document"
       activeModal={isOpen}
       onClose={onClose}
-      className="max-w-lg"
+      className="max-w-xl font-inter"
     >
       <form onSubmit={handleSubmit} className="space-y-4 pt-1 font-inter">
         {/* Document Title */}
@@ -160,7 +160,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Signed Service Agreement"
-            className="w-full h-11 px-3.5 text-[14.5px] font-medium border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+            className="w-full h-11 px-3.5 text-[14.5px] font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
             required
           />
         </div>
@@ -173,7 +173,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="w-full h-11 px-3.5 text-[14.5px] font-semibold border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
+            className="w-full h-11 px-3.5 pr-10 text-[14.5px] font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
           >
             <option value="Agreement">Agreement / Contract</option>
             <option value="Quotation">Quotation / Estimate</option>
@@ -220,7 +220,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
                 or drag and drop
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                PDF, DOCX, PNG, JPG, or ZIP (maximum file size: 10MB)
+                PDF, DOCX, PNG, JPG, or ZIP (auto-compressed on Cloudinary without loss of quality)
               </p>
             </div>
           ) : (
@@ -234,7 +234,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
                     {fileName}
                   </span>
                   <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {formatBytes(fileSize)}
+                    {formatBytes(fileSize)} • Cloudinary high-fidelity compression
                   </span>
                 </div>
               </div>
@@ -272,20 +272,22 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
 
         {/* Modal Actions */}
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-          <Button
+          <button
             type="button"
-            text="Cancel"
-            className="btn-outline-dark h-11 px-5 text-sm font-semibold rounded-lg"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={onClose}
             disabled={isLoading}
-          />
-          <Button
+          >
+            Cancel
+          </button>
+          <button
             type="submit"
-            text={isLoading ? "Uploading..." : "Upload File"}
-            className="btn-primary bg-primary-600 hover:bg-primary-700 text-white h-11 px-6 text-sm font-semibold rounded-lg"
-            isLoading={isLoading}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
             disabled={isLoading || !fileUrl}
-          />
+          >
+            {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+            <span>{isLoading ? "Compressing & Uploading..." : "Upload Document"}</span>
+          </button>
         </div>
       </form>
     </Modal>

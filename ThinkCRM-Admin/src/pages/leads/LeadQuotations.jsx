@@ -122,8 +122,22 @@ const LeadQuotations = ({ leadId }) => {
 
       <Modal activeModal={isModalOpen} onClose={() => setIsModalOpen(false)} title="Upload Quotation" footerContent={
         <div className="flex justify-end gap-3">
-          <Button text="Cancel" className="btn-light" onClick={() => setIsModalOpen(false)} />
-          <Button text="Upload" className="btn-primary" onClick={handleSubmit} disabled={isCreating} />
+          <button
+            type="button"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
+            onClick={() => setIsModalOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
+            onClick={handleSubmit}
+            disabled={isCreating}
+          >
+            {isCreating && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+            <span>Upload</span>
+          </button>
         </div>
       }>
         <form className="space-y-4">

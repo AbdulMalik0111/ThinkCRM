@@ -2,6 +2,7 @@ import express from 'express';
 import * as customerController from '../controllers/customer.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { protect, requirePermission } from '../middlewares/auth.middleware.js';
+import { upload } from '../middlewares/upload.middleware.js';
 import { createCustomerSchema, updateCustomerSchema } from '../validators/customer.validator.js';
 
 const router = express.Router();
@@ -44,7 +45,11 @@ router
 
 router
   .route('/:id/documents')
-  .post(requirePermission('customers.update'), customerController.addCustomerDocument);
+  .post(
+    requirePermission('customers.update'),
+    upload.single('file'),
+    customerController.addCustomerDocument
+  );
 
 router
   .route('/:id/documents/:docId')

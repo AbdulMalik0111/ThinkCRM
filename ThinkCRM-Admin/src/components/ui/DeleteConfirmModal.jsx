@@ -52,7 +52,7 @@ const DeleteConfirmModal = ({
       title={title}
       activeModal={isOpen}
       onClose={isLoading ? () => {} : onClose}
-      className="max-w-[480px] font-inter"
+      className="max-w-[560px] font-inter"
       noFade={false}
       centered={true}
     >

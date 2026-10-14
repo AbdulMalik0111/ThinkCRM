@@ -292,20 +292,27 @@ const DataGrid = ({
                         col.cellClass?.includes("text-right") ||
                         col.headerClass?.includes("text-right");
 
-                      let cellContent = null;
-                      if (col.cellRenderer) {
-                        cellContent = col.cellRenderer({
-                          value: col.field ? row[col.field] : undefined,
-                          data: row,
-                          node: { rowIndex: rowIdx },
-                        });
-                      } else if (col.valueGetter) {
-                        cellContent = col.valueGetter({
+                      let cellValue = undefined;
+                      if (col.valueGetter) {
+                        cellValue = col.valueGetter({
                           data: row,
                           node: { rowIndex: rowIdx },
                         });
                       } else if (col.field) {
-                        cellContent = row[col.field];
+                        cellValue = col.field.includes(".")
+                          ? col.field.split(".").reduce((obj, key) => obj?.[key], row)
+                          : row[col.field];
+                      }
+
+                      let cellContent = null;
+                      if (col.cellRenderer) {
+                        cellContent = col.cellRenderer({
+                          value: cellValue,
+                          data: row,
+                          node: { rowIndex: rowIdx },
+                        });
+                      } else {
+                        cellContent = cellValue;
                       }
 
                       return (
@@ -349,10 +356,10 @@ const DataGrid = ({
                 type="button"
                 onClick={() => onPageChange && onPageChange(Math.max(page - 1, 1))}
                 disabled={page <= 1}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-sm font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 transition"
                 title="Previous Page"
               >
-                ‹
+                <Icon icon="heroicons-outline:chevron-left" className="text-base" />
               </button>
 
               {Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -371,13 +378,14 @@ const DataGrid = ({
                       <button
                         type="button"
                         onClick={() => onPageChange && onPageChange(p)}
-                        className={`h-8 min-w-[32px] px-2 rounded-lg text-xs font-bold transition ${
+                        className={`h-8 min-w-[32px] px-2.5 rounded-lg text-xs font-semibold transition ${
                           page === p
-                            ? "bg-primary-600 text-white"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60"
+                            ? "bg-primary-600 text-white font-bold"
+                            : "border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                         }`}
                         style={{
                           backgroundColor: page === p ? "#2563eb" : undefined,
+                          borderColor: page === p ? "#2563eb" : undefined,
                         }}
                       >
                         {p}
@@ -390,20 +398,21 @@ const DataGrid = ({
                 type="button"
                 onClick={() => onPageChange && onPageChange(Math.min(page + 1, totalPages))}
                 disabled={page >= totalPages}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-sm font-semibold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-800 disabled:text-slate-400 dark:disabled:text-slate-500 transition"
                 title="Next Page"
               >
-                ›
+                <Icon icon="heroicons-outline:chevron-right" className="text-base" />
               </button>
             </div>
 
-            {/* Rows per page selector: "10 / page" with chevron */}
+            {/* Rows per page selector: "10 / page" with single clearly visible chevron */}
             {onPageSizeChange && (
-              <div className="relative">
+              <div className="relative inline-flex items-center">
                 <select
                   value={limit}
                   onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                  className="h-8 pl-3 pr-7 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 appearance-none focus:outline-none focus:border-primary-500 cursor-pointer"
+                  className="datagrid-page-select h-8 pl-3 pr-7 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 appearance-none focus:outline-none focus:border-primary-500 cursor-pointer shadow-none"
+                  style={{ backgroundImage: "none" }}
                 >
                   <option value={10}>10 / page</option>
                   <option value={20}>20 / page</option>
@@ -413,7 +422,7 @@ const DataGrid = ({
                 </select>
                 <Icon
                   icon="heroicons-outline:chevron-down"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 text-xs pointer-events-none stroke-2"
                 />
               </div>
             )}

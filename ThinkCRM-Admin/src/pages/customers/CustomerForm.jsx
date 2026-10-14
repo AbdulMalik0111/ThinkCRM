@@ -187,6 +187,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
 
   const handleClose = () => {
     if (onClose) onClose();
+    else if (window.history.length > 1) navigate(-1);
     else navigate("/customers");
   };
 
@@ -944,20 +945,22 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
 
           {/* Form Actions Footer */}
           <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-700">
-            <Button
+            <button
               type="button"
-              text="Cancel"
-              className="btn-outline-dark text-xs px-5 py-2.5"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
               onClick={handleClose}
               disabled={isSaving}
-            />
-            <Button
+            >
+              Cancel
+            </button>
+            <button
               type="submit"
-              text={isSaving ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Customer" : "Save Customer")}
-              className="btn-primary text-xs px-6 py-2.5 font-semibold"
-              isLoading={isSaving}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
               disabled={isSaving}
-            />
+            >
+              {isSaving && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+              <span>{isSaving ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Customer" : "Save Customer")}</span>
+            </button>
           </div>
         </form>
       </div>

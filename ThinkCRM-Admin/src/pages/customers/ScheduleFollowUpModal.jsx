@@ -61,7 +61,7 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
       title="Schedule Follow-up"
       activeModal={isOpen}
       onClose={onClose}
-      className="max-w-lg"
+      className="max-w-xl font-inter"
     >
       <form onSubmit={handleSubmit} className="space-y-4 pt-1">
         {/* Customer Header Info */}
@@ -76,15 +76,15 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
         </div>
 
         {/* Type & Priority */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               Type <span className="text-danger-500">*</span>
             </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="form-control text-sm"
+              className="w-full h-11 px-3.5 pr-10 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
               required
             >
               <option value="call">Phone Call</option>
@@ -95,13 +95,13 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
             </select>
           </div>
           <div>
-            <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               Priority
             </label>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="form-control text-sm"
+              className="w-full h-11 px-3.5 pr-10 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
             >
               <option value="low">Low</option>
               <option value="medium">Medium</option>
@@ -112,28 +112,28 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
         </div>
 
         {/* Date & Time */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               Date <span className="text-danger-500">*</span>
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="form-control text-sm"
+              className="w-full h-11 px-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
               required
             />
           </div>
           <div>
-            <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               Time <span className="text-danger-500">*</span>
             </label>
             <input
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}
-              className="form-control text-sm"
+              className="w-full h-11 px-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
               required
             />
           </div>
@@ -141,13 +141,13 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
 
         {/* Assigned Staff */}
         <div>
-          <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
             Assign Staff Member
           </label>
           <select
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
-            className="form-control text-sm"
+            className="w-full h-11 px-3.5 pr-10 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
           >
             <option value="">Default (Customer's assigned staff / self)</option>
             {staffList.map((st) => (
@@ -160,7 +160,7 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
 
         {/* Notes */}
         <div>
-          <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
             Notes / Agenda
           </label>
           <textarea
@@ -168,7 +168,7 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="e.g. Discuss material samples and revision 2 of floor plan..."
-            className="form-control text-sm"
+            className="w-full min-h-[96px] p-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition resize-y"
           />
         </div>
 
@@ -210,19 +210,22 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
 
         {/* Footer Actions */}
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-          <Button
+          <button
             type="button"
-            text="Cancel"
-            className="btn-outline-dark text-xs py-2 px-4"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={onClose}
-          />
-          <Button
-            type="submit"
-            text={isLoading ? "Scheduling..." : "Schedule Follow-up"}
-            className="btn-primary bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-5 font-semibold"
-            isLoading={isLoading}
             disabled={isLoading}
-          />
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
+            disabled={isLoading}
+          >
+            {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+            <span>{isLoading ? "Scheduling..." : "Schedule Follow-up"}</span>
+          </button>
         </div>
       </form>
     </Modal>

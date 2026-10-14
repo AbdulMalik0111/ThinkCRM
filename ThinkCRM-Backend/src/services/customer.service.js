@@ -5,6 +5,7 @@ import { FollowUp } from '../models/FollowUp.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity, getCustomerActivities } from './activity.service.js';
 import { sendEmail } from './email.service.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 
 export const convertLeadToCustomer = async (leadId, createdBy) => {
   const lead = await Lead.findById(leadId);
@@ -488,19 +489,61 @@ export const importCustomers = async (customersList, userId) => {
 };
 
 export const addCustomerDocument = async (customerId, docData, userId) => {
-  if (!docData.name || !docData.url) {
-    throw new AppError('Document name and URL are required', 400);
+  if (!docData.name) {
+    throw new AppError('Document name is required', 400);
   }
+
+  let finalUrl = docData.url;
+  let finalSize = Number(docData.size) || 0;
+  let finalFileType = docData.fileType || 'application/octet-stream';
+  let finalPublicId = docData.publicId;
+
+  // 1. If multipart file is attached in request
+  if (docData.file && docData.file.buffer) {
+    try {
+      const uploadResult = await uploadToCloudinary(docData.file.buffer, 'thinkcrm/customer_documents');
+      finalUrl = uploadResult.secure_url;
+      finalSize = uploadResult.bytes || docData.file.size || finalSize;
+      finalFileType = docData.file.mimetype || uploadResult.format || finalFileType;
+      finalPublicId = uploadResult.public_id;
+    } catch (uploadErr) {
+      console.error('Cloudinary buffer upload error:', uploadErr);
+      throw new AppError(`Failed to upload document to Cloudinary: ${uploadErr.message}`, 500);
+    }
+  } else if (docData.url && typeof docData.url === 'string' && docData.url.startsWith('data:')) {
+    // 2. If base64 data URI is sent
+    try {
+      const uploadResult = await uploadToCloudinary(docData.url, 'thinkcrm/customer_documents');
+      finalUrl = uploadResult.secure_url;
+      finalSize = uploadResult.bytes || finalSize;
+      finalFileType = uploadResult.format ? `application/${uploadResult.format}` : finalFileType;
+      finalPublicId = uploadResult.public_id;
+    } catch (uploadErr) {
+      console.error('Cloudinary base64 upload error:', uploadErr);
+      throw new AppError(`Failed to upload document to Cloudinary: ${uploadErr.message}`, 500);
+    }
+  }
+
+  if (!finalUrl) {
+    throw new AppError('Document file or valid URL is required', 400);
+  }
+
+  const newDoc = {
+    name: docData.name.trim(),
+    category: docData.category || 'Other',
+    url: finalUrl,
+    size: finalSize,
+    fileType: finalFileType,
+    publicId: finalPublicId,
+    uploadedBy: userId,
+    uploadedAt: new Date(),
+  };
 
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, deletedAt: null },
     {
       $push: {
-        documents: {
-          ...docData,
-          uploadedBy: userId,
-          uploadedAt: new Date(),
-        },
+        documents: newDoc,
       },
     },
     { new: true }
@@ -522,15 +565,21 @@ export const addCustomerDocument = async (customerId, docData, userId) => {
 };
 
 export const deleteCustomerDocument = async (customerId, docId, userId) => {
+  const existingCustomer = await Customer.findOne({ _id: customerId, deletedAt: null });
+  if (!existingCustomer) {
+    throw new AppError('Customer not found', 404);
+  }
+
+  const docToDelete = existingCustomer.documents?.find((d) => d._id.toString() === docId.toString());
+  if (docToDelete?.publicId) {
+    await deleteFromCloudinary(docToDelete.publicId);
+  }
+
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, deletedAt: null },
     { $pull: { documents: { _id: docId } } },
     { new: true }
   );
-
-  if (!customer) {
-    throw new AppError('Customer not found', 404);
-  }
 
   return customer.documents;
 };
