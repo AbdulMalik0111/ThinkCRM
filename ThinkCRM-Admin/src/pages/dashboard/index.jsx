@@ -487,7 +487,7 @@ const Dashboard = () => {
               </button>
 
               {showDateDropdown && (
-                <div className="absolute right-0 mt-2 w-60 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1.5 z-50 text-sm shadow-xl">
+                <div className="absolute right-0 mt-2 w-60 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1.5 z-50 text-sm">
                   {[
                     "Date Range",
                     "Today",

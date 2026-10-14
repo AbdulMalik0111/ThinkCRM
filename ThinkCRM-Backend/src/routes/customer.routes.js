@@ -17,6 +17,12 @@ router
     customerController.createCustomer
   );
 
+router.post(
+  '/import',
+  requirePermission('customers.create'),
+  customerController.importCustomers
+);
+
 router
   .route('/:id')
   .get(requirePermission('customers.view'), customerController.getCustomerById)
@@ -33,6 +39,7 @@ router
 
 router
   .route('/:id/notes/:noteId')
+  .patch(requirePermission('customers.update'), customerController.updateCustomerNote)
   .delete(requirePermission('customers.update'), customerController.deleteCustomerNote);
 
 router

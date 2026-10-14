@@ -13,6 +13,7 @@ import {
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
 import DataGrid from "@/components/ui/DataGrid";
 import Flatpickr from "react-flatpickr";
+import { getAvatarColor, renderStatusPill } from "@/components/common/tableUtils";
 
 const SOURCE_ICONS = {
   Website: { icon: "heroicons-outline:globe-alt", color: "#3b82f6" },
@@ -147,26 +148,39 @@ const Reports = () => {
   const recordColumnDefs = useMemo(
     () => [
       {
+        headerName: "#",
+        valueGetter: (params) => params.node.rowIndex + 1,
+        width: 60,
+        minWidth: 50,
+        maxWidth: 70,
+        sortable: false,
+        pinned: "left",
+        cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
+        headerClass: "text-center",
+      },
+      {
         headerName: "Lead ID",
         field: "leadId",
-        minWidth: 100,
-        width: 110,
-        cellClass: "font-mono font-bold text-slate-700 dark:text-slate-300 font-inter",
+        minWidth: 120,
+        width: 120,
+        pinned: "left",
+        cellClass: "font-mono font-bold text-slate-700 dark:text-slate-300 font-inter text-[14px]",
       },
       {
         headerName: "Customer",
         field: "fullName",
-        minWidth: 190,
-        flex: 1.3,
+        minWidth: 220,
+        flex: 1.5,
+        pinned: "left",
         cellRenderer: (params) => {
           const r = params.data;
           if (!r) return null;
           return (
             <div className="py-1 font-inter truncate">
-              <span className="font-bold text-slate-900 dark:text-white block truncate text-sm">
+              <span className="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 block truncate text-[14px] cursor-pointer hover:underline">
                 {r.fullName}
               </span>
-              <span className="text-xs text-slate-400 block truncate">
+              <span className="text-xs text-slate-400 block truncate font-medium">
                 {r.email || "No email"}
               </span>
             </div>
@@ -176,49 +190,52 @@ const Reports = () => {
       {
         headerName: "Contact",
         field: "phone",
-        minWidth: 130,
+        minWidth: 150,
         flex: 1,
-        cellClass: "font-inter text-slate-600 dark:text-slate-300",
+        cellRenderer: (params) => (
+          <span className="font-inter text-slate-700 dark:text-slate-300 text-[14px] font-medium">
+            {params.value || "—"}
+          </span>
+        ),
       },
       {
         headerName: "Source",
         field: "leadSource",
-        minWidth: 110,
-        flex: 0.9,
-        cellClass: "font-inter font-medium text-slate-700 dark:text-slate-200 capitalize",
+        minWidth: 130,
+        flex: 1,
+        cellRenderer: (params) => (
+          <span className="font-inter font-semibold text-slate-700 dark:text-slate-200 capitalize text-[14px]">
+            {params.value || "—"}
+          </span>
+        ),
       },
       {
         headerName: "Project Type",
         field: "projectType",
-        minWidth: 130,
-        flex: 1,
-        cellClass: "font-inter text-slate-600 dark:text-slate-300 font-medium",
+        minWidth: 160,
+        flex: 1.2,
+        cellRenderer: (params) => (
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-200 capitalize text-[14px]">
+            {params.value || "—"}
+          </span>
+        ),
       },
       {
         headerName: "Status",
         field: "status",
-        minWidth: 110,
-        flex: 0.9,
+        minWidth: 130,
+        flex: 1,
         cellRenderer: (params) => {
-          const st = params.value || "new";
-          return (
-            <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${
-                statusBadgeStyles[st] || "bg-slate-100 text-slate-600 border border-slate-200"
-              }`}
-            >
-              {st.replace("_", " ")}
-            </span>
-          );
+          return renderStatusPill(params.value || "new");
         },
       },
       {
         headerName: "Budget",
         field: "budget",
-        minWidth: 120,
+        minWidth: 140,
         flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter font-bold text-slate-900 dark:text-white">
+          <span className="font-inter font-bold text-slate-900 dark:text-white text-[14px]">
             {formatCurrency(params.value)}
           </span>
         ),
@@ -226,17 +243,21 @@ const Reports = () => {
       {
         headerName: "Assigned Staff",
         field: "assignedStaff",
-        minWidth: 130,
-        flex: 1,
-        cellClass: "font-inter text-slate-700 dark:text-slate-200 font-medium",
+        minWidth: 160,
+        flex: 1.2,
+        cellRenderer: (params) => (
+          <span className="font-inter text-slate-800 dark:text-slate-200 font-medium text-[14px]">
+            {params.value || "Unassigned"}
+          </span>
+        ),
       },
       {
         headerName: "City",
         field: "city",
-        minWidth: 100,
-        flex: 0.8,
+        minWidth: 130,
+        flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter text-slate-500">
+          <span className="font-inter text-slate-600 dark:text-slate-300 text-[14px]">
             {params.value || "—"}
           </span>
         ),
@@ -244,10 +265,10 @@ const Reports = () => {
       {
         headerName: "Date",
         field: "createdAt",
-        minWidth: 110,
-        flex: 0.9,
+        minWidth: 130,
+        flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter text-slate-500 text-xs">
+          <span className="font-inter text-slate-500 text-[13.5px] font-medium">
             {params.value ? dayjs(params.value).format("MMM D, YYYY") : "—"}
           </span>
         ),
@@ -265,27 +286,29 @@ const Reports = () => {
         minWidth: 50,
         maxWidth: 70,
         sortable: false,
+        pinned: "left",
         cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
         headerClass: "text-center",
       },
       {
         headerName: "Staff Member",
         field: "name",
-        minWidth: 200,
+        minWidth: 240,
         flex: 1.5,
+        pinned: "left",
         cellRenderer: (params) => {
           const staff = params.data;
           if (!staff) return null;
           return (
-            <div className="flex items-center gap-2.5 py-1 font-inter">
+            <div className="flex items-center gap-3 py-1 font-inter">
               <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-primary-600 flex-shrink-0">
                 {staff.name?.charAt(0) || "S"}
               </div>
               <div className="truncate">
-                <span className="font-bold text-slate-900 dark:text-white block truncate text-sm">
+                <span className="font-bold text-slate-900 dark:text-white block truncate text-[14px]">
                   {staff.name}
                 </span>
-                <span className="text-xs text-slate-400 block truncate">
+                <span className="text-xs text-slate-400 block truncate font-medium">
                   {staff.email}
                 </span>
               </div>
@@ -296,31 +319,31 @@ const Reports = () => {
       {
         headerName: "Assigned Leads",
         field: "assigned",
-        minWidth: 120,
+        minWidth: 140,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white",
+        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white text-[14px]",
         headerClass: "text-center",
       },
       {
         headerName: "Qualified Leads",
         field: "qualified",
-        minWidth: 120,
+        minWidth: 140,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white",
+        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white text-[14px]",
         headerClass: "text-center",
       },
       {
         headerName: "Won Deals",
         field: "won",
-        minWidth: 110,
+        minWidth: 130,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-emerald-600",
+        cellClass: "font-inter font-semibold text-center text-emerald-600 text-[14px]",
         headerClass: "text-center",
       },
       {
         headerName: "Conversion %",
         field: "conversion",
-        minWidth: 120,
+        minWidth: 130,
         flex: 1,
         cellRenderer: (params) => (
           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 font-inter">
@@ -332,10 +355,10 @@ const Reports = () => {
       {
         headerName: "Won Revenue",
         field: "revenue",
-        minWidth: 130,
-        flex: 1,
+        minWidth: 160,
+        flex: 1.2,
         cellRenderer: (params) => (
-          <span className="font-inter font-bold text-primary-600">
+          <span className="font-inter font-bold text-primary-600 text-[14px]">
             {formatCurrency(params.value)}
           </span>
         ),
@@ -343,8 +366,9 @@ const Reports = () => {
       },
       {
         headerName: "Action",
-        minWidth: 110,
-        flex: 0.9,
+        pinned: "right",
+        minWidth: 120,
+        width: 120,
         sortable: false,
         cellRenderer: (params) => {
           const staff = params.data;
@@ -356,7 +380,7 @@ const Reports = () => {
                 setAssignedStaff(staff.staffId);
                 setActiveTab("records");
               }}
-              className="text-primary-600 hover:underline font-semibold text-xs font-inter"
+              className="text-primary-600 hover:text-primary-700 font-bold text-xs font-inter px-3 py-1 bg-primary-50 dark:bg-primary-950/40 rounded-md transition"
             >
               View Leads
             </button>
@@ -678,7 +702,7 @@ const Reports = () => {
             <button
               type="button"
               onClick={() => setShowDatePicker(!showDatePicker)}
-              className="inline-flex items-center gap-2.5 h-11 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm transition"
+              className="inline-flex items-center gap-2.5 h-11 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition"
             >
               <Icon icon="heroicons-outline:calendar" className="text-slate-500 text-base" />
               <span>{dayjs(startDate).format("DD MMM YYYY")} – {dayjs(endDate).format("DD MMM YYYY")}</span>
@@ -687,7 +711,7 @@ const Reports = () => {
 
             {showDatePicker && (
               <div
-                className="absolute right-0 mt-2 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 w-80 space-y-3.5 animate-fadeIn"
+                className="absolute right-0 mt-2 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl z-30 w-80 space-y-3.5 animate-fadeIn"
                 onMouseLeave={() => setShowDatePicker(false)}
               >
                 <div className="text-sm font-bold text-slate-800 dark:text-white pb-1.5 border-b border-slate-100 dark:border-slate-700">
@@ -746,7 +770,7 @@ const Reports = () => {
                         setEndDate(dayjs(dates[1]).format("YYYY-MM-DD"));
                       }
                     }}
-                    className="w-full text-sm font-semibold py-2 px-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 cursor-pointer shadow-sm"
+                    className="w-full text-sm font-semibold py-2 px-3 border border-slate-300 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 cursor-pointer"
                     placeholder="Click to pick range"
                   />
                 </div>
@@ -759,7 +783,7 @@ const Reports = () => {
             <select
               value={comparison}
               onChange={(e) => setComparison(e.target.value)}
-              className="h-11 py-2 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-sm focus:outline-none cursor-pointer"
+              className="h-11 py-2 px-4 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 focus:outline-none cursor-pointer"
             >
               <option value="previous_period">Previous period</option>
               <option value="previous_year">Previous year</option>
@@ -773,7 +797,7 @@ const Reports = () => {
               type="button"
               onClick={() => setShowExportMenu(!showExportMenu)}
               disabled={isExporting}
-              className="inline-flex items-center gap-2 h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[14.5px] font-semibold shadow-sm transition disabled:opacity-60"
+              className="inline-flex items-center gap-2 h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[14.5px] font-semibold transition disabled:opacity-60"
             >
               <Icon icon="heroicons-outline:arrow-down-tray" className="text-base" />
               <span>{isExporting ? "Exporting..." : "Export Report"}</span>
@@ -782,7 +806,7 @@ const Reports = () => {
 
             {showExportMenu && (
               <div
-                className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1.5 z-30 animate-fadeIn"
+                className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl py-1.5 z-30 animate-fadeIn"
                 onMouseLeave={() => setShowExportMenu(false)}
               >
                 <button
@@ -813,14 +837,14 @@ const Reports = () => {
       </div>
 
       {/* 2. Filter Bar (Assigned Staff, Source, Status, Project Type, City, Apply, Clear) */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
         <div className="flex flex-wrap items-center gap-3.5">
           {/* Assigned Staff */}
           <div className="flex-1 min-w-[160px]">
             <select
               value={assignedStaff}
               onChange={(e) => setAssignedStaff(e.target.value)}
-              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 shadow-sm transition cursor-pointer"
+              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition cursor-pointer"
             >
               <option value="all">All Staff</option>
               {staffList.map((st) => (
@@ -836,7 +860,7 @@ const Reports = () => {
             <select
               value={source}
               onChange={(e) => setSource(e.target.value)}
-              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 shadow-sm transition cursor-pointer"
+              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition cursor-pointer"
             >
               <option value="all">All Sources</option>
               <option value="Website">Website</option>
@@ -857,7 +881,7 @@ const Reports = () => {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 shadow-sm transition cursor-pointer"
+              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition cursor-pointer"
             >
               <option value="all">All Status</option>
               <option value="new">New</option>
@@ -876,7 +900,7 @@ const Reports = () => {
             <select
               value={projectType}
               onChange={(e) => setProjectType(e.target.value)}
-              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 shadow-sm transition cursor-pointer"
+              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition cursor-pointer"
             >
               <option value="all">All Project Types</option>
               <option value="Kitchen">Modular Kitchen</option>
@@ -893,7 +917,7 @@ const Reports = () => {
             <select
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 shadow-sm transition cursor-pointer"
+              className="w-full h-11 py-2 px-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition cursor-pointer"
             >
               <option value="all">All Cities</option>
               <option value="Mumbai">Mumbai</option>
@@ -911,7 +935,7 @@ const Reports = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => refetch()}
-              className="inline-flex items-center gap-2 h-11 px-5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-[14.5px] font-semibold shadow-sm transition"
+              className="inline-flex items-center gap-2 h-11 px-5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-[14.5px] font-semibold transition"
             >
               <Icon icon="heroicons-outline:funnel" className="text-base" />
               <span>Apply Filters</span>
@@ -971,7 +995,7 @@ const Reports = () => {
           {/* 3. Four Summary KPI Cards (Total Leads, Qualified Leads, Won Deals, Revenue) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Total Leads */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden">
               <div className="flex items-start justify-between">
                 <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
                   <Icon icon="heroicons-outline:users" className="text-xl" />
@@ -1002,7 +1026,7 @@ const Reports = () => {
             </div>
 
             {/* Card 2: Qualified Leads */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden">
               <div className="flex items-start justify-between">
                 <div className="h-11 w-11 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center flex-shrink-0">
                   <Icon icon="heroicons-outline:funnel" className="text-xl" />
@@ -1033,7 +1057,7 @@ const Reports = () => {
             </div>
 
             {/* Card 3: Won Deals */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden">
               <div className="flex items-start justify-between">
                 <div className="h-11 w-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center flex-shrink-0">
                   <Icon icon="heroicons-outline:trophy" className="text-xl" />
@@ -1064,7 +1088,7 @@ const Reports = () => {
             </div>
 
             {/* Card 4: Revenue */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 relative overflow-hidden">
               <div className="flex items-start justify-between">
                 <div className="h-11 w-11 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
                   <Icon icon="heroicons-outline:currency-rupee" className="text-xl" />
@@ -1098,7 +1122,7 @@ const Reports = () => {
           {/* 4. Middle Row: Lead & Revenue Trend (Left) + Lead Status Distribution (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left (2 Cols): Lead & Revenue Trend Chart */}
-            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+            <div className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <div>
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -1123,7 +1147,7 @@ const Reports = () => {
                     onClick={() => setGrouping("monthly")}
                     className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
                       grouping === "monthly"
-                        ? "bg-primary-500 text-white shadow-sm"
+                        ? "bg-primary-500 text-white"
                         : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                     }`}
                   >
@@ -1134,7 +1158,7 @@ const Reports = () => {
                     onClick={() => setGrouping("weekly")}
                     className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
                       grouping === "weekly"
-                        ? "bg-primary-500 text-white shadow-sm"
+                        ? "bg-primary-500 text-white"
                         : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                     }`}
                   >
@@ -1145,7 +1169,7 @@ const Reports = () => {
                     onClick={() => setGrouping("daily")}
                     className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
                       grouping === "daily"
-                        ? "bg-primary-500 text-white shadow-sm"
+                        ? "bg-primary-500 text-white"
                         : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
                     }`}
                   >
@@ -1167,7 +1191,7 @@ const Reports = () => {
             </div>
 
             {/* Right (1 Col): Lead Status Distribution Donut Chart */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col justify-between">
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-2">
                   Lead Status Distribution
@@ -1216,7 +1240,7 @@ const Reports = () => {
           {/* 5. Bottom Row: Lead Sources + Sales Team Performance + Follow-up Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left: Lead Sources */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                   Lead Sources
@@ -1263,7 +1287,7 @@ const Reports = () => {
             </div>
 
             {/* Center: Sales Team Performance */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm flex flex-col justify-between">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white">
@@ -1333,7 +1357,7 @@ const Reports = () => {
             </div>
 
             {/* Right: Follow-up Overview (Matches 3 Cards in Reference) */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">
                   Follow-up Overview
@@ -1441,22 +1465,22 @@ const Reports = () => {
 
       {/* TAB 2: DETAILED RECORDS TABLE (Section 9 Requirement) */}
       {activeTab === "records" && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-4 animate-fadeIn">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4 animate-fadeIn">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">
                 Detailed Lead Records ({pagination.total})
               </h4>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
                 All records matching the active reporting window and filters.
               </p>
             </div>
 
             {/* Table Search input */}
-            <div className="relative w-full sm:w-64">
+            <div className="relative w-full sm:w-72">
               <Icon
                 icon="heroicons-outline:magnifying-glass"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none"
               />
               <input
                 type="text"
@@ -1466,8 +1490,21 @@ const Reports = () => {
                   setRecordSearch(e.target.value);
                   setRecordPage(1);
                 }}
-                className="w-full pl-8 pr-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-slate-50 dark:bg-slate-900/60"
+                className="w-full h-11 pl-10 pr-9 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold bg-slate-50 dark:bg-slate-900/60 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-primary-500 transition"
               />
+              {recordSearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecordSearch("");
+                    setRecordPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5"
+                  title="Clear search"
+                >
+                  <Icon icon="heroicons-outline:x-mark" className="text-sm" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1475,6 +1512,8 @@ const Reports = () => {
           <DataGrid
             rowData={records}
             columnDefs={recordColumnDefs}
+            enableSelection={true}
+            entityName="records"
             pagination={true}
             paginationData={pagination}
             onPageChange={(p) => setRecordPage(p)}
@@ -1486,7 +1525,7 @@ const Reports = () => {
 
       {/* TAB 3: STAFF PERFORMANCE (Section 9 Requirement) */}
       {activeTab === "staff" && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-4 animate-fadeIn">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white">

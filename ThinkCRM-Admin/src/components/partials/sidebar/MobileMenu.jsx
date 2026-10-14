@@ -36,7 +36,7 @@ const MobileMenu = ({ className = "custom-class" }) => {
   const [mobileMenu, setMobileMenu] = useMobileMenu();
   return (
     <div
-      className={`${className} fixed  top-0 bg-white dark:bg-slate-800 shadow-lg  h-full   w-[248px]`}
+      className={`${className} fixed top-0 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 h-full w-[248px]`}
     >
       <div className="logo-segment flex justify-between items-center bg-white dark:bg-slate-800 z-9 h-[85px]  px-4 ">
         <Link to="/dashboard">
@@ -58,11 +58,7 @@ const MobileMenu = ({ className = "custom-class" }) => {
         </button>
       </div>
 
-      <div
-        className={`h-[60px]  absolute top-[80px] nav-shadow z-1 w-full transition-all duration-200 pointer-events-none ${
-          scroll ? " opacity-100" : " opacity-0"
-        }`}
-      ></div>
+
       <SimpleBar
         className="sidebar-menu px-4 h-[calc(100%-80px)]"
         scrollableNodeProps={{ ref: scrollableNodeRef }}

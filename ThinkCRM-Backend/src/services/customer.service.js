@@ -145,11 +145,18 @@ export const getCustomers = async (query = {}) => {
   if (query.tag && query.tag !== 'all') {
     filter.tags = query.tag;
   }
-  if (query.startDate && query.endDate) {
-    filter.createdAt = {
-      $gte: new Date(query.startDate),
-      $lte: new Date(query.endDate),
-    };
+  if (query.startDate || query.endDate) {
+    filter.createdAt = {};
+    if (query.startDate) {
+      const start = new Date(query.startDate);
+      start.setHours(0, 0, 0, 0);
+      filter.createdAt.$gte = start;
+    }
+    if (query.endDate) {
+      const end = new Date(query.endDate);
+      end.setHours(23, 59, 59, 999);
+      filter.createdAt.$lte = end;
+    }
   }
 
   const page = parseInt(query.page, 10) || 1;
@@ -338,6 +345,36 @@ export const addCustomerNote = async (customerId, { content }, userId) => {
   return customer.notes;
 };
 
+export const updateCustomerNote = async (customerId, noteId, { content }, userId) => {
+  if (!content || !content.trim()) {
+    throw new AppError('Note content is required', 400);
+  }
+
+  const customer = await Customer.findOneAndUpdate(
+    { _id: customerId, 'notes._id': noteId, deletedAt: null },
+    {
+      $set: {
+        'notes.$.content': content.trim(),
+        'notes.$.updatedAt': new Date(),
+      },
+    },
+    { new: true }
+  ).populate('notes.createdBy', 'firstName lastName avatar');
+
+  if (!customer) {
+    throw new AppError('Customer or note not found', 404);
+  }
+
+  await logActivity({
+    customerId: customer._id,
+    type: 'customer_note_updated',
+    description: `Note updated for customer ${customer.fullName}`,
+    performedBy: userId,
+  });
+
+  return customer.notes;
+};
+
 export const deleteCustomerNote = async (customerId, noteId, userId) => {
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, deletedAt: null },
@@ -349,7 +386,105 @@ export const deleteCustomerNote = async (customerId, noteId, userId) => {
     throw new AppError('Customer not found', 404);
   }
 
+  await logActivity({
+    customerId: customer._id,
+    type: 'customer_note_deleted',
+    description: `Note removed from customer ${customer.fullName}`,
+    performedBy: userId,
+  });
+
   return customer.notes;
+};
+
+export const importCustomers = async (customersList, userId) => {
+  if (!Array.isArray(customersList) || customersList.length === 0) {
+    throw new AppError('No customer records provided for import', 400);
+  }
+
+  let importedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+  const errors = [];
+
+  for (let i = 0; i < customersList.length; i++) {
+    const row = customersList[i];
+    try {
+      const fullName = (row.fullName || row['Full Name'] || row.name || '').trim();
+      const phone = (row.phone || row['Phone'] || row['Phone Number'] || '').trim();
+      const email = (row.email || row['Email'] || '').trim().toLowerCase();
+
+      if (!fullName) {
+        failedCount++;
+        errors.push({ row: i + 1, error: 'Full name is required' });
+        continue;
+      }
+      if (!phone) {
+        failedCount++;
+        errors.push({ row: i + 1, error: 'Phone number is required' });
+        continue;
+      }
+
+      // Check duplicate
+      const existing = await Customer.findOne({
+        deletedAt: null,
+        $or: [{ phone }, ...(email ? [{ email }] : [])],
+      });
+
+      if (existing) {
+        skippedCount++;
+        continue;
+      }
+
+      const projectType = (row.projectType || row['Project Type'] || 'Modular Kitchen').trim();
+      const totalValue = Number(row.totalValue || row['Total Value'] || row.budget || 0) || 0;
+      const status = (row.status || row['Status'] || 'active').toLowerCase().trim();
+      const city = (row.city || row['City'] || '').trim();
+      const location = (row.location || row['Location'] || city || '').trim();
+
+      const newCustomer = await Customer.create({
+        fullName,
+        phone,
+        email: email || undefined,
+        projectType,
+        totalValue,
+        status: ['active', 'in_progress', 'completed', 'on_hold'].includes(status) ? status : 'active',
+        city,
+        location,
+        address: (row.address || row['Address'] || '').trim(),
+        projects: projectType
+          ? [
+              {
+                projectName: `${projectType} Project`,
+                projectType,
+                budget: totalValue,
+                status: 'active',
+                startDate: new Date(),
+              },
+            ]
+          : [],
+      });
+
+      importedCount++;
+
+      await logActivity({
+        customerId: newCustomer._id,
+        type: 'customer_created',
+        description: `Customer imported: ${newCustomer.customerId} (${newCustomer.fullName})`,
+        performedBy: userId,
+      });
+    } catch (err) {
+      failedCount++;
+      errors.push({ row: i + 1, error: err.message });
+    }
+  }
+
+  return {
+    imported: importedCount,
+    skipped: skippedCount,
+    failed: failedCount,
+    total: customersList.length,
+    errors,
+  };
 };
 
 export const addCustomerDocument = async (customerId, docData, userId) => {

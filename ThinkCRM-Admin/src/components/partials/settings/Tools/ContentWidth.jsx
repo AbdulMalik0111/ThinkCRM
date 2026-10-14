@@ -4,31 +4,26 @@ import useContentWidth from "@/hooks/useContentWidth";
 
 const CWidth = () => {
   const [contentWidth, setContentWidth] = useContentWidth();
-  const handleChange = (e) => {
-    setContentWidth(e.target.value);
-  };
 
   return (
     <div>
-      <h4 className="text-slate-600 text-base dark:text-slate-300 mb-2 font-normal">
+      <h4 className="text-slate-700 text-sm font-semibold dark:text-slate-200 mb-2.5">
         Content Width
       </h4>
-      <div className="grid md:grid-cols-3 grid-cols-1 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Radio
           label="Full Width"
           name="cwidth"
           value="full"
           checked={contentWidth === "full"}
-          className="h-4 w-4"
-          onChange={handleChange}
+          onChange={() => setContentWidth("full")}
         />
         <Radio
           label="Boxed"
           name="cwidth"
           value="boxed"
-          className="h-4 w-4"
           checked={contentWidth === "boxed"}
-          onChange={handleChange}
+          onChange={() => setContentWidth("boxed")}
         />
       </div>
     </div>

@@ -111,7 +111,7 @@ const NewLead = () => {
       <form onSubmit={handleSubmit} className="flex flex-col lg:flex-row gap-6">
         
         <div className="w-full lg:w-1/4">
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-2">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-2">
             <ul className="space-y-1">
               {sections.map((section) => (
                 <li key={section.id}>

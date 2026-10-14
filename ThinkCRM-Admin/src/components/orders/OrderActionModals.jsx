@@ -336,7 +336,7 @@ export const RefundModal = ({ isOpen, onClose, onConfirm, isLoading, order }) =>
             Close
           </button>
           <button 
-            className="btn bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-medium shadow-sm" 
+            className="btn bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-medium" 
             onClick={handleConfirm} 
             disabled={!reason.trim() || (isCOD && (!refundMethod || !refundReference.trim())) || isLoading}
           >

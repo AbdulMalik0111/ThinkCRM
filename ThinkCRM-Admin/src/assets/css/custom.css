@@ -18,11 +18,6 @@ body, html, .no-scrollbar {
   scrollbar-width: none !important;  /* Firefox */
 }
 
-/* Keep the admin panel flat without component drop shadows */
-*, *::before, *::after {
-  box-shadow: none !important;
-}
-
 /* ==========================================================================
    GLOBAL MINIMUM FONT SIZES & TYPOGRAPHY STANDARDS
    Requirements:
@@ -150,12 +145,12 @@ p.text-xs {
   --ag-font-family: 'Inter', sans-serif !important;
   --ag-font-size: 14px !important;
   --ag-grid-size: 8px !important;
-  --ag-row-height: 54px !important;
-  --ag-header-height: 46px !important;
+  --ag-row-height: 58px !important;
+  --ag-header-height: 48px !important;
   --ag-border-color: #e2e8f0 !important;
   --ag-header-background-color: #f8fafc !important;
-  --ag-header-foreground-color: #64748b !important;
-  --ag-data-color: #1e293b !important;
+  --ag-header-foreground-color: #475569 !important;
+  --ag-data-color: #0f172a !important;
   --ag-row-hover-color: #f8fafc !important;
   --ag-selected-row-background-color: #eff6ff !important;
   --ag-odd-row-background-color: #ffffff !important;
@@ -190,6 +185,159 @@ p.text-xs {
 
 .dark .ag-row {
   border-bottom: 1px solid #334155 !important;
+}
+
+/* Pinned column borders and backgrounds without shadows */
+.ag-pinned-left-header,
+.ag-pinned-left-cols-container {
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+}
+
+.ag-pinned-right-header,
+.ag-pinned-right-cols-container {
+  border-left: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
+}
+
+.dark .ag-pinned-left-header,
+.dark .ag-pinned-left-cols-container {
+  border-right: 1px solid #334155 !important;
+  box-shadow: none !important;
+  background-color: #1e293b !important;
+}
+
+.dark .ag-pinned-right-header,
+.dark .ag-pinned-right-cols-container {
+  border-left: 1px solid #334155 !important;
+  box-shadow: none !important;
+  background-color: #1e293b !important;
+}
+
+/* ==========================================================================
+   GLOBAL ZERO-SHADOW ENFORCEMENT
+   Clean, flat, professional SaaS design using borders and contrast
+   ========================================================================== */
+*, *::before, *::after {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  text-shadow: none !important;
+}
+
+.shadow,
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl,
+.shadow-inner,
+[class*="shadow-"],
+[class*="hover:shadow"],
+[class*="focus:shadow"] {
+  box-shadow: none !important;
+}
+
+.modal-content,
+.dropdown-menu,
+.card,
+.drawer,
+.tooltip,
+.Toastify__toast,
+.react-select__menu,
+.react-select__control,
+.ag-root-wrapper,
+.ag-popup,
+.ag-menu,
+.popover,
+.flatpickr-calendar,
+.swal2-popup,
+.apexcharts-tooltip,
+[role="menu"],
+[role="dialog"],
+[data-radix-popper-content-wrapper] {
+  box-shadow: none !important;
+}
+
+.flatpickr-calendar {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+}
+
+.dark .flatpickr-calendar {
+  border: 1px solid #334155 !important;
+  background: #1e293b !important;
+}
+
+.Toastify__toast {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+}
+
+.dark .Toastify__toast {
+  border: 1px solid #334155 !important;
+}
+
+.swal2-popup {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+}
+
+.dark .swal2-popup {
+  border: 1px solid #334155 !important;
+}
+
+.apexcharts-tooltip {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.375rem !important;
+}
+
+.dark .apexcharts-tooltip {
+  border: 1px solid #334155 !important;
+}
+
+/* AG Grid Checkbox Styling matching reference image */
+.ag-checkbox-input-wrapper {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 4px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  transition: all 0.15s ease-in-out !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+}
+
+.ag-checkbox-input-wrapper:hover {
+  border-color: #2563eb !important;
+}
+
+.ag-checkbox-input-wrapper.ag-checked {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.ag-checkbox-input-wrapper.ag-checked::after {
+  color: #ffffff !important;
+}
+
+.dark .ag-checkbox-input-wrapper {
+  border-color: #475569 !important;
+  background-color: #1e293b !important;
+}
+
+.dark .ag-checkbox-input-wrapper.ag-checked {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+}
+
+.ag-header-cell-label {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 /* Animations */

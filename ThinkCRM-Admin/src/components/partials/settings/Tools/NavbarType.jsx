@@ -4,43 +4,27 @@ import useNavbarType from "@/hooks/useNavbarType";
 
 const NavType = () => {
   const [navbarType, setNavbarType] = useNavbarType();
-  const handleChange = (e) => {
-    setNavbarType(e.target.value);
-  };
   const navTypes = [
-    {
-      label: "Sticky",
-      value: "sticky",
-    },
-    {
-      label: "Static",
-      value: "static",
-    },
-    {
-      label: "Floating",
-      value: "floating",
-    },
-    {
-      label: "Hidden",
-      value: "hidden",
-    },
+    { label: "Sticky", value: "sticky" },
+    { label: "Static", value: "static" },
+    { label: "Floating", value: "floating" },
+    { label: "Hidden", value: "hidden" },
   ];
 
   return (
     <div>
-      <h4 className="text-slate-600 text-base dark:text-slate-300 mb-2 font-normal">
+      <h4 className="text-slate-700 text-sm font-semibold dark:text-slate-200 mb-2.5">
         Navbar Type
       </h4>
-      <div className="grid md:grid-cols-4 grid-cols-1 gap-3">
-        {navTypes?.map((item, index) => (
+      <div className="grid grid-cols-2 gap-3">
+        {navTypes.map((item) => (
           <Radio
-            key={index}
+            key={item.value}
             label={item.label}
             name="navbarType"
             value={item.value}
             checked={navbarType === item.value}
-            onChange={handleChange}
-            className="h-4 w-4"
+            onChange={() => setNavbarType(item.value)}
           />
         ))}
       </div>

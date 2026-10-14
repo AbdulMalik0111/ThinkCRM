@@ -81,7 +81,7 @@ const Pipeline = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-md">
-            <button className="px-3 py-1.5 rounded bg-white dark:bg-slate-700 shadow-sm text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
+            <button className="px-3 py-1.5 rounded bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
               <Icon icon="heroicons:view-columns" /> Board View
             </button>
             <button onClick={() => navigate("/leads")} className="px-3 py-1.5 rounded text-sm font-medium text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-2">
@@ -132,7 +132,7 @@ const Pipeline = () => {
                       draggable
                       onDragStart={(e) => handleDragStart(e, lead._id)}
                       onClick={() => navigate(`/leads/${lead._id}`)}
-                      className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing group"
+                      className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 cursor-grab hover:border-primary-400 dark:hover:border-primary-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/80 transition-colors active:cursor-grabbing group"
                     >
                       <div className="flex items-center gap-3 mb-3">
                         <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase shrink-0">

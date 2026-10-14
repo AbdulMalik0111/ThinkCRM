@@ -34,7 +34,7 @@ const Profile = () => {
         <div className="col-span-1">
           <Card>
             <div className="flex flex-col items-center justify-center p-4">
-              <div className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-100 font-bold text-4xl mb-4 shadow-sm">
+              <div className="h-24 w-24 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-800 dark:text-slate-100 font-bold text-4xl mb-4 border border-slate-300 dark:border-slate-600">
                 {initial}
               </div>
               <h4 className="text-lg font-semibold text-slate-900 dark:text-white">

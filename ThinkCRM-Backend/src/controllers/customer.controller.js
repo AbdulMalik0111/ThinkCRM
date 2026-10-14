@@ -159,3 +159,34 @@ export const sendCustomerEmail = async (req, res, next) => {
     next(error);
   }
 };
+
+export const updateCustomerNote = async (req, res, next) => {
+  try {
+    const notes = await customerService.updateCustomerNote(
+      req.params.id,
+      req.params.noteId,
+      req.body,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: 'Note updated successfully',
+      data: { notes },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const importCustomers = async (req, res, next) => {
+  try {
+    const result = await customerService.importCustomers(req.body.customers, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: `Successfully imported ${result.imported} customer(s). Skipped: ${result.skipped}, Failed: ${result.failed}`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

@@ -19,6 +19,7 @@ import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
 import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import { getAvatarColor, renderStatusPill, formatDate } from "@/components/common/tableUtils";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New" },
@@ -120,9 +121,10 @@ const Leads = () => {
       {
         headerName: "#",
         valueGetter: (params) => (currentPage - 1) * limit + params.node.rowIndex + 1,
-        width: 65,
-        minWidth: 55,
-        maxWidth: 75,
+        width: 60,
+        minWidth: 60,
+        maxWidth: 65,
+        pinned: "left",
         sortable: false,
         resizable: false,
         cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
@@ -131,23 +133,32 @@ const Leads = () => {
       {
         headerName: "Lead Name",
         field: "fullName",
-        minWidth: 200,
+        minWidth: 240,
         flex: 1.5,
+        pinned: "left",
         cellRenderer: (params) => {
           const lead = params.data;
           if (!lead) return null;
+          const avatarColor = getAvatarColor(lead.fullName || "Lead");
           return (
             <div className="flex items-center gap-3 py-1 font-inter">
-              <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold uppercase text-xs flex-shrink-0">
+              <div
+                className={`h-9 w-9 rounded-full flex items-center justify-center font-bold uppercase text-xs flex-shrink-0 border border-slate-200 dark:border-slate-700 ${avatarColor}`}
+              >
                 {lead.fullName?.charAt(0) || "L"}
               </div>
-              <button
-                type="button"
-                onClick={() => navigate(`/leads/${lead._id}`)}
-                className="font-semibold text-slate-900 dark:text-white hover:text-primary-600 transition text-left truncate text-sm"
-              >
-                {lead.fullName}
-              </button>
+              <div className="truncate">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/leads/${lead._id}`)}
+                  className="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition text-left truncate block text-[14px] hover:underline"
+                >
+                  {lead.fullName}
+                </button>
+                <span className="text-xs text-slate-400 font-medium block truncate">
+                  {lead.company || lead.leadId ? `#${lead.leadId}` : "Direct Inquiry"}
+                </span>
+              </div>
             </div>
           );
         },
@@ -155,17 +166,21 @@ const Leads = () => {
       {
         headerName: "Phone",
         field: "phone",
-        minWidth: 130,
+        minWidth: 150,
         flex: 1,
-        cellClass: "font-inter font-medium text-slate-600 dark:text-slate-300",
+        cellRenderer: (params) => (
+          <span className="font-inter font-medium text-slate-700 dark:text-slate-300 text-[14px]">
+            {params.value || "—"}
+          </span>
+        ),
       },
       {
         headerName: "Email",
         field: "email",
-        minWidth: 160,
+        minWidth: 200,
         flex: 1.2,
         cellRenderer: (params) => (
-          <span className="text-slate-500 font-inter truncate">
+          <span className="text-slate-600 dark:text-slate-400 font-inter truncate text-[14px]">
             {params.value || "—"}
           </span>
         ),
@@ -173,10 +188,10 @@ const Leads = () => {
       {
         headerName: "Source",
         field: "leadSource",
-        minWidth: 110,
-        flex: 0.9,
+        minWidth: 140,
+        flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter capitalize text-slate-600 dark:text-slate-300">
+          <span className="font-inter font-semibold capitalize text-slate-700 dark:text-slate-300 text-[14px]">
             {params.value || "—"}
           </span>
         ),
@@ -184,31 +199,22 @@ const Leads = () => {
       {
         headerName: "Status",
         field: "status",
-        minWidth: 120,
+        minWidth: 130,
         flex: 0.9,
         cellRenderer: (params) => {
-          const val = params.value || "new";
-          return (
-            <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter text-white ${getStatusColor(
-                val
-              )}`}
-            >
-              {val}
-            </span>
-          );
+          return renderStatusPill(params.value || "new");
         },
       },
       {
         headerName: "Priority",
         field: "priority",
-        minWidth: 110,
+        minWidth: 120,
         flex: 0.8,
         cellRenderer: (params) => {
           const val = params.value || "medium";
           return (
             <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${getPriorityColor(
+              className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize font-inter ${getPriorityColor(
                 val
               )}`}
             >
@@ -219,21 +225,25 @@ const Leads = () => {
       },
       {
         headerName: "Assigned To",
-        minWidth: 140,
+        minWidth: 160,
         flex: 1,
         valueGetter: (params) => {
           const u = params.data?.assignedTo;
           return u ? `${u.firstName || ""} ${u.lastName || ""}`.trim() : "Unassigned";
         },
-        cellClass: "font-inter text-slate-600 dark:text-slate-300",
+        cellRenderer: (params) => (
+          <span className="font-inter font-medium text-slate-700 dark:text-slate-300 text-[14px]">
+            {params.value}
+          </span>
+        ),
       },
       {
         headerName: "Created",
         field: "createdAt",
-        minWidth: 110,
+        minWidth: 130,
         flex: 0.9,
         cellRenderer: (params) => (
-          <span className="font-inter text-slate-500 text-xs">
+          <span className="font-inter text-slate-500 text-[13.5px] font-medium">
             {params.value ? dayjs(params.value).format("MMM D, YYYY") : "—"}
           </span>
         ),
@@ -277,7 +287,7 @@ const Leads = () => {
             },
             lead.phone && {
               label: "Chat on WhatsApp",
-              icon: "heroicons:chat-bubble-left-ellipsis",
+              icon: "whatsapp",
               onClick: () => {
                 window.open(
                   `https://wa.me/${lead.phone.replace(/\D/g, "")}`,
@@ -346,68 +356,138 @@ const Leads = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-          <Textinput
-            placeholder="Search leads, phone, email..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <Select
+      {/* Filters Bar */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-center">
+          {/* Search Input with Clear Button */}
+          <div className="relative">
+            <Icon
+              icon="heroicons-outline:magnifying-glass"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none"
+            />
+            <input
+              type="text"
+              placeholder="Search leads, phone, email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full h-11 pl-10 pr-9 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-primary-500 transition"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setCurrentPage(1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5"
+                title="Clear search"
+              >
+                <Icon icon="heroicons-outline:x-mark" className="text-sm" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <select
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
               setCurrentPage(1);
             }}
-            options={[{ value: "", label: "All Status" }, ...STATUS_OPTIONS]}
-          />
-          <Select
+            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
+          >
+            <option value="">All Statuses</option>
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Source Filter */}
+          <select
             value={source}
             onChange={(e) => {
               setSource(e.target.value);
               setCurrentPage(1);
             }}
-            options={[{ value: "", label: "All Source" }, ...SOURCE_OPTIONS]}
-          />
-          <Select
-            value={priority} // We will repurpose this variable or add assignedTo if needed. For now let's just make it look like "All Staff"
+            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
+          >
+            <option value="">All Sources</option>
+            {SOURCE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Priority Filter */}
+          <select
+            value={priority}
             onChange={(e) => {
               setPriority(e.target.value);
               setCurrentPage(1);
             }}
-            options={[{ value: "", label: "All Staff" }]}
-          />
-          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800">
-            <div className="px-2 text-slate-500"><Icon icon="heroicons-outline:calendar" /></div>
+            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
+          >
+            <option value="">All Priorities</option>
+            {PRIORITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Date Range Picker */}
+          <div className="relative flex items-center h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg">
+            <Icon icon="heroicons-outline:calendar" className="text-slate-400 mr-2 flex-shrink-0 text-base" />
             <Flatpickr
-              className="w-full bg-transparent border-none focus:ring-0 text-sm py-2"
+              className="w-full bg-transparent border-none p-0 text-[14px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-normal cursor-pointer"
               value={dateRange}
-              placeholder="Jan 1, 2024 - Dec 31, 2024"
-              options={{ mode: "range" }}
+              placeholder="Filter by date range"
+              options={{ mode: "range", dateFormat: "M d, Y" }}
               onChange={(dates) => {
                 setDateRange(dates);
                 if (dates.length === 2) setCurrentPage(1);
               }}
             />
+            {dateRange.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDateRange([]);
+                  setCurrentPage(1);
+                }}
+                className="text-slate-400 hover:text-slate-700 ml-1 p-0.5"
+              >
+                <Icon icon="heroicons-outline:x-mark" className="text-sm" />
+              </button>
+            )}
           </div>
         </div>
+
         {(search || status || source || priority || dateRange.length > 0) && (
-          <div className="flex justify-end">
-            <button onClick={handleFilterReset} className="text-sm text-danger-500 font-medium hover:underline">
+          <div className="flex justify-end mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+            <button
+              onClick={handleFilterReset}
+              className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-bold hover:underline"
+            >
+              <Icon icon="heroicons-outline:arrow-path" className="text-sm" />
               Clear All Filters
             </button>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Leads AG Grid Table */}
       <DataGrid
         rowData={leads}
         columnDefs={columnDefs}
+        enableSelection={true}
+        entityName="leads"
         pagination={true}
         paginationData={{
           page: currentPage,
@@ -506,7 +586,6 @@ const Leads = () => {
         onConfirm={handleConfirmDelete}
         title="Delete Lead"
         entityName={deleteConfirm.lead?.fullName || "this lead"}
-        message="Are you sure you want to delete this lead? Associated follow-ups and activity logs will be archived."
         isLoading={deleteConfirm.isLoading}
         confirmText="Delete Lead"
       />

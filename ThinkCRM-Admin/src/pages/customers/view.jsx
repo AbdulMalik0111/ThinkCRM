@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Menu, MenuButton, MenuItems, MenuItem, Transition } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Loading from "@/components/Loading";
@@ -9,6 +10,7 @@ import {
   useGetCustomerByIdQuery,
   useDeleteCustomerMutation,
   useAddCustomerNoteMutation,
+  useUpdateCustomerNoteMutation,
   useDeleteCustomerNoteMutation,
   useDeleteCustomerDocumentMutation,
 } from "@/store/api/customers/customersApiSlice";
@@ -21,16 +23,17 @@ import AddProjectModal from "./AddProjectModal";
 import UploadDocumentModal from "./UploadDocumentModal";
 import CustomerForm from "./CustomerForm";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import Modal from "@/components/ui/Modal";
 
 const TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "projects", label: "Projects" },
-  { id: "communications", label: "Communications" },
-  { id: "quotations", label: "Quotations" },
-  { id: "followups", label: "Follow-ups" },
-  { id: "files", label: "Files & Documents" },
-  { id: "notes", label: "Notes" },
-  { id: "activity", label: "Activity" },
+  { id: "overview", label: "Overview", icon: "heroicons-outline:squares-2x2" },
+  { id: "projects", label: "Projects", icon: "heroicons-outline:briefcase" },
+  { id: "communications", label: "Communications", icon: "heroicons-outline:chat-bubble-left-right" },
+  { id: "quotations", label: "Quotations", icon: "heroicons-outline:document-text" },
+  { id: "followups", label: "Follow-ups", icon: "heroicons-outline:calendar" },
+  { id: "files", label: "Files & Documents", icon: "heroicons-outline:folder-open" },
+  { id: "notes", label: "Notes", icon: "heroicons-outline:pencil-square" },
+  { id: "activity", label: "Activity", icon: "heroicons-outline:bolt" },
 ];
 
 const statusStyles = {
@@ -40,12 +43,40 @@ const statusStyles = {
   on_hold: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
 };
 
+const getActivityMeta = (type) => {
+  switch (type) {
+    case "customer_email_sent":
+      return { title: "Email Sent", icon: "heroicons-outline:envelope", color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40" };
+    case "customer_whatsapp_sent":
+      return { title: "WhatsApp Sent", icon: "whatsapp", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" };
+    case "customer_call_logged":
+      return { title: "Call Logged", icon: "heroicons-outline:phone", color: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40" };
+    case "customer_note_added":
+    case "customer_note_updated":
+    case "customer_note_deleted":
+      return { title: "Note Activity", icon: "heroicons-outline:pencil-square", color: "text-purple-600 bg-purple-50 dark:bg-purple-950/40" };
+    case "customer_file_uploaded":
+      return { title: "Document Uploaded", icon: "heroicons-outline:arrow-up-tray", color: "text-teal-600 bg-teal-50 dark:bg-teal-950/40" };
+    case "project_created":
+    case "project_updated":
+      return { title: "Project Activity", icon: "heroicons-outline:briefcase", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40" };
+    case "follow_up_created":
+    case "follow_up_completed":
+      return { title: "Follow-up", icon: "heroicons-outline:calendar", color: "text-rose-600 bg-rose-50 dark:bg-rose-950/40" };
+    case "customer_created":
+      return { title: "Customer Created", icon: "heroicons-outline:user-plus", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40" };
+    case "customer_updated":
+      return { title: "Customer Updated", icon: "heroicons-outline:pencil", color: "text-slate-600 bg-slate-50 dark:bg-slate-700" };
+    default:
+      return { title: "CRM Event", icon: "heroicons-outline:bolt", color: "text-primary-600 bg-primary-50 dark:bg-primary-950/40" };
+  }
+};
+
 const CustomerView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("overview");
-  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
 
   // Modals state
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -54,16 +85,34 @@ const CustomerView = () => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Customer Deletion State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingCustomer, setIsDeletingCustomer] = useState(false);
 
-  // Quick note state in Notes tab
+  // Notes state
   const [noteContent, setNoteContent] = useState("");
+  const [editingNote, setEditingNote] = useState(null);
+  const [editNoteContent, setEditNoteContent] = useState("");
+  const [deleteNoteConfirm, setDeleteNoteConfirm] = useState({
+    isOpen: false,
+    noteId: null,
+    isLoading: false,
+  });
+
+  // Document deletion state
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState({
+    isOpen: false,
+    docId: null,
+    docName: "",
+    isLoading: false,
+  });
 
   // RTK Query
   const { data, isLoading, isError, refetch } = useGetCustomerByIdQuery(id);
   const [deleteCustomer] = useDeleteCustomerMutation();
   const [addCustomerNote, { isLoading: isAddingNote }] = useAddCustomerNoteMutation();
+  const [updateCustomerNote, { isLoading: isUpdatingNote }] = useUpdateCustomerNoteMutation();
   const [deleteCustomerNote] = useDeleteCustomerNoteMutation();
   const [deleteCustomerDocument] = useDeleteCustomerDocumentMutation();
 
@@ -80,13 +129,74 @@ const CustomerView = () => {
     }
   };
 
+  const handleAddNote = async (e) => {
+    e.preventDefault();
+    if (!noteContent.trim()) return;
+    try {
+      await addCustomerNote({ id, content: noteContent.trim() }).unwrap();
+      setNoteContent("");
+      toast.success("Note added successfully");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to add note");
+    }
+  };
+
+  const handleUpdateNote = async (e) => {
+    e.preventDefault();
+    if (!editNoteContent.trim() || !editingNote) return;
+    try {
+      await updateCustomerNote({
+        id,
+        noteId: editingNote._id,
+        content: editNoteContent.trim(),
+      }).unwrap();
+      setEditingNote(null);
+      setEditNoteContent("");
+      toast.success("Note updated successfully");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update note");
+    }
+  };
+
+  const handleConfirmDeleteNote = async () => {
+    if (!deleteNoteConfirm.noteId) return;
+    try {
+      setDeleteNoteConfirm((prev) => ({ ...prev, isLoading: true }));
+      await deleteCustomerNote({ id, noteId: deleteNoteConfirm.noteId }).unwrap();
+      toast.success("Note deleted successfully");
+      setDeleteNoteConfirm({ isOpen: false, noteId: null, isLoading: false });
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete note");
+      setDeleteNoteConfirm((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleConfirmDeleteDoc = async () => {
+    if (!deleteDocConfirm.docId) return;
+    try {
+      setDeleteDocConfirm((prev) => ({ ...prev, isLoading: true }));
+      await deleteCustomerDocument({ id, docId: deleteDocConfirm.docId }).unwrap();
+      toast.success("Document deleted successfully");
+      setDeleteDocConfirm({ isOpen: false, docId: null, docName: "", isLoading: false });
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete document");
+      setDeleteDocConfirm((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
+
   if (isLoading) return <Loading />;
   if (isError || !data?.data?.customer) {
     return (
       <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-        <Icon icon="heroicons:exclamation-triangle" className="text-4xl text-amber-500 mx-auto mb-2" />
+        <Icon icon="heroicons-outline:exclamation-triangle" className="text-4xl text-amber-500 mx-auto mb-2" />
         <h4 className="text-lg font-bold text-slate-800 dark:text-white">Customer Not Found</h4>
-        <p className="text-sm text-slate-500 mt-1 mb-4">The customer profile you are looking for may have been deleted or does not exist.</p>
+        <p className="text-sm text-slate-500 mt-1 mb-4">
+          The customer profile you are looking for may have been archived or does not exist.
+        </p>
         <Button text="Back to Directory" className="btn-primary btn-sm" onClick={() => navigate("/customers")} />
       </div>
     );
@@ -111,60 +221,20 @@ const CustomerView = () => {
     }
   };
 
-  const handleDeleteCustomer = async () => {
-    if (window.confirm(`Are you sure you want to delete "${customer.fullName}"? This action can be reversed by an administrator.`)) {
-      try {
-        await deleteCustomer(customer._id).unwrap();
-        toast.success("Customer removed successfully");
-        navigate("/customers");
-      } catch (err) {
-        toast.error(err?.data?.message || "Failed to delete customer");
-      }
-    }
-  };
-
-  const handleAddNote = async (e) => {
-    e.preventDefault();
-    if (!noteContent.trim()) return;
-    try {
-      await addCustomerNote({ id: customer._id, content: noteContent.trim() }).unwrap();
-      setNoteContent("");
-      toast.success("Note added successfully");
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to add note");
-    }
-  };
-
-  const handleDeleteNote = async (noteId) => {
-    if (window.confirm("Are you sure you want to delete this note?")) {
-      try {
-        await deleteCustomerNote({ id: customer._id, noteId }).unwrap();
-        toast.success("Note deleted");
-      } catch (err) {
-        toast.error("Failed to delete note");
-      }
-    }
-  };
-
-  const handleDeleteDoc = async (docId) => {
-    if (window.confirm("Are you sure you want to delete this document?")) {
-      try {
-        await deleteCustomerDocument({ id: customer._id, docId }).unwrap();
-        toast.success("Document deleted");
-      } catch (err) {
-        toast.error("Failed to delete document");
-      }
-    }
-  };
-
   // Projects calculations
   const projects = customer.projects || [];
   const activeProjectsCount = projects.filter((p) => p.status === "active" || p.status === "in_progress").length;
   const completedProjectsCount = projects.filter((p) => p.status === "completed").length;
   const totalCustomerValue = customer.totalValue || projects.reduce((acc, p) => acc + (p.budget || 0), 0);
 
+  const assignedStaffName = customer.assignedStaff
+    ? `${customer.assignedStaff.firstName || ""} ${customer.assignedStaff.lastName || ""}`.trim() ||
+      customer.assignedStaff.name ||
+      "Unassigned"
+    : "Unassigned";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-inter">
       {/* Breadcrumb Navigation */}
       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
         <button
@@ -178,13 +248,13 @@ const CustomerView = () => {
         <span className="text-slate-800 dark:text-slate-200 font-semibold">{customer.fullName}</span>
       </div>
 
-      {/* Customer Header Banner (Matches Screen 3) */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+      {/* Customer Header Banner - Pure Flat Design */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           {/* Left: Avatar + Details */}
           <div className="flex items-start sm:items-center gap-5">
             <div className="relative flex-shrink-0">
-              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-slate-100 dark:border-slate-700 bg-slate-100 dark:bg-slate-700 flex items-center justify-center shadow-inner">
+              <div className="h-20 w-20 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
                 {customer.avatar ? (
                   <img src={customer.avatar} alt={customer.fullName} className="h-full w-full object-cover" />
                 ) : (
@@ -201,7 +271,7 @@ const CustomerView = () => {
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
                   {customer.fullName}
                 </h2>
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
                   {customer.customerId || "CUS-NEW"}
                 </span>
                 <span
@@ -221,159 +291,225 @@ const CustomerView = () => {
                 ))}
               </div>
 
-              {/* Sub-contact details */}
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-300 pt-1">
+              {/* Sub-contact details - Enhanced contrast and semi-bold */}
+              <div className="flex flex-wrap items-center gap-4 text-xs sm:text-[13px] font-semibold text-slate-700 dark:text-slate-200 pt-1.5">
                 <span className="flex items-center gap-1.5">
-                  <Icon icon="heroicons:phone" className="text-slate-400 text-sm" />
-                  <a href={`tel:${customer.phone}`} className="hover:text-primary-600 font-medium">
-                    {customer.phone}
+                  <Icon icon="heroicons-outline:phone" className="text-slate-500 dark:text-slate-400 text-sm" />
+                  <a href={`tel:${customer.phone}`} className="hover:text-primary-600 font-semibold text-slate-800 dark:text-slate-100 transition">
+                    {customer.phone || "—"}
                   </a>
                 </span>
                 {customer.email && (
                   <span className="flex items-center gap-1.5">
-                    <Icon icon="heroicons:envelope" className="text-slate-400 text-sm" />
-                    <a href={`mailto:${customer.email}`} className="hover:text-primary-600 font-medium">
+                    <Icon icon="heroicons-outline:envelope" className="text-slate-500 dark:text-slate-400 text-sm" />
+                    <a href={`mailto:${customer.email}`} className="hover:text-primary-600 font-semibold text-slate-800 dark:text-slate-100 transition">
                       {customer.email}
                     </a>
                   </span>
                 )}
                 {(customer.location || customer.city) && (
                   <span className="flex items-center gap-1.5">
-                    <Icon icon="heroicons:map-pin" className="text-slate-400 text-sm" />
-                    <span>{customer.location || `${customer.city}${customer.state ? `, ${customer.state}` : ""}`}</span>
+                    <Icon icon="heroicons-outline:map-pin" className="text-slate-500 dark:text-slate-400 text-sm" />
+                    <span className="font-semibold text-slate-800 dark:text-slate-100">
+                      {customer.location || `${customer.city}${customer.state ? `, ${customer.state}` : ""}`}
+                    </span>
                   </span>
                 )}
+                <span className="flex items-center gap-1.5">
+                  <Icon icon="heroicons-outline:user" className="text-slate-500 dark:text-slate-400 text-sm" />
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">
+                    Assigned: {assignedStaffName}
+                  </span>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Right: Action Buttons Group */}
-          <div className="flex flex-wrap items-center gap-2.5 relative">
-            {/* Call */}
-            <button
-              onClick={handleCall}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 transition shadow-sm"
-            >
-              <Icon icon="heroicons:phone" className="text-sm text-slate-500" />
-              <span>Call</span>
-            </button>
-
-            {/* WhatsApp */}
-            <button
-              onClick={() => setIsWhatsAppModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-emerald-300 bg-emerald-50 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 transition shadow-sm"
-            >
-              <Icon icon="logos:whatsapp-icon" className="text-sm" />
-              <span>WhatsApp</span>
-            </button>
-
-            {/* Email */}
-            <button
-              onClick={() => setIsEmailModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-primary-300 bg-primary-50 text-xs font-semibold text-primary-700 hover:bg-primary-100 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-800 transition shadow-sm"
-            >
-              <Icon icon="heroicons:envelope" className="text-sm text-primary-600" />
-              <span>Email</span>
-            </button>
-
-            {/* Edit */}
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-500 text-xs font-semibold text-white hover:bg-primary-600 transition shadow-sm"
-            >
-              <Icon icon="heroicons:pencil-square" className="text-sm" />
-              <span>Edit</span>
-            </button>
-
-            {/* More Actions Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMoreDropdown(!showMoreDropdown)}
-                className="h-9 w-9 rounded-lg border border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          {/* Right: Three-Dot Actions Menu */}
+          <div className="relative">
+            <Menu as="div" className="relative inline-block text-left">
+              <MenuButton
+                type="button"
+                className="h-10 w-10 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white transition focus:outline-none"
+                title="Customer Actions"
               >
-                <Icon icon="heroicons:ellipsis-vertical" className="text-base" />
-              </button>
+                <Icon icon="heroicons-outline:ellipsis-vertical" className="text-xl" />
+              </MenuButton>
 
-              {showMoreDropdown && (
-                <div
-                  className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 z-30 animate-fadeIn"
-                  onMouseLeave={() => setShowMoreDropdown(false)}
-                >
-                  <button
-                    onClick={() => {
-                      setShowMoreDropdown(false);
-                      setIsWhatsAppModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-left font-medium"
-                  >
-                    <Icon icon="heroicons-outline:chat-bubble-bottom-center-text" />
-                    <span>Send Message</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowMoreDropdown(false);
-                      setActiveTab("notes");
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-left font-medium"
-                  >
-                    <Icon icon="heroicons-outline:pencil-square" />
-                    <span>Add Note</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowMoreDropdown(false);
-                      setIsDocumentModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-left font-medium"
-                  >
-                    <Icon icon="heroicons-outline:arrow-up-tray" />
-                    <span>Upload Document</span>
-                  </button>
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <MenuItems className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 z-40 focus:outline-none font-inter">
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={handleCall}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:phone" className="text-base text-slate-500 dark:text-slate-400" />
+                        <span>Call Customer</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsWhatsAppModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300"
+                            : "text-slate-700 dark:text-slate-200 hover:text-emerald-600"
+                        }`}
+                      >
+                        <Icon icon="whatsapp" className="text-base text-emerald-600 dark:text-emerald-400" />
+                        <span>Send WhatsApp</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsEmailModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300"
+                            : "text-slate-700 dark:text-slate-200 hover:text-primary-600"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:envelope" className="text-base text-primary-600 dark:text-primary-400" />
+                        <span>Send Email</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/customers/${customer._id}/edit`)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:pencil-square" className="text-base text-slate-500 dark:text-slate-400" />
+                        <span>Edit Customer</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <div className="border-t border-slate-100 dark:border-slate-700/80 my-1" />
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("notes")}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:pencil-square" className="text-base text-purple-500" />
+                        <span>Add Note</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsDocumentModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:arrow-up-tray" className="text-base text-teal-500" />
+                        <span>Upload Document</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
                   {customer.sourceLeadId && (
-                    <button
-                      onClick={() => {
-                        setShowMoreDropdown(false);
-                        const leadId = customer.sourceLeadId._id || customer.sourceLeadId;
-                        navigate(`/leads/${leadId}`);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-left font-medium"
-                    >
-                      <Icon icon="heroicons-outline:arrow-top-right-on-square" />
-                      <span>View Lead</span>
-                    </button>
+                    <MenuItem>
+                      {({ active }) => (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const leadId = customer.sourceLeadId._id || customer.sourceLeadId;
+                            navigate(`/leads/${leadId}`);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                            active
+                              ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                              : "text-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-base text-indigo-500" />
+                          <span>View Source Lead</span>
+                        </button>
+                      )}
+                    </MenuItem>
                   )}
-                  <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
-                  <button
-                    onClick={() => {
-                      setShowMoreDropdown(false);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-950/30 text-left font-medium"
-                  >
-                    <Icon icon="heroicons-outline:trash" />
-                    <span>Delete Customer</span>
-                  </button>
-                </div>
-              )}
-            </div>
+
+                  <div className="border-t border-slate-100 dark:border-slate-700/80 my-1" />
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-rose-600 dark:text-rose-400 ${
+                          active ? "bg-rose-50 dark:bg-rose-950/40" : ""
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:trash" className="text-base text-rose-500" />
+                        <span>Delete Customer</span>
+                      </button>
+                    )}
+                  </MenuItem>
+                </MenuItems>
+              </Transition>
+            </Menu>
           </div>
         </div>
 
-        {/* Tab Navigation Menu */}
-        <div className="flex items-center gap-6 mt-6 border-t border-slate-100 dark:border-slate-700 pt-3 overflow-x-auto">
+        {/* Tab Navigation Menu - Professional 14px+, Semibold, Clean Indicators */}
+        <div className="flex items-center gap-2 mt-6 border-t border-slate-200 dark:border-slate-700 pt-3 overflow-x-auto">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`text-xs font-semibold pb-2.5 border-b-2 transition whitespace-nowrap ${
+                className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
                   isActive
-                    ? "border-primary-500 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    ? "bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700/50"
                 }`}
               >
-                {tab.label}
+                <Icon icon={tab.icon} className="text-base flex-shrink-0" />
+                <span>{tab.label}</span>
               </button>
             );
           })}
@@ -382,127 +518,19 @@ const CustomerView = () => {
 
       {/* Tab Content Display */}
 
-      {/* 1. OVERVIEW TAB (Matches Screen 3) */}
+      {/* 1. OVERVIEW TAB - Real Backend Values, No Fabricated Placeholders */}
       {activeTab === "overview" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column (2 Cols wide on desktop) */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Customer Information Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
-                Customer Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
-                <div>
-                  <span className="text-slate-400 block font-medium">Full Name</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.fullName}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Phone</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.phone}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Email</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.email || "—"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Alternate Phone</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.alternatePhone || "—"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Source</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.source || "Website"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Status</span>
-                  <span className="mt-0.5 inline-block font-semibold capitalize text-emerald-600">
-                    {customer.status ? customer.status.replace("_", " ") : "Active"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Assigned Staff</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.assignedStaff?.name || "Amit Kumar"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Tags</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {customer.tags?.map((t) => (
-                      <span
-                        key={t}
-                        className="text-[11px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="sm:col-span-2 pt-2 border-t border-slate-50 dark:border-slate-700/50">
-                  <span className="text-slate-400 block font-medium">Created</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium mt-0.5 block">
-                    {dayjs(customer.createdAt).format("MMM D, YYYY, hh:mm A")}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Address Information Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
-                Address Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
-                <div className="sm:col-span-2">
-                  <span className="text-slate-400 block font-medium">Address</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.address || "123 Business Park, Andheri East"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">City</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.city || "Mumbai"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">State</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.state || "Maharashtra"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Pincode</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.pincode || "400093"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block font-medium">Country</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
-                    {customer.country || "India"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Actions Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+            {/* Quick Actions Card - Positioned at top */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 Quick Actions
               </h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <button
+                  type="button"
                   onClick={() => setIsProjectModalOpen(true)}
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
@@ -510,6 +538,7 @@ const CustomerView = () => {
                   <span>Add Project</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsFollowUpModalOpen(true)}
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
@@ -517,6 +546,7 @@ const CustomerView = () => {
                   <span>Schedule Follow-up</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsDocumentModalOpen(true)}
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
@@ -524,6 +554,7 @@ const CustomerView = () => {
                   <span>Upload Document</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setActiveTab("notes")}
                   className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
@@ -532,36 +563,149 @@ const CustomerView = () => {
                 </button>
               </div>
             </div>
+
+            {/* Customer Information Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
+                Customer Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Full Name</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.fullName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Phone</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.phone || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Email</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.email || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Alternate Phone</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.alternatePhone || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Source</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.source || "Direct"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Status</span>
+                  <span className="mt-0.5 inline-block font-semibold capitalize text-emerald-600">
+                    {customer.status ? customer.status.replace("_", " ") : "Active"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Assigned Staff</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {assignedStaffName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Tags</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {customer.tags && customer.tags.length > 0 ? (
+                      customer.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        >
+                          {t}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-400 text-xs">—</span>
+                    )}
+                  </div>
+                </div>
+                <div className="sm:col-span-2 pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                  <span className="text-slate-400 block text-xs font-medium">Customer Since</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium mt-0.5 block">
+                    {dayjs(customer.createdAt).format("MMM D, YYYY, hh:mm A")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Address Information Card */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
+                Address Information
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                <div className="sm:col-span-2">
+                  <span className="text-slate-400 block text-xs font-medium">Address</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.address || "Not specified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">City</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.city || "Not specified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">State</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.state || "Not specified"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Pincode</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.pincode || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-xs font-medium">Country</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-semibold mt-0.5 block">
+                    {customer.country || "India"}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Right Column (1 Col wide on desktop) */}
           <div className="space-y-6">
-            {/* Project Summary Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+            {/* Project Summary Card - Real Metrics Only */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 Project Summary
               </h4>
               <div className="space-y-3.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Total Projects</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{projects.length || 1}</span>
+                  <span className="text-slate-500 font-medium">Total Projects</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{projects.length}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Active Projects</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{activeProjectsCount || 1}</span>
+                  <span className="text-slate-500 font-medium">Active Projects</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{activeProjectsCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Completed Projects</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{completedProjectsCount || 0}</span>
+                  <span className="text-slate-500 font-medium">Completed Projects</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{completedProjectsCount}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
-                  <span className="text-slate-500 font-semibold">Total Value</span>
+                  <span className="text-slate-500 font-semibold">Total Pipeline Value</span>
                   <span className="font-bold text-sm text-primary-600">
-                    {formatCurrency(totalCustomerValue || 500000)}
+                    {formatCurrency(totalCustomerValue)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Last Activity</span>
+                  <span className="text-slate-500 font-medium">Last Activity</span>
                   <span className="font-medium text-slate-700 dark:text-slate-300">
                     {activities[0]?.createdAt
                       ? dayjs(activities[0].createdAt).format("MMM D, YYYY")
@@ -571,11 +715,12 @@ const CustomerView = () => {
               </div>
             </div>
 
-            {/* Recent Communications Card */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+            {/* Recent Communications Card - Real Backend Records */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Recent Communications</h4>
                 <button
+                  type="button"
                   onClick={() => setActiveTab("communications")}
                   className="text-xs font-semibold text-primary-600 hover:underline"
                 >
@@ -584,39 +729,63 @@ const CustomerView = () => {
               </div>
 
               <div className="space-y-4">
-                {activities.slice(0, 4).map((act) => (
-                  <div key={act._id} className="flex items-start gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-500">
-                      <Icon
-                        icon={
-                          act.action?.includes("EMAIL")
-                            ? "heroicons:envelope"
-                            : act.action?.includes("FOLLOWUP")
-                            ? "heroicons:calendar"
-                            : act.action?.includes("NOTE")
-                            ? "heroicons:pencil-square"
-                            : "heroicons:document-text"
-                        }
-                        className="text-sm text-primary-500"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {act.action?.replace("_", " ")}
-                        </p>
-                        <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                          {dayjs(act.createdAt).format("MMM D, YYYY")}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                        {act.details?.summary || act.details?.subject || act.details?.content || "Customer touchpoint"}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {activities
+                  .filter((a) =>
+                    [
+                      "customer_email_sent",
+                      "customer_whatsapp_sent",
+                      "customer_call_logged",
+                      "follow_up_created",
+                      "follow_up_completed",
+                      "customer_note_added",
+                    ].includes(a.type)
+                  )
+                  .slice(0, 4)
+                  .map((act) => {
+                    const meta = getActivityMeta(act.type);
+                    const actor = act.performedBy
+                      ? `${act.performedBy.firstName || ""} ${act.performedBy.lastName || ""}`.trim() ||
+                        act.performedBy.name ||
+                        "Staff"
+                      : "Staff";
 
-                {activities.length === 0 && (
+                    return (
+                      <div key={act._id} className="flex items-start gap-3">
+                        <div
+                          className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.color}`}
+                        >
+                          <Icon icon={meta.icon} className="text-base" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {meta.title}
+                            </p>
+                            <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                              {dayjs(act.createdAt).format("MMM D, YYYY")}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-0.5">
+                            {act.description}
+                          </p>
+                          <span className="text-[10px] text-slate-400 block mt-1">
+                            By {actor}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                {activities.filter((a) =>
+                  [
+                    "customer_email_sent",
+                    "customer_whatsapp_sent",
+                    "customer_call_logged",
+                    "follow_up_created",
+                    "follow_up_completed",
+                    "customer_note_added",
+                  ].includes(a.type)
+                ).length === 0 && (
                   <div className="text-center py-6 text-slate-400 text-xs">
                     No recent communications logged.
                   </div>
@@ -644,7 +813,7 @@ const CustomerView = () => {
             {projects.map((proj, idx) => (
               <div
                 key={proj._id || idx}
-                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm space-y-3"
+                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-3"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -698,7 +867,7 @@ const CustomerView = () => {
             <div className="flex gap-2">
               <Button
                 text="Send WhatsApp"
-                icon="logos:whatsapp-icon"
+                icon="whatsapp"
                 className="btn-outline-dark btn-sm text-xs"
                 onClick={() => setIsWhatsAppModalOpen(true)}
               />
@@ -711,36 +880,63 @@ const CustomerView = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
             {activities
-              .filter((a) => a.action?.includes("EMAIL") || a.action?.includes("WHATSAPP") || a.action?.includes("FOLLOWUP"))
-              .map((act) => (
-                <div key={act._id} className="p-4 flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-lg bg-primary-50 dark:bg-primary-950/40 text-primary-600 flex items-center justify-center flex-shrink-0">
-                      <Icon icon="heroicons:envelope" className="text-base" />
-                    </div>
-                    <div>
-                      <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        {act.details?.subject || act.action?.replace("_", " ")}
-                      </h6>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {act.details?.summary || act.details?.messagePreview || "Sent communication record"}
-                      </p>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-2">
-                        <span>Staff: {act.performedBy?.name || "System"}</span>
-                        <span>•</span>
-                        <span>{dayjs(act.createdAt).format("DD MMM YYYY, hh:mm A")}</span>
+              .filter((a) =>
+                [
+                  "customer_email_sent",
+                  "customer_whatsapp_sent",
+                  "customer_call_logged",
+                  "follow_up_created",
+                  "follow_up_completed",
+                ].includes(a.type)
+              )
+              .map((act) => {
+                const meta = getActivityMeta(act.type);
+                const actor = act.performedBy
+                  ? `${act.performedBy.firstName || ""} ${act.performedBy.lastName || ""}`.trim() ||
+                    act.performedBy.name ||
+                    "System"
+                  : "System";
+
+                return (
+                  <div key={act._id} className="p-4 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${meta.color}`}
+                      >
+                        <Icon icon={meta.icon} className="text-base" />
+                      </div>
+                      <div>
+                        <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {meta.title}
+                        </h6>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                          {act.description}
+                        </p>
+                        <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-2">
+                          <span>Staff: {actor}</span>
+                          <span>•</span>
+                          <span>{dayjs(act.createdAt).format("DD MMM YYYY, hh:mm A")}</span>
+                        </div>
                       </div>
                     </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase">
+                      Recorded
+                    </span>
                   </div>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase">
-                    Delivered
-                  </span>
-                </div>
-              ))}
+                );
+              })}
 
-            {activities.filter((a) => a.action?.includes("EMAIL") || a.action?.includes("WHATSAPP")).length === 0 && (
+            {activities.filter((a) =>
+              [
+                "customer_email_sent",
+                "customer_whatsapp_sent",
+                "customer_call_logged",
+                "follow_up_created",
+                "follow_up_completed",
+              ].includes(a.type)
+            ).length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
                 No outbound communications recorded yet. Send an email or WhatsApp to initiate contact.
               </div>
@@ -756,7 +952,7 @@ const CustomerView = () => {
             <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Associated Quotations</h4>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 uppercase font-semibold">
@@ -778,7 +974,7 @@ const CustomerView = () => {
                         {formatCurrency(q.totalAmount || q.subtotal)}
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
                           {q.status || "Draft"}
                         </span>
                       </td>
@@ -830,7 +1026,7 @@ const CustomerView = () => {
             {followUps.map((f) => (
               <div
                 key={f._id}
-                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex items-center justify-between"
+                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between"
               >
                 <div className="flex items-center gap-3.5">
                   <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
@@ -844,7 +1040,12 @@ const CustomerView = () => {
                     <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
                       <span>Scheduled: {dayjs(f.scheduledAt).format("DD MMM YYYY, hh:mm A")}</span>
                       <span>•</span>
-                      <span>Assigned to: {f.assignedTo?.name || "Staff"}</span>
+                      <span>
+                        Assigned to:{" "}
+                        {f.assignedTo
+                          ? `${f.assignedTo.firstName || ""} ${f.assignedTo.lastName || ""}`.trim() || f.assignedTo.name
+                          : "Staff"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -853,8 +1054,8 @@ const CustomerView = () => {
                   <span
                     className={`text-[11px] font-semibold px-2 py-0.5 rounded capitalize ${
                       f.status === "completed"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-amber-50 text-amber-700"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border border-amber-200"
                     }`}
                   >
                     {f.status}
@@ -872,7 +1073,7 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 6. FILES & DOCUMENTS TAB (Matches Screen 3 & Screen 6) */}
+      {/* 6. FILES & DOCUMENTS TAB */}
       {activeTab === "files" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
@@ -885,17 +1086,17 @@ const CustomerView = () => {
             />
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
             {customer.documents?.map((doc) => (
               <div key={doc._id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
                 <div className="flex items-center gap-3.5">
-                  <div className="h-10 w-10 rounded-lg bg-red-50 text-red-500 flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">
+                  <div className="h-10 w-10 rounded-lg bg-red-50 text-red-500 border border-red-200 flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">
                     {doc.name?.split(".").pop() || "PDF"}
                   </div>
                   <div>
                     <h6 className="text-xs font-bold text-slate-900 dark:text-white">{doc.name}</h6>
                     <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                      <span>{(doc.size ? `${(doc.size / (1024 * 1024)).toFixed(1)} MB` : "2.4 MB")}</span>
+                      <span>{(doc.size ? `${(doc.size / (1024 * 1024)).toFixed(1)} MB` : "File")}</span>
                       <span>•</span>
                       <span>{dayjs(doc.uploadedAt || customer.updatedAt).format("MMM D, YYYY")}</span>
                       <span>•</span>
@@ -916,7 +1117,15 @@ const CustomerView = () => {
                     <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
                   </a>
                   <button
-                    onClick={() => handleDeleteDoc(doc._id)}
+                    type="button"
+                    onClick={() =>
+                      setDeleteDocConfirm({
+                        isOpen: true,
+                        docId: doc._id,
+                        docName: doc.name,
+                        isLoading: false,
+                      })
+                    }
                     className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-danger-600 hover:bg-red-50 transition"
                     title="Delete File"
                   >
@@ -935,10 +1144,10 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 7. NOTES TAB */}
+      {/* 7. NOTES TAB - Full Functional CRUD with Edit, Add & Delete Confirmation */}
       {activeTab === "notes" && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Add Customer Note</h4>
             <form onSubmit={handleAddNote} className="space-y-3">
               <textarea
@@ -946,44 +1155,81 @@ const CustomerView = () => {
                 value={noteContent}
                 onChange={(e) => setNoteContent(e.target.value)}
                 placeholder="Log internal notes, design preferences, client feedback, or phone conversation summary..."
-                className="form-control text-xs"
+                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500"
                 required
               ></textarea>
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  text={isAddingNote ? "Adding..." : "Add Note"}
-                  className="btn-primary btn-sm text-xs"
+                  text={isAddingNote ? "Adding Note..." : "Add Note"}
+                  className="btn-primary text-xs px-4 py-2 font-semibold"
                   isLoading={isAddingNote}
-                  disabled={isAddingNote}
+                  disabled={isAddingNote || !noteContent.trim()}
                 />
               </div>
             </form>
           </div>
 
           <div className="space-y-3">
-            {customer.notes?.map((n) => (
-              <div
-                key={n._id}
-                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm flex items-start justify-between gap-4"
-              >
-                <div>
-                  <p className="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{n.content}</p>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-2">
-                    <span>Added by: {n.createdBy?.name || "Staff"}</span>
-                    <span>•</span>
-                    <span>{dayjs(n.createdAt).format("DD MMM YYYY, hh:mm A")}</span>
+            {customer.notes?.map((n) => {
+              const author = n.createdBy
+                ? `${n.createdBy.firstName || ""} ${n.createdBy.lastName || ""}`.trim() ||
+                  n.createdBy.name ||
+                  "Staff"
+                : "Staff";
+
+              return (
+                <div
+                  key={n._id}
+                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-start justify-between gap-4"
+                >
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <p className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">
+                      {n.content}
+                    </p>
+                    <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                      <span>Added by: {author}</span>
+                      <span>•</span>
+                      <span>{dayjs(n.createdAt).format("DD MMM YYYY, hh:mm A")}</span>
+                      {n.updatedAt && n.updatedAt !== n.createdAt && (
+                        <>
+                          <span>•</span>
+                          <span className="italic">Edited</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingNote(n);
+                        setEditNoteContent(n.content);
+                      }}
+                      className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      title="Edit Note"
+                    >
+                      <Icon icon="heroicons-outline:pencil" className="text-sm" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDeleteNoteConfirm({
+                          isOpen: true,
+                          noteId: n._id,
+                          isLoading: false,
+                        })
+                      }
+                      className="text-slate-400 hover:text-danger-500 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                      title="Delete Note"
+                    >
+                      <Icon icon="heroicons-outline:trash" className="text-sm" />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteNote(n._id)}
-                  className="text-slate-400 hover:text-danger-500 p-1"
-                  title="Delete Note"
-                >
-                  <Icon icon="heroicons-outline:trash" className="text-sm" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
 
             {(!customer.notes || customer.notes.length === 0) && (
               <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 text-xs">
@@ -994,9 +1240,9 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 8. ACTIVITY TIMELINE TAB */}
+      {/* 8. ACTIVITY TIMELINE TAB - Real Backend Events Only */}
       {activeTab === "activity" && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-100 dark:border-slate-700">
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Complete Activity Timeline</h4>
             <Button
@@ -1008,29 +1254,41 @@ const CustomerView = () => {
           </div>
 
           <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-            {activities.map((act) => (
-              <div key={act._id} className="relative flex items-start gap-4">
-                <span className="absolute -left-6 mt-1 h-5 w-5 rounded-full border-2 border-white dark:border-slate-800 bg-primary-500 flex items-center justify-center text-[10px] text-white">
-                  •
-                </span>
-                <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3.5 border border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      {act.action?.replace("_", " ")}
-                    </h6>
-                    <span className="text-[10px] text-slate-400">
-                      {dayjs(act.createdAt).format("MMM D, YYYY, hh:mm A")}
+            {activities.map((act) => {
+              const meta = getActivityMeta(act.type);
+              const actor = act.performedBy
+                ? `${act.performedBy.firstName || ""} ${act.performedBy.lastName || ""}`.trim() ||
+                  act.performedBy.name ||
+                  "System"
+                : "System";
+
+              return (
+                <div key={act._id} className="relative flex items-start gap-4">
+                  <span className="absolute -left-6 mt-1 h-5 w-5 rounded-full border-2 border-white dark:border-slate-800 bg-primary-500 flex items-center justify-center text-[10px] text-white">
+                    •
+                  </span>
+                  <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon icon={meta.icon} className="text-sm text-primary-600" />
+                        <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {meta.title}
+                        </h6>
+                      </div>
+                      <span className="text-[10px] text-slate-400">
+                        {dayjs(act.createdAt).format("MMM D, YYYY, hh:mm A")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-700 dark:text-slate-200 mt-1.5 font-medium">
+                      {act.description}
+                    </p>
+                    <span className="text-[10px] text-slate-400 block mt-2">
+                      Performed by: {actor}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                    {act.details?.summary || act.details?.content || act.details?.subject || "System activity recorded"}
-                  </p>
-                  <span className="text-[10px] text-slate-400 block mt-2">
-                    Performed by: {act.performedBy?.name || "System"}
-                  </span>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {activities.length === 0 && (
               <div className="text-center py-8 text-slate-400 text-xs">
@@ -1083,16 +1341,80 @@ const CustomerView = () => {
         </div>
       )}
 
+      {/* Edit Note Modal */}
+      {editingNote && (
+        <Modal
+          title="Edit Customer Note"
+          activeModal={Boolean(editingNote)}
+          onClose={() => setEditingNote(null)}
+          className="max-w-lg font-inter"
+        >
+          <form onSubmit={handleUpdateNote} className="space-y-4 pt-1">
+            <div>
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1 block">
+                Note Content
+              </label>
+              <textarea
+                rows="4"
+                value={editNoteContent}
+                onChange={(e) => setEditNoteContent(e.target.value)}
+                className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-700">
+              <Button
+                type="button"
+                text="Cancel"
+                className="btn-outline-dark text-xs px-4 py-2"
+                onClick={() => setEditingNote(null)}
+                disabled={isUpdatingNote}
+              />
+              <Button
+                type="submit"
+                text={isUpdatingNote ? "Saving..." : "Save Changes"}
+                className="btn-primary text-xs px-4 py-2 font-semibold"
+                isLoading={isUpdatingNote}
+                disabled={isUpdatingNote || !editNoteContent.trim()}
+              />
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {/* Delete Customer Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDeleteCustomer}
-        title="Delete Customer Profile"
+        title="Delete Customer"
         entityName={customer.fullName}
-        message="Are you sure you want to permanently delete this customer profile? Associated project history and past logs will be archived safely."
         isLoading={isDeletingCustomer}
         confirmText="Delete Customer"
+      />
+
+      {/* Delete Note Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteNoteConfirm.isOpen}
+        onClose={() => setDeleteNoteConfirm({ isOpen: false, noteId: null, isLoading: false })}
+        onConfirm={handleConfirmDeleteNote}
+        title="Delete Note"
+        entityName="this note"
+        message="This note will be permanently deleted from the customer record along with any attachments."
+        isLoading={deleteNoteConfirm.isLoading}
+        confirmText="Delete Note"
+      />
+
+      {/* Delete Document Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteDocConfirm.isOpen}
+        onClose={() => setDeleteDocConfirm({ isOpen: false, docId: null, docName: "", isLoading: false })}
+        onConfirm={handleConfirmDeleteDoc}
+        title="Delete Document"
+        entityName={deleteDocConfirm.docName || "this document"}
+        message="This document will be permanently deleted from the customer's records."
+        isLoading={deleteDocConfirm.isLoading}
+        confirmText="Delete Document"
       />
     </div>
   );

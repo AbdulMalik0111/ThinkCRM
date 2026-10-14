@@ -273,28 +273,55 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
   const isSaving = isCreating || isUpdating;
 
   return (
-    <div className={isModal ? "bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-2xl" : "space-y-6"}>
+    <div className={isModal ? "bg-white dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 font-inter" : "space-y-5 font-inter"}>
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-        <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-            {isEditMode ? "Edit Customer" : "Add / Edit Customer"}
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {isEditMode ? "Update complete historical customer information" : "Create a new verified customer profile"}
-          </p>
+      {isModal ? (
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+              {isEditMode ? "Edit Customer" : "Add Customer"}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isEditMode ? "Update complete historical customer information" : "Create a new verified customer profile"}
+            </p>
+          </div>
+          <button
+            onClick={handleClose}
+            type="button"
+            className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          >
+            <Icon icon="heroicons-outline:x-mark" className="text-xl" />
+          </button>
         </div>
-        <button
-          onClick={handleClose}
-          type="button"
-          className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-        >
-          <Icon icon="heroicons-outline:x-mark" className="text-xl" />
-        </button>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition"
+              title="Back to Customers"
+            >
+              <Icon icon="heroicons-outline:arrow-left" className="text-base" />
+            </button>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                {isEditMode ? "Edit Customer" : "Add New Customer"}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isEditMode
+                  ? "Update complete customer details, projects, and communication preferences"
+                  : "Create a new verified customer profile with complete contact and project details"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Main Content: Left Nav Tabs + Right Form Area */}
-      <div className="flex flex-col md:flex-row min-h-[520px]">
+      {/* Main Form Card */}
+      <div className={!isModal ? "bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden" : ""}>
+        {/* Main Content: Left Nav Tabs + Right Form Area */}
+        <div className="flex flex-col md:flex-row min-h-[520px]">
         {/* Left Vertical Navigation Menu */}
         <div className="w-full md:w-56 border-r border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 p-3 space-y-1">
           {TAB_ITEMS.map((tab) => {
@@ -306,7 +333,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                 onClick={() => setActiveTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition text-left ${
                   isActive
-                    ? "bg-primary-500 text-white shadow-sm"
+                    ? "bg-primary-500 text-white"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
@@ -476,7 +503,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                       {formData.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
                         >
                           {tag}
                           <button
@@ -935,7 +962,8 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
         </form>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default CustomerForm;

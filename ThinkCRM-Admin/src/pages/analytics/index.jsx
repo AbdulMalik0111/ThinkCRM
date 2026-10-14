@@ -81,7 +81,7 @@ const Analytics = () => {
   return (
     <div className="space-y-6">
       {/* Top Bar: Filters & Controls */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
         <h4 className="font-medium lg:text-2xl text-xl capitalize text-slate-900 dark:text-white">
           Advanced Analytics
         </h4>

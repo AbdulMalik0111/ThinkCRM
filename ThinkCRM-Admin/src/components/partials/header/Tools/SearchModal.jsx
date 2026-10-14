@@ -122,7 +122,7 @@ const SearchModal = () => {
           >
             <DialogPanel>
               <Combobox onChange={handleSelect}>
-                <div className="relative mx-auto max-w-2xl rounded-xl bg-white dark:bg-slate-800 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-700 flex flex-col">
+                <div className="relative mx-auto max-w-2xl rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex flex-col">
                   
                   {/* Input Header */}
                   <div className="flex bg-transparent px-4 rounded-t-xl py-4 items-center border-b border-slate-100 dark:border-slate-700">

@@ -207,12 +207,10 @@ button {
 }
 
 @utility shadow-base {
-  box-shadow: 0px 0px 1px rgba(40, 41, 61, 0.08),
-    0px 0.5px 2px rgba(96, 97, 112, 0.16);
+  box-shadow: none !important;
 }
 @utility shadow-base2 {
-  box-shadow: 0px 2px 4px rgba(40, 41, 61, 0.04),
-    0px 8px 16px rgba(96, 97, 112, 0.16);
+  box-shadow: none !important;
 }
 
 /* Container Settings */
@@ -1224,12 +1222,7 @@ button {
     @apply bg-slate-900 text-slate-200;
   }
   & .nav-shadow {
-    background: linear-gradient(
-      #1e293b 5%,
-      rgba(30, 41, 59, 0.75) 45%,
-      rgba(30, 41, 59, 0.2) 80%,
-      transparent
-    );
+    background: transparent;
   }
   & .ql-snow .ql-stroke {
     @apply stroke-slate-300;
@@ -3722,12 +3715,12 @@ button {
   & > ul > li.menu-item-has-children > ul.sub-menu {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
   & > ul > li.menu-item-has-children > .rt-mega-menu {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
   & > ul > li.menu-item-has-children > .rt-mega-menu {
     @apply max-w-[1170px]  left-1/2  -translate-x-1/2;
@@ -3771,13 +3764,13 @@ button {
   .main-menu > ul > &li > ul.sub-menu {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
 
   .main-menu > ul > &li > .rt-mega-menu {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
   .main-menu > ul > &li > .rt-mega-menu {
     @apply max-w-[1170px]  left-1/2  -translate-x-1/2;
@@ -3803,7 +3796,7 @@ button {
   .main-menu > ul > li.menu-item-has-children > &ul {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
   .main-menu > ul > li.menu-item-has-children:hover > &ul {
     @apply top-full visible opacity-100;
@@ -3815,7 +3808,7 @@ button {
     @apply text-sm  font-normal   text-slate-600 dark:text-slate-300 dark:hover:text-primary-500 capitalize py-1 last:pb-0 block hover:text-primary-500;
   }
   .close_sidebar:not(.sidebar-hovered) .item-has-children &ul {
-    @apply ml-4 absolute left-full top-0 w-[230px] bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
+    @apply ml-4 absolute left-full top-0 w-[230px] bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
     display: block !important;
   }
 }
@@ -3823,7 +3816,7 @@ button {
   .main-menu > ul > li.menu-item-has-children > & {
     @apply absolute  left-0 min-w-[178px] w-max top-[110%] px-4 py-3  bg-white  
   rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150
-  shadow-base2;
+  border border-slate-200 dark:border-slate-700;
   }
   .main-menu > ul > li.menu-item-has-children > & {
     @apply max-w-[1170px]  left-1/2  -translate-x-1/2;
@@ -3851,19 +3844,9 @@ button {
   }
 }
 @utility nav-shadow {
-  background: linear-gradient(
-    rgb(255, 255, 255) 5%,
-    rgba(255, 255, 255, 0.75) 45%,
-    rgba(255, 255, 255, 0.2) 80%,
-    transparent
-  );
+  background: transparent;
   .dark & {
-    background: linear-gradient(
-      #1e293b 5%,
-      rgba(30, 41, 59, 0.75) 45%,
-      rgba(30, 41, 59, 0.2) 80%,
-      transparent
-    );
+    background: transparent;
   }
 }
 .sidebar-hovered {
@@ -3920,7 +3903,7 @@ button {
     @apply icon-box inline-flex items-center text-slate-600 dark:text-slate-300 text-lg ltr:mr-3 rtl:ml-3;
   }
   .close_sidebar:not(.sidebar-hovered) & .text-box {
-    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
+    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
   }
   .close_sidebar:not(.sidebar-hovered) &:hover .text-box {
     @apply visible opacity-100;
@@ -3974,7 +3957,7 @@ button {
     @apply hidden;
   }
   .close_sidebar:not(.sidebar-hovered) & ul.sub-menu {
-    @apply ml-4 absolute left-full top-0 w-[230px] bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
+    @apply ml-4 absolute left-full top-0 w-[230px] bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
     display: block !important;
   }
   .close_sidebar:not(.sidebar-hovered) &:hover > ul {
@@ -4015,7 +3998,7 @@ button {
     @apply hidden;
   }
   &:not(.sidebar-hovered) .single-sidebar-menu .text-box {
-    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
+    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
   }
   &:not(.sidebar-hovered) .single-sidebar-menu:hover .text-box {
     @apply visible opacity-100;
@@ -4024,7 +4007,7 @@ button {
     @apply hidden;
   }
   &:not(.sidebar-hovered) .item-has-children ul.sub-menu {
-    @apply ml-4 absolute left-full top-0 w-[230px] bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
+    @apply ml-4 absolute left-full top-0 w-[230px] bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 px-4 pt-3 transition-all duration-150 invisible opacity-0;
     display: block !important;
   }
   &:not(.sidebar-hovered) .item-has-children:hover > ul {
@@ -4045,7 +4028,7 @@ button {
 }
 .text-box {
   .close_sidebar:not(.sidebar-hovered) .single-sidebar-menu & {
-    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white shadow-sm rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
+    @apply absolute  left-full ml-5 w-[180px] top-0 px-4 py-3 bg-white border border-slate-200 dark:border-slate-700 rounded-[4px] dark:bg-slate-800 z-999 invisible opacity-0 transition-all duration-150;
   }
   .close_sidebar:not(.sidebar-hovered) .single-sidebar-menu:hover & {
     @apply visible opacity-100;

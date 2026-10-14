@@ -121,7 +121,7 @@ const Notifications = () => {
         <h6 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-2">
           {title}
         </h6>
-        <Card noborder className="shadow-none border border-slate-200 dark:border-slate-700">
+        <Card noborder className="border border-slate-200 dark:border-slate-700">
           <ul className="divide-y divide-slate-100 dark:divide-slate-700 w-full m-0 p-0">
             {items.map((notif) => (
               <li 

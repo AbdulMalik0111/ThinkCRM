@@ -3,40 +3,27 @@ import { createSlice } from "@reduxjs/toolkit";
 // theme config import
 import themeConfig from "@/configs/themeConfig";
 
-const initialDarkMode = () => {
-  const item = window.localStorage.getItem("darkMode");
-  return item ? JSON.parse(item) : themeConfig.layout.darkMode;
+const safeParse = (key, fallback) => {
+  try {
+    const item = window.localStorage.getItem(key);
+    if (!item) return fallback;
+    try {
+      return JSON.parse(item);
+    } catch {
+      return item;
+    }
+  } catch {
+    return fallback;
+  }
 };
 
-const initialSidebarCollapsed = () => {
-  const item = window.localStorage.getItem("sidebarCollapsed");
-  return item ? JSON.parse(item) : themeConfig.layout.menu.isCollapsed;
-};
-
-const initialSemiDarkMode = () => {
-  const item = window.localStorage.getItem("semiDarkMode");
-  return item ? JSON.parse(item) : themeConfig.layout.semiDarkMode;
-};
-
-const initialRtl = () => {
-  const item = window.localStorage.getItem("direction");
-  return item ? JSON.parse(item) : themeConfig.layout.isRTL;
-};
-
-const initialSkin = () => {
-  const item = window.localStorage.getItem("skin");
-  return item ? JSON.parse(item) : themeConfig.layout.skin;
-};
-
-const initialType = () => {
-  const item = window.localStorage.getItem("type");
-  return item ? JSON.parse(item) : themeConfig.layout.type;
-};
-
-const initialMonochrome = () => {
-  const item = window.localStorage.getItem("monochrome");
-  return item ? JSON.parse(item) : themeConfig.layout.isMonochrome;
-};
+const initialDarkMode = () => safeParse("darkMode", themeConfig.layout.darkMode);
+const initialSidebarCollapsed = () => safeParse("sidebarCollapsed", themeConfig.layout.menu.isCollapsed);
+const initialSemiDarkMode = () => safeParse("semiDarkMode", themeConfig.layout.semiDarkMode);
+const initialRtl = () => safeParse("direction", themeConfig.layout.isRTL);
+const initialSkin = () => safeParse("skin", themeConfig.layout.skin);
+const initialType = () => safeParse("type", themeConfig.layout.type);
+const initialMonochrome = () => safeParse("monochrome", themeConfig.layout.isMonochrome);
 const initialState = {
   isRTL: initialRtl(),
   darkMode: initialDarkMode(),

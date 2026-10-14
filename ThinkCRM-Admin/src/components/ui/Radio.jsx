@@ -7,46 +7,71 @@ const Radio = ({
   disabled,
   value,
   onChange,
-  activeClass = "ring-slate-500 dark:ring-slate-400",
-  wrapperClass = " ",
-  labelClass = "text-slate-500 dark:text-slate-400 text-sm leading-6",
+  wrapperClass = "",
+  labelClass = "text-slate-600 dark:text-slate-300 text-sm leading-6 select-none",
   checked,
-  className = "h-[18px] w-[18px]",
+  className = "",
 }) => {
+  const isChecked = Boolean(checked);
+
+  const handleClick = (e) => {
+    if (disabled) return;
+    if (onChange) {
+      onChange({ target: { value, name } });
+    }
+  };
+
   return (
-    <div>
+    <div className="inline-block">
       <label
-        className={
-          `flex items-center ${
-            disabled ? " cursor-not-allowed opacity-50" : "cursor-pointer "
-          }` +
-          "" +
-          wrapperClass
-        }
+        className={`flex items-center gap-2.5 ${
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+        } ${wrapperClass}`}
         id={id}
+        onClick={handleClick}
       >
         <input
           type="radio"
-          className="hidden"
+          className="sr-only"
           name={name}
           value={value}
-          checked={checked}
-          onChange={onChange}
-          htmlFor={id}
+          checked={isChecked}
+          onChange={() => {}}
           disabled={disabled}
         />
         <span
-          className={` flex-none  bg-white dark:bg-slate-500 rounded-full border inline-flex  ltr:mr-3 rtl:ml-3 relative transition-all duration-150
-          ${className}
-          ${
-            checked
-              ? activeClass +
-                " ring-[6px]  ring-inset ring-offset-2 dark:ring-offset-slate-600  dark:ring-offset-4 border-slate-700"
-              : "border-slate-400 dark:border-slate-600 dark:ring-slate-700"
-          }
-          `}
-        ></span>
-        {label && <span className={labelClass}>{label}</span>}
+          className={`flex-none rounded-full inline-flex items-center justify-center transition-all duration-150 ${className}`}
+          style={{
+            width: "18px",
+            height: "18px",
+            minWidth: "18px",
+            minHeight: "18px",
+            border: isChecked ? "2px solid #2563eb" : "2px solid #cbd5e1",
+            backgroundColor: isChecked ? "#eff6ff" : "#ffffff",
+          }}
+        >
+          {isChecked && (
+            <span
+              className="rounded-full"
+              style={{
+                width: "9px",
+                height: "9px",
+                backgroundColor: "#2563eb",
+              }}
+            />
+          )}
+        </span>
+        {label && (
+          <span
+            className={`${labelClass} ${
+              isChecked
+                ? "font-semibold text-slate-900 dark:text-white"
+                : "text-slate-600 dark:text-slate-300 font-normal"
+            }`}
+          >
+            {label}
+          </span>
+        )}
       </label>
     </div>
   );

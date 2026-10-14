@@ -1,4 +1,4 @@
-import { Dialog,DialogPanel, Transition, TransitionChild } from "@headlessui/react";
+import { Dialog, DialogPanel, Transition, TransitionChild } from "@headlessui/react";
 import React, { Fragment, useState } from "react";
 import Icon from "@/components/ui/Icon";
 
@@ -10,14 +10,13 @@ const Modal = ({
   className = "max-w-xl",
   children,
   footerContent,
-  centered,
+  centered = true,
   scrollContent,
-  themeClass = "bg-slate-900 dark:bg-slate-800 dark:border-b dark:border-slate-700",
-  title = "Basic Modal",
+  themeClass = "",
+  title = "",
   uncontrol,
-  label = "Basic Modal",
+  label = "Open Modal",
   labelClass,
-  ref,
 }) => {
   const [showModal, setShowModal] = useState(false);
 
@@ -28,6 +27,7 @@ const Modal = ({
   const openModal = () => {
     setShowModal(!showModal);
   };
+
   const returnNull = () => {
     return null;
   };
@@ -46,7 +46,7 @@ const Modal = ({
           <Transition appear show={showModal} as={Fragment}>
             <Dialog
               as="div"
-              className="relative z-99999"
+              className="relative z-99999 font-inter"
               onClose={!disableBackdrop ? closeModal : returnNull}
             >
               {!disableBackdrop && (
@@ -59,19 +59,19 @@ const Modal = ({
                   leaveFrom={noFade ? "" : "opacity-100"}
                   leaveTo={noFade ? "" : "opacity-0"}
                 >
-                  <div className="fixed inset-0 bg-slate-900/50 backdrop-filter backdrop-blur-xs" />
+                  <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" />
                 </TransitionChild>
               )}
 
               <div className="fixed inset-0 overflow-y-auto">
                 <div
-                  className={`flex min-h-full justify-center text-center p-6 ${
+                  className={`flex min-h-full justify-center text-center p-4 sm:p-6 ${
                     centered ? "items-center" : "items-start pt-16"
                   }`}
                 >
                   <TransitionChild
                     as={Fragment}
-                    enter={noFade ? "" : "duration-300  ease-out"}
+                    enter={noFade ? "" : "duration-300 ease-out"}
                     enterFrom={noFade ? "" : "opacity-0 scale-95"}
                     enterTo={noFade ? "" : "opacity-100 scale-100"}
                     leave={noFade ? "" : "duration-200 ease-in"}
@@ -79,28 +79,34 @@ const Modal = ({
                     leaveTo={noFade ? "" : "opacity-0 scale-95"}
                   >
                     <DialogPanel
-                      className={`w-full transform overflow-hidden rounded-md
-                 bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-alll ${className}`}
+                      className={`w-full transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle border border-slate-200 dark:border-slate-700 transition-all font-inter ${className}`}
                     >
+                      {title && (
+                        <div
+                          className={`relative py-4 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700/80 bg-white dark:bg-slate-800 ${themeClass}`}
+                        >
+                          <h3 className="font-bold text-base md:text-lg text-slate-900 dark:text-white truncate pr-4">
+                            {title}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={closeModal}
+                            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 transition flex-shrink-0"
+                            title="Close"
+                          >
+                            <Icon icon="heroicons-outline:x-mark" className="text-lg" />
+                          </button>
+                        </div>
+                      )}
                       <div
-                        className={`relative overflow-hidden py-4 px-5 text-white flex justify-between  ${themeClass}`}
-                      >
-                        <h2 className="capitalize leading-6 tracking-wider font-medium text-base text-white">
-                          {title}
-                        </h2>
-                        <button onClick={closeModal} className="text-[22px]">
-                          <Icon icon="heroicons-outline:x" />
-                        </button>
-                      </div>
-                      <div
-                        className={`px-6 py-8 ${
-                          scrollContent ? "overflow-y-auto max-h-[400px]" : ""
+                        className={`p-6 ${
+                          scrollContent ? "overflow-y-auto max-h-[75vh]" : ""
                         }`}
                       >
                         {children}
                       </div>
                       {footerContent && (
-                        <div className="px-4 py-3 flex justify-end space-x-3 border-t border-slate-100 dark:border-slate-700">
+                        <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 rounded-b-2xl">
                           {footerContent}
                         </div>
                       )}
@@ -113,7 +119,7 @@ const Modal = ({
         </>
       ) : (
         <Transition appear show={activeModal} as={Fragment}>
-          <Dialog as="div" className="relative z-99999" onClose={onClose}>
+          <Dialog as="div" className="relative z-99999 font-inter" onClose={onClose}>
             <TransitionChild
               as={Fragment}
               enter={noFade ? "" : "duration-300 ease-out"}
@@ -124,19 +130,19 @@ const Modal = ({
               leaveTo={noFade ? "" : "opacity-0"}
             >
               {!disableBackdrop && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-filter backdrop-blur-xs" />
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs" />
               )}
             </TransitionChild>
 
             <div className="fixed inset-0 overflow-y-auto">
               <div
-                className={`flex min-h-full justify-center text-center p-6 ${
+                className={`flex min-h-full justify-center text-center p-4 sm:p-6 ${
                   centered ? "items-center" : "items-start pt-16"
                 }`}
               >
                 <TransitionChild
                   as={Fragment}
-                  enter={noFade ? "" : "duration-300  ease-out"}
+                  enter={noFade ? "" : "duration-300 ease-out"}
                   enterFrom={noFade ? "" : "opacity-0 scale-95"}
                   enterTo={noFade ? "" : "opacity-100 scale-100"}
                   leave={noFade ? "" : "duration-200 ease-in"}
@@ -144,28 +150,34 @@ const Modal = ({
                   leaveTo={noFade ? "" : "opacity-0 scale-95"}
                 >
                   <DialogPanel
-                    className={`w-full transform overflow-hidden rounded-md
-                 bg-white dark:bg-slate-800 text-left align-middle shadow-xl transition-alll ${className}`}
+                    className={`w-full transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left align-middle border border-slate-200 dark:border-slate-700 transition-all font-inter ${className}`}
                   >
+                    {title && (
+                      <div
+                        className={`relative py-4 px-6 flex items-center justify-between border-b border-slate-100 dark:border-slate-700/80 bg-white dark:bg-slate-800 ${themeClass}`}
+                      >
+                        <h3 className="font-bold text-base md:text-lg text-slate-900 dark:text-white truncate pr-4">
+                          {title}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={onClose}
+                          className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/60 transition flex-shrink-0"
+                          title="Close"
+                        >
+                          <Icon icon="heroicons-outline:x-mark" className="text-lg" />
+                        </button>
+                      </div>
+                    )}
                     <div
-                      className={`relative overflow-hidden py-4 px-5 text-white flex justify-between  ${themeClass}`}
-                    >
-                      <h2 className="capitalize leading-6 tracking-wider font-medium text-base text-white">
-                        {title}
-                      </h2>
-                      <button onClick={onClose} className="text-[22px]">
-                        <Icon icon="heroicons-outline:x" />
-                      </button>
-                    </div>
-                    <div
-                      className={`px-6 py-8 ${
-                        scrollContent ? "overflow-y-auto max-h-[400px]" : ""
+                      className={`p-6 ${
+                        scrollContent ? "overflow-y-auto max-h-[75vh]" : ""
                       }`}
                     >
                       {children}
                     </div>
                     {footerContent && (
-                      <div className="px-4 py-3 flex justify-end space-x-3 border-t border-slate-100 dark:border-slate-700">
+                      <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/40 rounded-b-2xl">
                         {footerContent}
                       </div>
                     )}

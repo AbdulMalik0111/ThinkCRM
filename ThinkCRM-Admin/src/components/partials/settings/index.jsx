@@ -28,7 +28,7 @@ const Setings = () => {
     <div>
       {!isOpen && (
         <span
-          className="fixed md:ltr:right-[-32px] ltr:right-0 rtl:left-0 md:rtl:left-[-32px] top-1/2 z-888 translate-y-1/2 bg-slate-800 text-slate-50 dark:bg-slate-700 dark:text-slate-300 cursor-pointer transform rotate-90 flex items-center text-sm font-medium px-2 py-2 shadow-deep ltr:rounded-b rtl:rounded-t"
+          className="fixed md:ltr:right-[-32px] ltr:right-0 rtl:left-0 md:rtl:left-[-32px] top-1/2 z-888 translate-y-1/2 bg-slate-800 text-slate-50 dark:bg-slate-700 dark:text-slate-300 cursor-pointer transform rotate-90 flex items-center text-sm font-medium px-2 py-2 border border-slate-700 dark:border-slate-600 ltr:rounded-b rtl:rounded-t"
           onClick={() => setCustomizer(true)}
         >
           <Icon
@@ -43,9 +43,9 @@ const Setings = () => {
 
       <div
         className={`
-        setting-wrapper fixed ltr:right-0 rtl:left-0 top-0 md:w-[400px] w-[300px]
-         bg-white dark:bg-slate-800 h-screen z-9999  md:pb-6 pb-[100px] shadow-base2
-          dark:shadow-base3 border border-slate-200 dark:border-slate-700 transition-all duration-150
+        setting-wrapper fixed ltr:right-0 rtl:left-0 top-0 md:w-[400px] w-[340px]
+         bg-white dark:bg-slate-800 h-screen z-9999
+          border-l border-slate-200 dark:border-slate-700 transition-all duration-200
           ${
             isOpen
               ? "translate-x-0 opacity-100 visible"
@@ -56,21 +56,21 @@ const Setings = () => {
         <SimpleBar className="px-6 h-full">
           <header className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 -mx-6 px-6 py-[15px] mb-6">
             <div>
-              <span className="block text-xl text-slate-900 font-medium dark:text-[#eee]">
+              <span className="block text-xl text-slate-900 font-bold dark:text-white">
                 Theme customizer
               </span>
-              <span className="block text-sm font-light text-[#68768A] dark:text-[#eee]">
+              <span className="block text-xs font-normal text-slate-500 dark:text-slate-400 mt-0.5">
                 Customize & Preview in Real Time
               </span>
             </div>
             <div
-              className="cursor-pointer text-2xl text-slate-800 dark:text-slate-200"
+              className="cursor-pointer text-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
               onClick={() => setCustomizer(false)}
             >
-              <Icon icon="heroicons-outline:x" />
+              <Icon icon="heroicons-outline:x-mark" />
             </div>
           </header>
-          <div className=" space-y-4">
+          <div className="space-y-5 pb-24">
             <Skin />
             <Theme />
             <Semidark />
@@ -83,7 +83,7 @@ const Setings = () => {
             <ContentWidth />
             {width >= breakpoints.xl && <Menulayout />}
 
-            <div className="pt-4">
+            <div className="pt-2">
               <MenuClose />
             </div>
             <div className="pt-2">

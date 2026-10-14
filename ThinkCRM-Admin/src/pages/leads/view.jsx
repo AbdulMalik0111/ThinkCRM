@@ -67,7 +67,7 @@ const LeadView = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
-      <Card noborder className="bg-white dark:bg-slate-800 shadow-sm">
+      <Card className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-2xl uppercase">

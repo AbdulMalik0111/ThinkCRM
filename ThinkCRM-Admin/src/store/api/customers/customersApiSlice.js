@@ -102,6 +102,22 @@ export const customersApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }, "FollowUp", "Dashboard"],
     }),
+    updateCustomerNote: builder.mutation({
+      query: ({ id, noteId, content }) => ({
+        url: `customers/${id}/notes/${noteId}`,
+        method: "PATCH",
+        body: { content },
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
+    }),
+    importCustomers: builder.mutation({
+      query: (customers) => ({
+        url: "customers/import",
+        method: "POST",
+        body: { customers },
+      }),
+      invalidatesTags: [{ type: "Customer", id: "LIST" }, "Dashboard"],
+    }),
     sendCustomerEmail: builder.mutation({
       query: ({ id, emailData }) => ({
         url: `customers/${id}/email`,
@@ -121,10 +137,12 @@ export const {
   useUpdateCustomerMutation,
   useDeleteCustomerMutation,
   useAddCustomerNoteMutation,
+  useUpdateCustomerNoteMutation,
   useDeleteCustomerNoteMutation,
   useAddCustomerDocumentMutation,
   useDeleteCustomerDocumentMutation,
   useAddCustomerProjectMutation,
   useCreateCustomerFollowUpMutation,
   useSendCustomerEmailMutation,
+  useImportCustomersMutation,
 } = customersApi;

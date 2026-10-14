@@ -5,7 +5,7 @@ import Icon from "@/components/ui/Icon";
 import FooterAvatar from "@/assets/images/users/user-1.jpg";
 const MobileFooter = () => {
   return (
-    <div className="bg-white bg-no-repeat custom-dropshadow footer-bg dark:bg-slate-700 flex justify-around items-center backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-[9999] bottom-0 py-[12px] px-4">
+    <div className="bg-white bg-no-repeat footer-bg dark:bg-slate-700 border-t border-slate-200 dark:border-slate-700 flex justify-around items-center backdrop-filter backdrop-blur-[40px] fixed left-0 w-full z-[9999] bottom-0 py-[12px] px-4">
       <NavLink to="#">
         {({ isActive }) => (
           <div>
@@ -36,7 +36,7 @@ const MobileFooter = () => {
         className="relative bg-white bg-no-repeat backdrop-filter backdrop-blur-[40px] rounded-full footer-bg dark:bg-slate-700 h-[65px] w-[65px] z-[-1] -mt-[40px] flex justify-center items-center"
       >
         {({ isActive }) => (
-          <div className="h-[50px] w-[50px] rounded-full relative left-[0px] top-[0px] custom-dropshadow">
+          <div className="h-[50px] w-[50px] rounded-full relative left-[0px] top-[0px]">
             <img
               src={FooterAvatar}
               alt=""

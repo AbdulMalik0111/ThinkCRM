@@ -19,11 +19,7 @@ const Card = ({
     <div
       {...props}
       className={`
-        card rounded-md bg-white dark:bg-slate-800 ${
-          skin === "bordered"
-            ? " border border-slate-200 dark:border-slate-700"
-            : ""
-        } ${className}`}
+        card rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ${className}`}
     >
       {(title || subtitle) && (
         <header className={`card-header ${(noBorder || noborder) ? "no-border" : ""}`}>

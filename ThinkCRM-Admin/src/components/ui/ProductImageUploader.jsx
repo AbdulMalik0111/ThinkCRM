@@ -109,7 +109,7 @@ const ProductImageUploader = ({
                 </span>
                 <span className="tabular-nums font-bold">{uploadProgress}%</span>
               </div>
-              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden shadow-inner">
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                 <div 
                   className="bg-primary-500 h-2 rounded-full transition-all duration-200 ease-out"
                   style={{ width: `${uploadProgress}%` }}
@@ -177,7 +177,7 @@ const ProductImageUploader = ({
                   tooltip="Remove"
                 />
               </div>
-              <div className="absolute top-2 left-2 bg-warning-500 text-white text-[10px] px-2 py-0.5 rounded shadow">
+              <div className="absolute top-2 left-2 bg-warning-500 text-white text-[10px] px-2 py-0.5 rounded">
                 Pending
               </div>
             </div>

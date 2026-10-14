@@ -29,10 +29,10 @@ const Tooltip = ({
         <TooltipPrimitive.Portal>
           {theme ? (
             <TooltipPrimitive.Content
-              side={placement}
+              side={side || placement || "top"}
               sideOffset={5}
               align="center"
-              className={`text-slate-50 dark:text-slate-200 rounded-md px-2 py-1.5 text-sm font-medium shadow-md bg-${theme}-500`}
+              className={`text-slate-50 dark:text-slate-200 rounded-lg px-2.5 py-1.5 text-[13px] font-medium border border-transparent z-[99999] bg-${theme}-500`}
               {...props}
             >
               {content}
@@ -48,9 +48,10 @@ const Tooltip = ({
             </TooltipPrimitive.Content>
           ) : (
             <TooltipPrimitive.Content
-              side={side}
+              side={side || placement || "top"}
+              sideOffset={5}
               align="center"
-              className="text-slate-50 dark:text-slate-200 rounded-md px-2 py-1.5 text-sm font-medium shadow-md bg-slate-900 dark:bg-slate-700"
+              className="text-white rounded-lg px-2.5 py-1.5 text-[13px] font-medium z-[99999] bg-slate-900 dark:bg-slate-800 border border-slate-700/60 font-inter"
               {...props}
             >
               {content}
@@ -59,7 +60,7 @@ const Tooltip = ({
                 <></>
               ) : (
                 <TooltipPrimitive.Arrow
-                  className="fill-slate-900 dark:fill-slate-700"
+                  className="fill-slate-900 dark:fill-slate-800"
                   width={11}
                   height={5}
                 />

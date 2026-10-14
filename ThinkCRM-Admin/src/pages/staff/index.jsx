@@ -29,6 +29,7 @@ import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
 import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import { getAvatarColor, renderStatusPill } from "@/components/common/tableUtils";
 
 const StaffActivity = ({ staffId }) => {
   const { data, isLoading } = useGetStaffActivityQuery({ id: staffId });
@@ -147,23 +148,44 @@ const Staff = () => {
   const columnDefs = useMemo(
     () => [
       {
+        headerName: "#",
+        valueGetter: (params) => (page - 1) * 50 + params.node.rowIndex + 1,
+        width: 54,
+        minWidth: 50,
+        maxWidth: 60,
+        pinned: "left",
+        sortable: false,
+        filter: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter text-[13.5px]",
+        headerClass: "text-center",
+      },
+      {
         headerName: "Staff Member",
-        minWidth: 200,
+        minWidth: 240,
         flex: 1.5,
+        pinned: "left",
         cellRenderer: (params) => {
           const item = params.data;
           if (!item) return null;
           const name = `${item.firstName || ""} ${item.lastName || ""}`.trim() || item.name || "User";
+          const avatarColor = getAvatarColor(name);
           return (
             <div className="flex items-center gap-3 py-1 font-inter">
-              <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-primary-600 uppercase border border-slate-200 dark:border-slate-700 flex-shrink-0">
+              <div
+                className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs uppercase border border-slate-200 dark:border-slate-700 flex-shrink-0 ${avatarColor}`}
+              >
                 {name.charAt(0)}
               </div>
               <div className="truncate">
-                <span className="font-semibold text-slate-900 dark:text-white block truncate text-sm">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/staff/${item._id}/edit`)}
+                  className="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition text-left truncate block text-[14px] hover:underline"
+                >
                   {name}
-                </span>
-                <span className="text-xs text-slate-400 block truncate">
+                </button>
+                <span className="text-xs text-slate-400 block truncate font-medium">
                   {item.role || "Staff"}
                 </span>
               </div>
@@ -174,10 +196,10 @@ const Staff = () => {
       {
         headerName: "Email",
         field: "email",
-        minWidth: 180,
+        minWidth: 200,
         flex: 1.2,
         cellRenderer: (params) => (
-          <span className="font-inter text-slate-600 dark:text-slate-300 truncate">
+          <span className="font-inter text-slate-600 dark:text-slate-300 truncate text-[14px]">
             {params.value || "—"}
           </span>
         ),
@@ -185,20 +207,24 @@ const Staff = () => {
       {
         headerName: "Role",
         field: "role",
-        minWidth: 130,
+        minWidth: 140,
         flex: 1,
-        cellClass: "font-inter font-medium text-slate-700 dark:text-slate-200 capitalize",
+        cellRenderer: (params) => (
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-200 capitalize text-[14px]">
+            {params.value || "Staff"}
+          </span>
+        ),
       },
       {
         headerName: "Permissions",
         field: "permissionMode",
-        minWidth: 130,
+        minWidth: 140,
         flex: 1,
         cellRenderer: (params) => {
           const isCustom = params.value === "CUSTOM";
           return (
             <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${
+              className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize font-inter ${
                 isCustom
                   ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
                   : "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
@@ -212,24 +238,10 @@ const Staff = () => {
       {
         headerName: "Status",
         field: "status",
-        minWidth: 120,
+        minWidth: 130,
         flex: 0.9,
         cellRenderer: (params) => {
-          const status = params.value || "active";
-          const styles = {
-            active: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
-            suspended: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
-            disabled: "bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
-          };
-          return (
-            <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize font-inter ${
-                styles[status] || styles.active
-              }`}
-            >
-              {status}
-            </span>
-          );
+          return renderStatusPill(params.value || "active");
         },
       },
       {
@@ -331,6 +343,8 @@ const Staff = () => {
       <DataGrid
         rowData={staffList}
         columnDefs={columnDefs}
+        enableSelection={true}
+        entityName="staff members"
         pagination={totalPages > 1 || staffList.length > 10}
         paginationData={{
           page,
@@ -348,7 +362,6 @@ const Staff = () => {
         activeModal={showActivity}
         onClose={() => setShowActivity(false)}
         title={`Activity: ${selectedStaff?.firstName || ""}`}
-        themeClass="bg-slate-900"
         centered={true}
       >
         {selectedStaff && <StaffActivity staffId={selectedStaff._id} />}
@@ -428,7 +441,6 @@ const Staff = () => {
               deleteConfirm.staff.name
             : "this staff member"
         }
-        message="Are you sure you want to delete this staff account? All past activities, logs, and audit entries associated with this account will be permanently preserved."
         isLoading={deleteConfirm.isLoading}
         confirmText="Delete Staff"
       />
@@ -438,13 +450,27 @@ const Staff = () => {
         activeModal={confirmAction.show}
         onClose={() => setConfirmAction({ show: false, action: null, message: "", title: "" })}
         title={confirmAction.title}
-        themeClass="bg-slate-900"
         centered={true}
+        className="max-w-[460px] font-inter"
       >
-        <p className="text-slate-600 dark:text-slate-300 text-sm mb-4">{confirmAction.message}</p>
-        <div className="flex justify-end space-x-3 mt-6">
-          <Button text="Cancel" className="btn-light" onClick={() => setConfirmAction({ show: false, action: null, message: "", title: "" })} />
-          <Button text="Confirm" className="btn-danger" onClick={confirmAction.action} />
+        <div className="pt-1">
+          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6">{confirmAction.message}</p>
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/80">
+            <button
+              type="button"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
+              onClick={() => setConfirmAction({ show: false, action: null, message: "", title: "" })}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition"
+              onClick={confirmAction.action}
+            >
+              Confirm
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

@@ -10,7 +10,7 @@ const getBadgeLabelAndClass = (status) => {
     case "delivered":
     case "paid":
     case "received":
-      return { label: norm, className: "bg-emerald-600 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-emerald-600 text-white font-semibold" };
     case "draft":
     case "hidden":
     case "inactive":
@@ -19,26 +19,26 @@ const getBadgeLabelAndClass = (status) => {
     case "low stock":
     case "pending":
     case "ordered":
-      return { label: norm, className: "bg-amber-500 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-amber-500 text-white font-semibold" };
     case "out of stock":
     case "discontinued":
     case "expired":
     case "cancelled":
     case "rejected":
     case "failed":
-      return { label: norm, className: "bg-rose-500 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-rose-500 text-white font-semibold" };
     case "processing":
     case "confirmed":
-      return { label: norm, className: "bg-blue-600 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-blue-600 text-white font-semibold" };
     case "return requested":
     case "returned":
-      return { label: norm, className: "bg-orange-500 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-orange-500 text-white font-semibold" };
     case "refund pending":
-      return { label: norm, className: "bg-fuchsia-600 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-fuchsia-600 text-white font-semibold" };
     case "refunded":
-      return { label: norm, className: "bg-teal-600 text-white font-semibold shadow-sm" };
+      return { label: norm, className: "bg-teal-600 text-white font-semibold" };
     default:
-      return { label: norm || "unknown", className: "bg-slate-500 text-white font-semibold shadow-sm" };
+      return { label: norm || "unknown", className: "bg-slate-500 text-white font-semibold" };
   }
 };
 

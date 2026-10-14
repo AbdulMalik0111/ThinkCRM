@@ -43,18 +43,15 @@ const Header = ({ className = "custom-class" }) => {
   };
 
   const borderSwicthClass = () => {
-    if (skin === "bordered" && navbarType !== "floating") {
-      return "border-b border-slate-200/60 dark:border-slate-700/60";
-    } else if (skin === "bordered" && navbarType === "floating") {
+    if (navbarType === "floating") {
       return "border border-slate-200 dark:border-slate-700";
-    } else {
-      return "dark:border-b dark:border-slate-700/60";
     }
+    return "border-b border-slate-200 dark:border-slate-700";
   };
   return (
     <header className={className + " " + navbarTypeClass()}>
       <div
-        className={` app-header md:px-6 px-[15px]  dark:bg-slate-800 shadow-base dark:shadow-base3 bg-white
+        className={` app-header md:px-6 px-[15px] dark:bg-slate-800 bg-white
         ${borderSwicthClass()}
              ${
                menuType === "horizontal" && width > breakpoints.xl

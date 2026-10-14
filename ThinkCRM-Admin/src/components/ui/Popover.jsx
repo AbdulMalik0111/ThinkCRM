@@ -14,7 +14,7 @@ const PopoverContent = React.forwardRef(
   ({ children, title, className, align,side, ...props }, forwardedRef) => (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
-        className="bg-white dark:bg-slate-800 text-sm w-sm rounded-md p-2.5 shadow-md"
+        className="bg-white dark:bg-slate-800 text-sm w-sm rounded-xl p-2.5 border border-slate-200 dark:border-slate-700"
         align={align}
         side={side}
         sideOffset={5}

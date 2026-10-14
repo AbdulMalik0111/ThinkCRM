@@ -60,7 +60,7 @@ const Roles = () => {
                   {permissions.map((perm) => (
                     <span
                       key={perm}
-                      className="inline-block px-2 py-0.5 rounded text-[11px] font-mono bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600 shadow-sm"
+                      className="inline-block px-2 py-0.5 rounded text-[11px] font-mono bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-600"
                     >
                       {perm}
                     </span>

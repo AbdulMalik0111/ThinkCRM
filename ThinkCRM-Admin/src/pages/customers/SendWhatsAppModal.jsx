@@ -77,32 +77,49 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
       title="Send WhatsApp Message"
       activeModal={isOpen}
       onClose={onClose}
-      className="max-w-xl"
+      className="max-w-xl font-inter"
+      centered={true}
     >
       <div className="space-y-4 pt-1">
-        {/* Recipient */}
+        {/* Recipient Card */}
         <div>
-          <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
-            To
+          <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1.5">
+            Recipient
           </label>
-          <div className="flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-slate-50 dark:bg-slate-800">
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">
-              {customer?.phone || "No phone"} ({customer?.fullName})
-            </span>
+          <div className="flex items-center justify-between border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center">
+                <Icon icon="whatsapp" className="text-base" />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-slate-900 dark:text-white block">
+                  {customer?.fullName || "Customer"}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  {customer?.phone || "No phone number available"}
+                </span>
+              </div>
+            </div>
+
             <div className="relative group">
               <button
                 type="button"
-                className="text-xs font-semibold px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-lg transition"
               >
-                Use Template
+                <Icon icon="heroicons-outline:document-text" className="text-xs text-slate-400" />
+                <span>Templates</span>
+                <Icon icon="heroicons-outline:chevron-down" className="text-xs text-slate-400" />
               </button>
-              <div className="absolute right-0 top-full mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-1.5 hidden group-hover:block z-50">
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 hidden group-hover:block z-50 animate-fadeIn">
+                <div className="text-[11px] font-bold text-slate-400 uppercase px-2.5 py-1">
+                  Select Template
+                </div>
                 {WA_TEMPLATES.map((t, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleUseTemplate(t)}
-                    className="w-full text-left px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                    className="w-full text-left px-2.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg transition"
                   >
                     {t.title}
                   </button>
@@ -112,37 +129,40 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
           </div>
         </div>
 
-        {/* Message */}
+        {/* Message Input */}
         <div>
-          <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1">
-            Message
-          </label>
+          <div className="flex justify-between items-center mb-1.5">
+            <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+              Message
+            </label>
+            <span className="text-[11px] font-medium text-slate-400">
+              {message.length} / 1000
+            </span>
+          </div>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value.slice(0, 1000))}
-            rows={6}
+            rows={5}
             placeholder="Type your WhatsApp message..."
-            className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-emerald-500 transition leading-relaxed"
           />
-          <div className="flex justify-end text-[11px] text-slate-400 mt-1">
-            <span>{message.length} / 1000</span>
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-          <Button
+        {/* Footer Actions */}
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/80">
+          <button
             type="button"
-            text="Cancel"
-            className="btn-outline-dark text-xs py-2 px-4"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={onClose}
-          />
+          >
+            Cancel
+          </button>
           <button
             type="button"
             onClick={handleSendWhatsApp}
-            className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-xs md:text-sm font-semibold text-white bg-[#25D366] hover:bg-[#20ba59] active:bg-[#1da850] rounded-xl transition"
           >
-            <Icon icon="heroicons:chat-bubble-left-ellipsis" className="text-base" />
+            <Icon icon="whatsapp" className="text-base" />
             <span>Send WhatsApp</span>
           </button>
         </div>

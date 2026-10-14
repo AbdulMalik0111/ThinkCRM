@@ -75,7 +75,7 @@ const FollowUpsCalendar = () => {
       case 'email': return 'heroicons:envelope';
       case 'meeting': return 'heroicons:user-group';
       case 'site_visit': return 'heroicons:map-pin';
-      case 'whatsapp': return 'heroicons:chat-bubble-left-ellipsis';
+      case 'whatsapp': return 'whatsapp';
       default: return 'heroicons:calendar';
     }
   };

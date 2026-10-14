@@ -103,7 +103,7 @@ const LeadFollowUps = ({ leadId }) => {
                     fu.type === 'call' ? 'heroicons:phone' : 
                     fu.type === 'email' ? 'heroicons:envelope' : 
                     fu.type === 'meeting' ? 'heroicons:user-group' : 
-                    fu.type === 'whatsapp' ? 'heroicons:chat-bubble-left-ellipsis' : 'heroicons:calendar'
+                    fu.type === 'whatsapp' ? 'whatsapp' : 'heroicons:calendar'
                   } />
                 </div>
                 <div>

@@ -3,7 +3,7 @@ import React from "react";
 const SkeletionTable = ({ items, count }) => {
   items = items || Array.from({ length: count });
   return (
-    <div className="w-full bg-white dark:bg-slate-700 shadow-base p-6 rounded-md">
+    <div className="w-full bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-700 p-6 rounded-md">
       <table className="animate-pulse w-full border-separate border-spacing-4 table-fixed">
         <thead>
           <tr>
