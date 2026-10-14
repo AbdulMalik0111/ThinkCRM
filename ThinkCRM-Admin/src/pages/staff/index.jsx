@@ -24,10 +24,8 @@ import {
 } from "@/store/api/management/managementApiSlice";
 import dayjs from "dayjs";
 
-// Shared Grid & Action Components
 import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
-import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import { getAvatarColor, renderStatusPill } from "@/components/common/tableUtils";
 
@@ -88,8 +86,7 @@ const Staff = () => {
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [confirmAction, setConfirmAction] = useState({ show: false, action: null, message: "", title: "" });
 
-  // Quick View, Delete & Suspend State
-  const [quickViewStaff, setQuickViewStaff] = useState(null);
+  // Delete & Suspend State
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
     staff: null,
@@ -274,11 +271,6 @@ const Staff = () => {
 
           const actions = [
             {
-              label: "Quick View",
-              icon: "heroicons-outline:eye",
-              onClick: () => setQuickViewStaff(item),
-            },
-            {
               label: "View Activity",
               icon: "heroicons-outline:clock",
               onClick: () => {
@@ -386,66 +378,6 @@ const Staff = () => {
       >
         {selectedStaff && <StaffActivity staffId={selectedStaff._id} />}
       </Modal>
-
-      {/* Reusable Quick View Drawer for Staff */}
-      <QuickViewDrawer
-        isOpen={Boolean(quickViewStaff)}
-        onClose={() => setQuickViewStaff(null)}
-        title={`${quickViewStaff?.firstName || ""} ${quickViewStaff?.lastName || ""}`.trim() || quickViewStaff?.name}
-        subtitle={`Staff ID: ${quickViewStaff?._id?.slice(-6) || "—"}`}
-        badge={
-          quickViewStaff?.status && (
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {quickViewStaff.status}
-            </span>
-          )
-        }
-        onViewDetails={() => {
-          setSelectedStaff(quickViewStaff);
-          setShowActivity(true);
-        }}
-        onEdit={() =>
-          navigate(`/staff/${quickViewStaff?._id}/edit`, {
-            state: { staff: quickViewStaff },
-          })
-        }
-        groups={[
-          {
-            title: "Staff Details",
-            items: [
-              { label: "Email", value: quickViewStaff?.email },
-              { label: "Phone", value: quickViewStaff?.phone || "Not specified" },
-              { label: "Role", value: quickViewStaff?.role },
-              {
-                label: "Permissions Mode",
-                value:
-                  quickViewStaff?.permissionMode === "CUSTOM"
-                    ? "Custom Override"
-                    : "Inherited from Role",
-              },
-            ],
-          },
-          {
-            title: "Activity & System Information",
-            items: [
-              {
-                label: "Status",
-                value: quickViewStaff?.status || "Active",
-              },
-              {
-                label: "Department",
-                value: quickViewStaff?.department || "General Administration",
-              },
-              {
-                label: "Joined Date",
-                value: quickViewStaff?.createdAt
-                  ? dayjs(quickViewStaff.createdAt).format("MMM D, YYYY")
-                  : "—",
-              },
-            ],
-          },
-        ]}
-      />
 
       {/* Reusable Delete Confirmation Modal */}
       <DeleteConfirmModal

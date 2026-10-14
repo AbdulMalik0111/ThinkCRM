@@ -15,7 +15,6 @@ import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
 
 import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
-import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import TableToolbar from "@/components/common/TableToolbar";
 import {
@@ -63,8 +62,7 @@ const Customers = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-  // Quick View & Delete state
-  const [quickViewCustomer, setQuickViewCustomer] = useState(null);
+  // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState({
     isOpen: false,
     customer: null,
@@ -285,11 +283,6 @@ const Customers = () => {
           if (!c) return null;
 
           const actions = [
-            {
-              label: "Quick View",
-              icon: "heroicons-outline:eye",
-              onClick: () => setQuickViewCustomer(c),
-            },
             {
               label: "View Profile",
               icon: "heroicons-outline:user",
@@ -681,86 +674,7 @@ const Customers = () => {
         customerId={documentCustomer?._id}
       />
 
-      {/* 8. Reusable Quick View Drawer (Email & Location remain visible here) */}
-      <QuickViewDrawer
-        isOpen={Boolean(quickViewCustomer)}
-        onClose={() => setQuickViewCustomer(null)}
-        title={quickViewCustomer?.fullName}
-        subtitle={`Customer ID: ${quickViewCustomer?.customerId || quickViewCustomer?._id?.slice(-6) || "—"}`}
-        avatar={quickViewCustomer?.avatar}
-        badge={
-          quickViewCustomer?.status && (
-            <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize ${
-                statusBadgeStyles[quickViewCustomer.status] || statusBadgeStyles.active
-              }`}
-            >
-              {statusLabels[quickViewCustomer.status] || quickViewCustomer.status}
-            </span>
-          )
-        }
-        onViewDetails={() => {
-          navigate(`/customers/${quickViewCustomer?._id}`);
-        }}
-        onEdit={() => {
-          navigate(`/customers/${quickViewCustomer?._id}/edit`);
-          setQuickViewCustomer(null);
-        }}
-        groups={[
-          {
-            title: "Contact Information",
-            items: [
-              { label: "Phone", value: quickViewCustomer?.phone },
-              { label: "Email", value: quickViewCustomer?.email || "No email" },
-              {
-                label: "Location",
-                value:
-                  quickViewCustomer?.location ||
-                  (quickViewCustomer?.city
-                    ? `${quickViewCustomer.city}, ${quickViewCustomer?.state || "IN"}`
-                    : "—"),
-              },
-              {
-                label: "Address",
-                value: quickViewCustomer?.address,
-                fullWidth: true,
-              },
-            ],
-          },
-          {
-            title: "Project & Financial Details",
-            items: [
-              {
-                label: "Project Type",
-                value:
-                  quickViewCustomer?.projectType ||
-                  quickViewCustomer?.projects?.[0]?.projectType ||
-                  "Modular Kitchen",
-              },
-              {
-                label: "Total Value",
-                value: formatCurrency(
-                  quickViewCustomer?.totalValue ||
-                    quickViewCustomer?.projects?.[0]?.budget ||
-                    0
-                ),
-              },
-              {
-                label: "Projects Count",
-                value: `${quickViewCustomer?.projects?.length || 1} project(s)`,
-              },
-              {
-                label: "Created Date",
-                value: quickViewCustomer?.createdAt
-                  ? dayjs(quickViewCustomer.createdAt).format("MMM D, YYYY")
-                  : "—",
-              },
-            ],
-          },
-        ]}
-      />
-
-      {/* 9. Reusable Delete Confirmation Modal */}
+      {/* 8. Reusable Delete Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={deleteConfirm.isOpen}
         onClose={() =>
