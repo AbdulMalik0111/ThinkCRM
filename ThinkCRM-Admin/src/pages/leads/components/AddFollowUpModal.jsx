@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Icon from "@/components/ui/Icon";
 import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
+import dayjs from "dayjs";
 import { useCreateFollowUpMutation } from "@/store/api/leads/followupApiSlice";
 
 const FOLLOWUP_TYPES = [
@@ -18,8 +19,8 @@ const AddFollowUpModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const [formData, setFormData] = useState({
     type: "call",
-    date: new Date().toISOString().split("T")[0],
-    time: "17:00",
+    date: dayjs().format("YYYY-MM-DD"),
+    time: dayjs().add(1, "hour").format("HH:mm"),
     notes: "",
     sendReminderNotification: true,
   });
@@ -53,7 +54,7 @@ const AddFollowUpModal = ({ isOpen, lead, onClose, onSuccess }) => {
     if (!validate()) return;
 
     try {
-      const scheduledAt = new Date(`${formData.date}T${formData.time}:00`).toISOString();
+      const scheduledAt = dayjs(`${formData.date} ${formData.time}`).toISOString();
 
       await createFollowUp({
         leadId: lead._id,
@@ -125,13 +126,18 @@ const AddFollowUpModal = ({ isOpen, lead, onClose, onSuccess }) => {
               </label>
               <Flatpickr
                 value={formData.date}
-                onChange={([d]) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    date: d ? d.toISOString().split("T")[0] : "",
-                  }))
-                }
-                options={{ dateFormat: "d M Y", minDate: "today" }}
+                onChange={([d]) => {
+                  if (d) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      date: dayjs(d).format("YYYY-MM-DD"),
+                    }));
+                  }
+                }}
+                options={{
+                  dateFormat: "d M Y",
+                  minDate: dayjs().startOf("day").toDate(),
+                }}
                 className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter ${
                   errors.date ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
                 }`}

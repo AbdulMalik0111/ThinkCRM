@@ -99,13 +99,23 @@ const LeadMeasurements = ({ leadId }) => {
       }>
         <form className="space-y-4">
           <div>
-            <label className="form-label">Date & Time</label>
+            <label className="form-label text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+              Date & Time <span className="text-rose-500">*</span>
+            </label>
             <Flatpickr
-              className="form-control py-2"
-              data-enable-time
+              className="form-control py-2 font-inter"
               value={formData.scheduledAt}
-              onChange={(date) => setFormData({ ...formData, scheduledAt: date })}
-              options={{ minDate: "today" }}
+              onChange={(dates) => {
+                if (dates && dates.length > 0) {
+                  setFormData({ ...formData, scheduledAt: dates });
+                }
+              }}
+              options={{
+                enableTime: true,
+                dateFormat: "d M Y h:i K",
+                time_24hr: false,
+                minDate: dayjs().startOf("day").toDate(),
+              }}
             />
           </div>
           <Textarea
