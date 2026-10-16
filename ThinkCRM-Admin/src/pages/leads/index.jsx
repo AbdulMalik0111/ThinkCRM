@@ -16,6 +16,8 @@ import AddLeadModal from "./components/AddLeadModal";
 import AddFollowUpModal from "./components/AddFollowUpModal";
 import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
+import SendWhatsAppModal from "./components/SendWhatsAppModal";
+import SendEmailModal from "./components/SendEmailModal";
 import { LeadStatusBadge, LeadSourceBadge } from "./components/LeadStatusBadge";
 
 // API Hooks
