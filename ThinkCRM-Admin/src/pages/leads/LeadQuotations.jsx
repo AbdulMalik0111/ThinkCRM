@@ -48,13 +48,27 @@ const LeadQuotations = ({ leadId }) => {
     }
     
     try {
+      const quotationNumber = `QT-${Date.now().toString().slice(-6)}`;
+      const amountVal = Number(formData.totalAmount) || 0;
+      
       const dataPayload = new FormData();
       dataPayload.append("file", formData.file);
+      dataPayload.append("amount", amountVal);
+      dataPayload.append("totalAmount", amountVal);
+      dataPayload.append("quotationNumber", quotationNumber);
+      dataPayload.append("notes", formData.notes || "");
+      dataPayload.append("message", formData.notes || "");
+      if (formData.validUntil) {
+        dataPayload.append("validUntil", new Date(formData.validUntil).toISOString());
+      }
       
       const details = {
-        totalAmount: Number(formData.totalAmount),
+        amount: amountVal,
+        totalAmount: amountVal,
+        quotationNumber,
         validUntil: formData.validUntil ? new Date(formData.validUntil).toISOString() : undefined,
         notes: formData.notes,
+        message: formData.notes,
       };
       
       dataPayload.append("data", JSON.stringify(details));

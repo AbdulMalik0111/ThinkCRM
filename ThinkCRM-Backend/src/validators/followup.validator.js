@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createFollowUpSchema = z.object({
   assignedTo: z.string().optional(),
-  type: z.enum(['call', 'whatsapp', 'email', 'site_visit', 'measurement', 'quotation', 'quotation_followup', 'other']),
+  type: z.enum(['call', 'whatsapp', 'email', 'site_visit', 'meeting', 'measurement', 'quotation', 'quotation_followup', 'other']),
   scheduledAt: z.string().min(1, 'Scheduled date is required'),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
   notes: z.string().optional(),
@@ -13,7 +13,7 @@ export const createFollowUpSchema = z.object({
 
 export const updateFollowUpSchema = z.object({
   assignedTo: z.string().optional(),
-  type: z.enum(['call', 'whatsapp', 'email', 'site_visit', 'measurement', 'quotation', 'quotation_followup', 'other']).optional(),
+  type: z.enum(['call', 'whatsapp', 'email', 'site_visit', 'meeting', 'measurement', 'quotation', 'quotation_followup', 'other']).optional(),
   scheduledAt: z.string().optional(),
   status: z.enum(['pending', 'completed', 'cancelled', 'overdue']).optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),

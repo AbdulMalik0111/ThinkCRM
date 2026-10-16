@@ -431,8 +431,10 @@ p.text-xs {
   border-radius: 0.75rem !important;
   border: 1px solid #e2e8f0 !important;
   margin-top: 8px !important;
-  padding: 8px 10px !important;
+  padding: 10px 14px 14px 14px !important;
   background-color: #ffffff !important;
+  width: 336px !important;
+  box-sizing: border-box !important;
 }
 .dark .flatpickr-calendar {
   background-color: #1e293b !important;
@@ -441,6 +443,62 @@ p.text-xs {
 .flatpickr-calendar::before,
 .flatpickr-calendar::after {
   display: none !important;
+}
+.flatpickr-innerContainer {
+  overflow: visible !important;
+  width: 100% !important;
+}
+.flatpickr-rContainer {
+  width: 100% !important;
+}
+.flatpickr-weekdays {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 6px !important;
+}
+.flatpickr-weekdaycontainer {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: space-between !important;
+}
+span.flatpickr-weekday {
+  flex: 1 !important;
+  max-width: 44px !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  color: #64748b !important;
+  text-align: center !important;
+}
+.dark span.flatpickr-weekday {
+  color: #94a3b8 !important;
+}
+.flatpickr-days {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+.dayContainer {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important;
+  overflow: visible !important;
+}
+.flatpickr-day {
+  flex-basis: 14.28% !important;
+  max-width: 38px !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  margin: 1px 0 !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 .flatpickr-months {
   padding-top: 4px !important;

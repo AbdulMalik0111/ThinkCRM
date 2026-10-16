@@ -21,7 +21,7 @@ const followUpSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['call', 'whatsapp', 'email', 'site_visit', 'measurement', 'quotation', 'quotation_followup', 'other'],
+      enum: ['call', 'whatsapp', 'email', 'site_visit', 'meeting', 'measurement', 'quotation', 'quotation_followup', 'other'],
       required: true,
     },
     scheduledAt: {

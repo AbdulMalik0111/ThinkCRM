@@ -11,6 +11,8 @@ import { LeadStatusBadge } from "./components/LeadStatusBadge";
 
 // Modals
 import AddFollowUpModal from "./components/AddFollowUpModal";
+import AddMeasurementModal from "./components/AddMeasurementModal";
+import UploadQuotationModal from "./components/UploadQuotationModal";
 import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
 
@@ -45,6 +47,8 @@ const LeadView = () => {
 
   // Modals state
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [isAddMeasurementOpen, setIsAddMeasurementOpen] = useState(false);
+  const [isUploadQuotationOpen, setIsUploadQuotationOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
@@ -128,99 +132,68 @@ const LeadView = () => {
                 )}
               </div>
 
-              {/* Sub-contact details - Enhanced bold typography */}
-              <div className="flex flex-wrap items-center gap-4 text-xs sm:text-[13px] font-semibold text-slate-700 dark:text-slate-200 pt-1.5">
+              {/* Sub-contact details - Clean, compact, fits in one line */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2.5 gap-y-1 text-[12px] font-medium text-slate-600 dark:text-slate-300 pt-1 overflow-hidden">
                 {lead.phone && (
-                  <span className="flex items-center gap-1.5">
-                    <Icon icon="heroicons-outline:phone" className="text-slate-500 dark:text-slate-400 text-sm" />
-                    <a
-                      href={`tel:${lead.phone}`}
-                      className="hover:text-primary-600 font-bold text-slate-800 dark:text-slate-100 transition"
-                    >
-                      {lead.phone}
-                    </a>
-                  </span>
+                  <a
+                    href={`tel:${lead.phone}`}
+                    className="inline-flex items-center gap-1 hover:text-primary-600 transition whitespace-nowrap"
+                  >
+                    <Icon icon="heroicons-outline:phone" className="text-slate-400 text-[13px]" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">{lead.phone}</span>
+                  </a>
                 )}
+                {lead.phone && lead.email && <span className="text-slate-300 dark:text-slate-600">•</span>}
                 {lead.email && (
-                  <span className="flex items-center gap-1.5">
-                    <Icon icon="heroicons-outline:envelope" className="text-slate-500 dark:text-slate-400 text-sm" />
-                    <a
-                      href={`mailto:${lead.email}`}
-                      className="hover:text-primary-600 font-bold text-slate-800 dark:text-slate-100 transition"
-                    >
-                      {lead.email}
-                    </a>
-                  </span>
+                  <a
+                    href={`mailto:${lead.email}`}
+                    className="inline-flex items-center gap-1 hover:text-primary-600 transition whitespace-nowrap truncate max-w-[200px]"
+                  >
+                    <Icon icon="heroicons-outline:envelope" className="text-slate-400 text-[13px]" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate">{lead.email}</span>
+                  </a>
+                )}
+                {(lead.phone || lead.email) && (lead.city || lead.location || lead.address) && (
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
                 )}
                 {(lead.city || lead.location || lead.address) && (
-                  <span className="flex items-center gap-1.5">
-                    <Icon icon="heroicons-outline:map-pin" className="text-slate-500 dark:text-slate-400 text-sm" />
-                    <span className="font-bold text-slate-800 dark:text-slate-100">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Icon icon="heroicons-outline:map-pin" className="text-slate-400 text-[13px]" />
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
                       {lead.location || lead.city || lead.address}
                     </span>
                   </span>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <Icon icon="heroicons-outline:user" className="text-slate-500 dark:text-slate-400 text-sm" />
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    Assigned: {assignedStaffName}
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                  <Icon icon="heroicons-outline:user" className="text-slate-400 text-[13px]" />
+                  <span>
+                    Assigned: <strong className="font-semibold text-slate-800 dark:text-slate-100">{assignedStaffName}</strong>
                   </span>
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Right: Quick Action Buttons & Menu */}
+          {/* Right: Clean Header Actions & 3-Dot Dropdown */}
           <div className="flex items-center gap-2">
-            {lead.phone && (
-              <a
-                href={`tel:${lead.phone}`}
-                className="h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold transition inline-flex items-center gap-1.5"
-                title="Call Lead"
-              >
-                <Icon icon="heroicons-outline:phone" className="text-base text-blue-600" />
-                <span className="hidden sm:inline">Call</span>
-              </a>
-            )}
-            {cleanPhone && (
-              <a
-                href={`https://wa.me/${cleanPhone}`}
-                target="_blank"
-                rel="noreferrer"
-                className="h-10 px-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/70 text-xs font-bold transition inline-flex items-center gap-1.5"
-                title="WhatsApp"
-              >
-                <Icon icon="whatsapp" className="text-base text-[#25D366]" />
-                <span className="hidden sm:inline">WhatsApp</span>
-              </a>
-            )}
-            {lead.email && (
-              <a
-                href={`mailto:${lead.email}`}
-                className="h-10 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold transition inline-flex items-center gap-1.5"
-                title="Email Lead"
-              >
-                <Icon icon="heroicons-outline:envelope" className="text-base text-slate-600" />
-                <span className="hidden sm:inline">Email</span>
-              </a>
-            )}
             <button
               type="button"
               onClick={() => navigate(`/leads/${lead._id}/edit`)}
-              className="h-10 px-4 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold transition inline-flex items-center gap-1.5 cursor-pointer"
+              className="h-9 px-3.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition inline-flex items-center gap-1.5 cursor-pointer shadow-none"
             >
               <Icon icon="heroicons-outline:pencil-square" className="text-base" />
               <span>Edit Lead</span>
             </button>
 
-            {/* Three-Dot Dropdown Menu */}
+            {/* Three-Dot Dropdown Menu - Clean, w-64 min-w-[250px], whitespace-nowrap so all items fit on 1 line */}
             <Menu as="div" className="relative inline-block text-left">
               <MenuButton
                 type="button"
-                className="h-10 w-10 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white transition focus:outline-none cursor-pointer"
+                className="h-9 w-9 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition focus:outline-none cursor-pointer"
                 title="More Actions"
               >
-                <Icon icon="heroicons-outline:ellipsis-vertical" className="text-xl" />
+                <Icon icon="heroicons-outline:ellipsis-vertical" className="text-lg" />
               </MenuButton>
 
               <Transition
@@ -232,19 +205,73 @@ const LeadView = () => {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
               >
-                <MenuItems className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-1.5 z-40 focus:outline-none font-inter shadow-none">
+                <MenuItems className="absolute right-0 mt-2 w-64 min-w-[250px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 z-40 focus:outline-none font-inter shadow-none">
+                  {/* Direct Contact Actions */}
+                  {lead.phone && (
+                    <MenuItem>
+                      {({ active }) => (
+                        <a
+                          href={`tel:${lead.phone}`}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                            active ? "bg-slate-100 dark:bg-slate-700/80 text-blue-600" : "text-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          <Icon icon="heroicons-outline:phone" className="text-base text-blue-600 flex-shrink-0" />
+                          <span>Call {lead.phone}</span>
+                        </a>
+                      )}
+                    </MenuItem>
+                  )}
+                  {cleanPhone && (
+                    <MenuItem>
+                      {({ active }) => (
+                        <a
+                          href={`https://wa.me/${cleanPhone}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                            active ? "bg-slate-100 dark:bg-slate-700/80 text-emerald-600" : "text-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          <Icon icon="whatsapp" className="text-base text-[#25D366] flex-shrink-0" />
+                          <span>Chat on WhatsApp</span>
+                        </a>
+                      )}
+                    </MenuItem>
+                  )}
+                  {lead.email && (
+                    <MenuItem>
+                      {({ active }) => (
+                        <a
+                          href={`mailto:${lead.email}`}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                            active ? "bg-slate-100 dark:bg-slate-700/80 text-indigo-600" : "text-slate-700 dark:text-slate-200"
+                          }`}
+                        >
+                          <Icon icon="heroicons-outline:envelope" className="text-base text-indigo-500 flex-shrink-0" />
+                          <span>Send Email</span>
+                        </a>
+                      )}
+                    </MenuItem>
+                  )}
+
+                  {(lead.phone || cleanPhone || lead.email) && (
+                    <div className="border-t border-slate-100 dark:border-slate-700/80 my-1" />
+                  )}
+
+                  {/* Actions */}
                   <MenuItem>
                     {({ active }) => (
                       <button
                         type="button"
                         onClick={() => setIsAddFollowUpOpen(true)}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                           active
                             ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
                             : "text-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        <Icon icon="heroicons-outline:calendar" className="text-base text-blue-500" />
+                        <Icon icon="heroicons-outline:calendar" className="text-base text-blue-500 flex-shrink-0" />
                         <span>Schedule Follow-up</span>
                       </button>
                     )}
@@ -254,14 +281,14 @@ const LeadView = () => {
                     {({ active }) => (
                       <button
                         type="button"
-                        onClick={() => setActiveTab("measurements")}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                        onClick={() => setIsAddMeasurementOpen(true)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                           active
                             ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
                             : "text-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        <Icon icon="heroicons-outline:scale" className="text-base text-purple-500" />
+                        <Icon icon="heroicons-outline:scale" className="text-base text-purple-500 flex-shrink-0" />
                         <span>Schedule Measurement</span>
                       </button>
                     )}
@@ -271,15 +298,15 @@ const LeadView = () => {
                     {({ active }) => (
                       <button
                         type="button"
-                        onClick={() => setActiveTab("quotations")}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                        onClick={() => setIsUploadQuotationOpen(true)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                           active
                             ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
                             : "text-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        <Icon icon="heroicons-outline:document-text" className="text-base text-emerald-500" />
-                        <span>Quotations</span>
+                        <Icon icon="heroicons-outline:document-text" className="text-base text-emerald-500 flex-shrink-0" />
+                        <span>Upload Quotation</span>
                       </button>
                     )}
                   </MenuItem>
@@ -289,13 +316,13 @@ const LeadView = () => {
                       <button
                         type="button"
                         onClick={() => setIsConvertModalOpen(true)}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
                           active
                             ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
                             : "text-slate-700 dark:text-slate-200"
                         }`}
                       >
-                        <Icon icon="heroicons-outline:user-plus" className="text-base text-amber-500" />
+                        <Icon icon="heroicons-outline:user-plus" className="text-base text-amber-500 flex-shrink-0" />
                         <span>Convert to Customer</span>
                       </button>
                     )}
@@ -308,11 +335,11 @@ const LeadView = () => {
                       <button
                         type="button"
                         onClick={() => setIsDeleteModalOpen(true)}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition text-rose-600 dark:text-rose-400 ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap text-rose-600 dark:text-rose-400 ${
                           active ? "bg-rose-50 dark:bg-rose-950/40" : ""
                         }`}
                       >
-                        <Icon icon="heroicons-outline:trash" className="text-base text-rose-500" />
+                        <Icon icon="heroicons-outline:trash" className="text-base text-rose-500 flex-shrink-0" />
                         <span>Delete Lead</span>
                       </button>
                     )}
@@ -388,7 +415,7 @@ const LeadView = () => {
                 {/* 2. Schedule Measurement */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab("measurements")}
+                  onClick={() => setIsAddMeasurementOpen(true)}
                   className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition group text-left cursor-pointer"
                 >
                   <div className="h-10 w-10 rounded-xl bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition border border-purple-200/50 dark:border-purple-800/50">
@@ -407,7 +434,7 @@ const LeadView = () => {
                 {/* 3. Upload Quotation */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab("quotations")}
+                  onClick={() => setIsUploadQuotationOpen(true)}
                   className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-400 dark:hover:border-emerald-600 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition group text-left cursor-pointer"
                 >
                   <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition border border-emerald-200/50 dark:border-emerald-800/50">
@@ -733,6 +760,26 @@ const LeadView = () => {
         onSuccess={() => {
           refetch();
           toast.success("Follow-up added to lead");
+        }}
+      />
+
+      <AddMeasurementModal
+        isOpen={isAddMeasurementOpen}
+        lead={lead}
+        onClose={() => setIsAddMeasurementOpen(false)}
+        onSuccess={() => {
+          refetch();
+          setActiveTab("measurements");
+        }}
+      />
+
+      <UploadQuotationModal
+        isOpen={isUploadQuotationOpen}
+        lead={lead}
+        onClose={() => setIsUploadQuotationOpen(false)}
+        onSuccess={() => {
+          refetch();
+          setActiveTab("quotations");
         }}
       />
 

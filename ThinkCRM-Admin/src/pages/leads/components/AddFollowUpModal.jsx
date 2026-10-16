@@ -9,8 +9,10 @@ const FOLLOWUP_TYPES = [
   { value: "call", label: "Call" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "email", label: "Email" },
-  { value: "meeting", label: "Meeting" },
   { value: "site_visit", label: "Site Visit" },
+  { value: "meeting", label: "Meeting" },
+  { value: "measurement", label: "Measurement" },
+  { value: "quotation", label: "Quotation" },
   { value: "other", label: "Other" },
 ];
 
@@ -125,12 +127,17 @@ const AddFollowUpModal = ({ isOpen, lead, onClose, onSuccess }) => {
                 Date <span className="text-rose-500">*</span>
               </label>
               <Flatpickr
-                value={formData.date}
+                value={formData.date ? dayjs(formData.date).toDate() : ""}
                 onChange={([d]) => {
                   if (d) {
                     setFormData((prev) => ({
                       ...prev,
                       date: dayjs(d).format("YYYY-MM-DD"),
+                    }));
+                  } else {
+                    setFormData((prev) => ({
+                      ...prev,
+                      date: "",
                     }));
                   }
                 }}

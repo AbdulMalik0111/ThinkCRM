@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
 export const createQuotationSchema = z.object({
-  customerName: z.string().min(1, 'Customer name is required'),
+  customerName: z.string().optional(),
   customerEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
-  quotationNumber: z.string().min(1, 'Quotation number is required'),
-  amount: z.string().or(z.number()), // We will parse it to number in controller/service
+  quotationNumber: z.string().optional(),
+  amount: z.string().or(z.number()).optional(),
+  totalAmount: z.string().or(z.number()).optional(),
   message: z.string().optional(),
+  notes: z.string().optional(),
+  validUntil: z.string().optional(),
 });

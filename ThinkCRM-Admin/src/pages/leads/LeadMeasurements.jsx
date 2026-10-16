@@ -34,11 +34,15 @@ const LeadMeasurements = ({ leadId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const scheduledDate = formData.scheduledAt && formData.scheduledAt[0]
+        ? formData.scheduledAt[0].toISOString()
+        : new Date().toISOString();
+
       await createMeasurement({
         leadId,
         data: {
-          scheduledAt: formData.scheduledAt[0].toISOString(),
-          notes: formData.notes,
+          scheduledAt: scheduledDate,
+          notes: formData.notes || "",
         }
       }).unwrap();
       toast.success("Measurement scheduled");

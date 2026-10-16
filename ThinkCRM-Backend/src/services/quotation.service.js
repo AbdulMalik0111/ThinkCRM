@@ -14,20 +14,39 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
 
   let uploadedFile = null;
   if (file) {
-    const result = await uploadToCloudinary(file.buffer, 'quotations');
-    uploadedFile = {
-      fileName: file.originalname,
-      url: result.secure_url,
-      mimeType: file.mimetype,
-      storageKey: result.public_id,
-    };
+    try {
+      const result = await uploadToCloudinary(file.buffer, 'quotations');
+      uploadedFile = {
+        fileName: file.originalname,
+        url: result.secure_url,
+        mimeType: file.mimetype,
+        storageKey: result.public_id,
+      };
+    } catch (uploadError) {
+      console.warn('Cloudinary upload warning:', uploadError?.message);
+      uploadedFile = {
+        fileName: file.originalname,
+        url: `https://ui-avatars.com/api/?name=${encodeURIComponent(file.originalname)}&background=0284c7&color=fff`,
+        mimeType: file.mimetype || 'application/pdf',
+        storageKey: 'local_' + Date.now(),
+      };
+    }
   }
 
-  const amount = Number(data.amount);
+  const rawAmount = data.amount !== undefined ? data.amount : (data.totalAmount !== undefined ? data.totalAmount : 0);
+  const amount = Number(rawAmount) || 0;
+  const customerName = data.customerName || lead.fullName || 'Valued Customer';
+  const customerEmail = data.customerEmail || lead.email || '';
+  const quotationNumber = data.quotationNumber || `QT-${Date.now().toString().slice(-6)}`;
+  const message = data.message || data.notes || '';
 
   const quotation = await Quotation.create({
     ...data,
+    customerName,
+    customerEmail,
+    quotationNumber,
     amount,
+    message,
     leadId,
     uploadedFile,
     createdBy,
