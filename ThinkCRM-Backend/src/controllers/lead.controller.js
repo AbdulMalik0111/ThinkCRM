@@ -171,3 +171,17 @@ export const bulkDelete = async (req, res, next) => {
     next(error);
   }
 };
+
+export const sendLeadEmail = async (req, res, next) => {
+  try {
+    const result = await leadService.sendLeadEmail(req.params.id, req.body, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Email sent successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -15,6 +15,8 @@ import AddMeasurementModal from "./components/AddMeasurementModal";
 import UploadQuotationModal from "./components/UploadQuotationModal";
 import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
+import SendWhatsAppModal from "./components/SendWhatsAppModal";
+import SendEmailModal from "./components/SendEmailModal";
 
 // Tab Subcomponents
 import LeadActivities from "./LeadActivities";
@@ -51,6 +53,8 @@ const LeadView = () => {
   const [isUploadQuotationOpen, setIsUploadQuotationOpen] = useState(false);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
 
   if (isLoading) return <Loading />;
   if (error) {
@@ -225,32 +229,32 @@ const LeadView = () => {
                   {cleanPhone && (
                     <MenuItem>
                       {({ active }) => (
-                        <a
-                          href={`https://wa.me/${cleanPhone}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                        <button
+                          type="button"
+                          onClick={() => setIsWhatsAppOpen(true)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
                             active ? "bg-slate-100 dark:bg-slate-700/80 text-emerald-600" : "text-slate-700 dark:text-slate-200"
                           }`}
                         >
                           <Icon icon="whatsapp" className="text-base text-[#25D366] flex-shrink-0" />
                           <span>Chat on WhatsApp</span>
-                        </a>
+                        </button>
                       )}
                     </MenuItem>
                   )}
                   {lead.email && (
                     <MenuItem>
                       {({ active }) => (
-                        <a
-                          href={`mailto:${lead.email}`}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                        <button
+                          type="button"
+                          onClick={() => setIsEmailOpen(true)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
                             active ? "bg-slate-100 dark:bg-slate-700/80 text-indigo-600" : "text-slate-700 dark:text-slate-200"
                           }`}
                         >
                           <Icon icon="heroicons-outline:envelope" className="text-base text-indigo-500 flex-shrink-0" />
                           <span>Send Email</span>
-                        </a>
+                        </button>
                       )}
                     </MenuItem>
                   )}
@@ -799,6 +803,18 @@ const LeadView = () => {
         onSuccess={() => {
           navigate("/leads");
         }}
+      />
+
+      <SendWhatsAppModal
+        isOpen={isWhatsAppOpen}
+        lead={lead}
+        onClose={() => setIsWhatsAppOpen(false)}
+      />
+
+      <SendEmailModal
+        isOpen={isEmailOpen}
+        lead={lead}
+        onClose={() => setIsEmailOpen(false)}
       />
     </div>
   );

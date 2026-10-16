@@ -4,6 +4,7 @@ import { Customer } from '../models/Customer.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { convertLeadToCustomer as convertService } from './customer.service.js';
+import { sendEmail } from '../integrations/email/email.service.js';
 
 /**
  * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
@@ -456,3 +457,43 @@ export const bulkDeleteLeads = async (leadIds, performedBy) => {
 
   return true;
 };
+
+/**
+ * Send Email to Lead
+ */
+export const sendLeadEmail = async (leadId, emailOptions, userId) => {
+  const lead = await Lead.findOne({ _id: leadId, isDeleted: false });
+  if (!lead) {
+    throw new AppError('Lead not found', 404);
+  }
+
+  const recipientEmail = emailOptions.to || lead.email;
+  if (!recipientEmail) {
+    throw new AppError('Lead has no email address', 400);
+  }
+
+  const result = await sendEmail({
+    to: recipientEmail,
+    cc: emailOptions.cc,
+    bcc: emailOptions.bcc,
+    subject: emailOptions.subject || 'Update from ThinkCRM',
+    text: emailOptions.message || '',
+    html: emailOptions.html || `<p>${(emailOptions.message || '').replace(/\n/g, '<br>')}</p>`,
+    attachments: emailOptions.attachments || [],
+  });
+
+  await logActivity({
+    leadId: lead._id,
+    type: 'lead_email_sent',
+    description: `Email sent to ${recipientEmail}: "${emailOptions.subject || 'Update'}"`,
+    performedBy: userId,
+    metadata: {
+      recipient: recipientEmail,
+      subject: emailOptions.subject,
+      attachmentsCount: (emailOptions.attachments || []).length,
+    },
+  });
+
+  return result;
+};
+

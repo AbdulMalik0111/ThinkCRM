@@ -16,6 +16,8 @@ import {
 import { useGetLeadsQuery } from "@/store/api/leads/leadsApiSlice";
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
 import { getAvatarColor } from "@/components/common/tableUtils";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import { ToolbarFilterDropdown } from "@/components/common/TableToolbar";
 
 dayjs.extend(isToday);
 dayjs.extend(isYesterday);
@@ -95,6 +97,11 @@ const FollowUpsCalendar = () => {
     },
   });
   const [formErrors, setFormErrors] = useState({});
+
+  // Delete Modal State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Categorize follow-ups into KPI Stats & Groups
   const { stats, categorizedFollowUps } = useMemo(() => {
@@ -195,14 +202,24 @@ const FollowUpsCalendar = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this scheduled follow-up?")) return;
+  const confirmDelete = (fu) => {
+    setItemToDelete(fu);
+    setDeleteModalOpen(true);
+  };
+
+  const handleExecuteDelete = async () => {
+    if (!itemToDelete) return;
     try {
-      await deleteFollowUp(id).unwrap();
+      setIsDeleting(true);
+      await deleteFollowUp(itemToDelete._id || itemToDelete).unwrap();
       toast.success("Follow-up deleted successfully");
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
       refetch();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to delete follow-up");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -418,10 +435,10 @@ const FollowUpsCalendar = () => {
           })}
         </div>
 
-        {/* Bottom: Search & Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative min-w-[240px] flex-1 max-w-md">
+        {/* Bottom: Search & Filters Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          {/* Search Input - Clean & Responsive */}
+          <div className="relative flex-1 min-w-[240px] max-w-md">
             <Icon
               icon="heroicons-outline:magnifying-glass"
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none"
@@ -431,66 +448,78 @@ const FollowUpsCalendar = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by lead name, phone, or notes..."
-              className="w-full pl-10 pr-4 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full h-[38px] pl-10 pr-9 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+                title="Clear search"
               >
-                <Icon icon="heroicons-outline:x-mark" />
+                <Icon icon="heroicons-outline:x-mark" className="text-sm" />
               </button>
             )}
           </div>
 
-          {/* Type Filter */}
-          <div className="w-44">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none"
-            >
-              <option value="all">All Follow-up Types</option>
-              <option value="call">Phone Call</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="email">Email</option>
-              <option value="meeting">Meeting</option>
-              <option value="site_visit">Site Visit</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* Staff Filter */}
-          <div className="w-44">
-            <select
-              value={staffFilter}
-              onChange={(e) => setStaffFilter(e.target.value)}
-              className="w-full px-3 py-2 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none"
-            >
-              <option value="all">All Assigned Staff</option>
-              {staffList.map((st) => (
-                <option key={st._id} value={st._id}>
-                  {st.firstName} {st.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Filter Button */}
-          {(searchTerm || typeFilter !== "all" || staffFilter !== "all") && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm("");
-                setTypeFilter("all");
-                setStaffFilter("all");
+          {/* Filters Group - Right-aligned, Cohesive Layout */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <ToolbarFilterDropdown
+              filter={{
+                id: "typeFilter",
+                value: typeFilter,
+                onChange: setTypeFilter,
+                placeholder: "All Follow-up Types",
+                minWidth: "180px",
+                options: [
+                  { value: "all", label: "All Follow-up Types" },
+                  { value: "call", label: "Phone Call" },
+                  { value: "whatsapp", label: "WhatsApp Chat" },
+                  { value: "email", label: "Email" },
+                  { value: "meeting", label: "Meeting" },
+                  { value: "site_visit", label: "Site Visit" },
+                  { value: "measurement", label: "Measurement" },
+                  { value: "quotation", label: "Quotation" },
+                  { value: "other", label: "Other" },
+                ],
               }}
-              className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1 transition cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          )}
+            />
+
+            <ToolbarFilterDropdown
+              filter={{
+                id: "staffFilter",
+                value: staffFilter,
+                onChange: setStaffFilter,
+                placeholder: "All Assigned Staff",
+                minWidth: "180px",
+                isSearchable: true,
+                options: [
+                  { value: "all", label: "All Assigned Staff" },
+                  ...staffList.map((st) => ({
+                    value: st._id,
+                    label: `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name || "Staff",
+                  })),
+                ],
+              }}
+            />
+
+            {/* Clear Filter Button */}
+            {(searchTerm || typeFilter !== "all" || staffFilter !== "all") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setTypeFilter("all");
+                  setStaffFilter("all");
+                }}
+                className="h-[38px] px-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/80 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:border-rose-200 transition cursor-pointer"
+                title="Reset all filters"
+              >
+                <Icon icon="heroicons-outline:arrow-path" className="text-xs" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -665,7 +694,7 @@ const FollowUpsCalendar = () => {
 
                       <button
                         type="button"
-                        onClick={() => handleDelete(fu._id)}
+                        onClick={() => confirmDelete(fu)}
                         className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                         title="Delete follow-up"
                       >
@@ -687,7 +716,7 @@ const FollowUpsCalendar = () => {
 
                       <button
                         type="button"
-                        onClick={() => handleDelete(fu._id)}
+                        onClick={() => confirmDelete(fu)}
                         className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                         title="Delete record"
                       >
@@ -780,13 +809,15 @@ const FollowUpsCalendar = () => {
                     Date <span className="text-rose-500">*</span>
                   </label>
                   <Flatpickr
-                    value={formData.date}
+                    value={formData.date ? dayjs(formData.date).toDate() : ""}
                     onChange={([d]) => {
                       if (d) {
                         setFormData((prev) => ({
                           ...prev,
                           date: dayjs(d).format("YYYY-MM-DD"),
                         }));
+                      } else {
+                        setFormData((prev) => ({ ...prev, date: "" }));
                       }
                     }}
                     options={{
@@ -907,6 +938,24 @@ const FollowUpsCalendar = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal - Professional Popup, No Browser Alert */}
+      <DeleteConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setDeleteModalOpen(false);
+            setItemToDelete(null);
+          }
+        }}
+        onConfirm={handleExecuteDelete}
+        isLoading={isDeleting}
+        title="Delete Follow-up Task"
+        entityType="follow-up task"
+        entityName={itemToDelete?.leadId?.fullName ? `for ${itemToDelete.leadId.fullName}` : "this scheduled follow-up"}
+        message="This follow-up task will be permanently removed from the schedule. This action cannot be undone."
+        confirmText="Delete Follow-up"
+      />
     </div>
   );
 };

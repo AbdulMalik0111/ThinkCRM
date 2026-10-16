@@ -42,6 +42,7 @@ router
 
 router.post('/:id/convert', requirePermission('leads.update'), leadController.convertLeadToCustomer);
 router.post('/:id/notes', requirePermission('leads.update'), leadController.addLeadNote);
+router.post('/:id/email', requirePermission('leads.update'), leadController.sendLeadEmail);
 
 router.post(
   '/:id/assign',

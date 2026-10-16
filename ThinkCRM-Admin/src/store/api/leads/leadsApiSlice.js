@@ -78,6 +78,17 @@ export const leadsApi = apiSlice.injectEndpoints({
         "Lead",
       ],
     }),
+    sendLeadEmail: builder.mutation({
+      query: ({ id, emailData }) => ({
+        url: `leads/${id}/email`,
+        method: "POST",
+        body: emailData,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: "Lead", id },
+        { type: "Lead", id: `Activity-${id}` },
+      ],
+    }),
     bulkAssignLeads: builder.mutation({
       query: ({ leadIds, assignedTo }) => ({
         url: "leads/bulk/assign",
@@ -116,7 +127,9 @@ export const {
   useGetLeadStatsQuery,
   useConvertLeadToCustomerMutation,
   useAddLeadNoteMutation,
+  useSendLeadEmailMutation,
   useBulkAssignLeadsMutation,
   useBulkUpdateStatusMutation,
   useBulkDeleteLeadsMutation,
 } = leadsApi;
+
