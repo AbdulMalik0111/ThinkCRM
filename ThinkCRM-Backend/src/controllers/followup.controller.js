@@ -51,3 +51,17 @@ export const getAllFollowUps = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteFollowUp = async (req, res, next) => {
+  try {
+    await followupService.deleteFollowUp(req.params.id, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Follow-up deleted successfully',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

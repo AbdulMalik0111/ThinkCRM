@@ -15,6 +15,12 @@ const router = express.Router();
 
 router.use(protect);
 
+router.get('/stats', requirePermission('leads.view'), leadController.getLeadStats);
+
+router.post('/bulk/assign', requirePermission('leads.assign'), leadController.bulkAssign);
+router.post('/bulk/status', requirePermission('leads.update'), leadController.bulkUpdateStatus);
+router.post('/bulk/delete', requirePermission('leads.delete'), leadController.bulkDelete);
+
 router
   .route('/')
   .get(requirePermission('leads.view'), leadController.getLeads)
@@ -33,6 +39,9 @@ router
     leadController.updateLead
   )
   .delete(requirePermission('leads.delete'), leadController.deleteLead);
+
+router.post('/:id/convert', requirePermission('leads.update'), leadController.convertLeadToCustomer);
+router.post('/:id/notes', requirePermission('leads.update'), leadController.addLeadNote);
 
 router.post(
   '/:id/assign',

@@ -42,8 +42,9 @@ const leadSchema = new mongoose.Schema(
     },
     projectType: {
       type: String,
-      enum: ['Kitchen', 'Wardrobe', 'Bedroom', 'Living Room', 'Office', 'Full Home', 'Commercial', 'Other'],
+      enum: ['Kitchen', 'Modular Kitchen', 'Wardrobe', 'Wardrobe Design', 'Bedroom', 'Living Room', 'Office', 'Office Interior', 'Full Home', 'Full Home Interior', 'Commercial', 'Other'],
       required: true,
+      default: 'Full Home',
     },
     projectDescription: {
       type: String,
@@ -51,21 +52,27 @@ const leadSchema = new mongoose.Schema(
     budget: {
       type: Number,
     },
+    budgetRange: {
+      type: String,
+    },
+    preferredTimeline: {
+      type: String,
+    },
     expectedStartDate: {
       type: Date,
     },
     leadSource: {
       type: String,
-      enum: ['Meta', 'Facebook', 'Instagram', 'Website', 'Google', 'WhatsApp', 'Referral', 'Phone', 'Walk-in', 'Manual', 'Other'],
-      default: 'Manual',
+      enum: ['Meta', 'Meta Ads', 'Facebook', 'Instagram', 'Website', 'Google', 'Google Ads', 'WhatsApp', 'Referral', 'Phone', 'Walk-in', 'Manual', 'Other'],
+      default: 'Website',
       index: true,
     },
     status: {
       type: String,
       enum: [
-        'new', 'attempted', 'contacted', 'qualified', 'follow_up', 
+        'new', 'attempted', 'contacted', 'qualified', 'follow_up', 'in_progress',
         'measurement_pending', 'measurement_scheduled', 'measurement_completed', 
-        'quotation_pending', 'quotation_sent', 'negotiation', 'won', 'lost', 'junk'
+        'quotation_pending', 'quotation_sent', 'negotiation', 'won', 'converted', 'lost', 'junk'
       ],
       default: 'new',
       index: true,
@@ -94,6 +101,23 @@ const leadSchema = new mongoose.Schema(
     notes: {
       type: String,
     },
+    notesList: [
+      {
+        content: { type: String, required: true },
+        author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    documents: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        size: { type: Number },
+        type: { type: String },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
     tags: {
       type: [String],
     },

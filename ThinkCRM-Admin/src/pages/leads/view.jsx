@@ -86,15 +86,54 @@ const LeadView = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700">
-            <div className="text-sm text-slate-500 mr-2">Assigned To</div>
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase">
-                {lead.assignedTo ? lead.assignedTo.firstName.charAt(0) : "?"}
+          <div className="flex flex-wrap items-center gap-3">
+            {lead.phone && (
+              <a
+                href={`tel:${lead.phone}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-[13px] font-semibold transition"
+              >
+                <Icon icon="heroicons-outline:phone" className="text-base text-slate-600" />
+                <span>Call</span>
+              </a>
+            )}
+            {lead.phone && (
+              <a
+                href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-[13px] font-semibold transition"
+              >
+                <Icon icon="whatsapp" className="text-base text-[#25D366]" />
+                <span>WhatsApp</span>
+              </a>
+            )}
+            {lead.email && (
+              <a
+                href={`mailto:${lead.email}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-[13px] font-semibold transition"
+              >
+                <Icon icon="heroicons-outline:mail" className="text-base text-slate-600" />
+                <span>Email</span>
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(`/leads/${lead._id}/edit`)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold transition cursor-pointer"
+            >
+              <Icon icon="heroicons-outline:pencil-square" className="text-base" />
+              <span>Edit Lead</span>
+            </button>
+            <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-700/50 p-2 rounded-lg border border-slate-100 dark:border-slate-700 ml-2">
+              <div className="text-sm text-slate-500 mr-2">Assigned To</div>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase">
+                  {lead.assignedTo ? lead.assignedTo.firstName?.charAt(0) : "?"}
+                </div>
+                <span className="text-sm font-medium text-slate-900 dark:text-white">
+                  {lead.assignedTo ? `${lead.assignedTo.firstName || ""} ${lead.assignedTo.lastName || ""}` : 'Unassigned'}
+                </span>
               </div>
-              <span className="text-sm font-medium text-slate-900 dark:text-white">
-                {lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}
-              </span>
             </div>
           </div>
         </div>

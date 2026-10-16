@@ -72,12 +72,48 @@ export const updateFollowUp = async (followUpId, data, updatedBy) => {
 };
 
 export const getLeadFollowUps = async (leadId) => {
-  return await FollowUp.find({ leadId }).sort({ scheduledAt: 1 }).populate('assignedTo', 'firstName lastName');
+  return await FollowUp.find({ leadId })
+    .sort({ scheduledAt: -1 })
+    .populate('assignedTo', 'firstName lastName avatar email')
+    .populate('createdBy', 'firstName lastName avatar email');
 };
 
 export const getAllFollowUps = async () => {
   return await FollowUp.find()
     .sort({ scheduledAt: 1 })
-    .populate('assignedTo', 'firstName lastName')
-    .populate('leadId', 'fullName company email phone status');
+    .populate('assignedTo', 'firstName lastName avatar email')
+    .populate('createdBy', 'firstName lastName avatar email')
+    .populate('leadId', 'fullName company email phone status projectType leadId');
 };
+
+export const deleteFollowUp = async (followUpId, deletedBy) => {
+  const followUp = await FollowUp.findById(followUpId);
+  if (!followUp) {
+    throw new AppError('Follow-up not found', 404);
+  }
+
+  await FollowUp.findByIdAndDelete(followUpId);
+
+  if (followUp.leadId) {
+    const nextPending = await FollowUp.findOne({
+      leadId: followUp.leadId,
+      status: 'pending',
+      scheduledAt: { $gte: new Date() },
+    }).sort({ scheduledAt: 1 });
+
+    await Lead.findByIdAndUpdate(followUp.leadId, {
+      nextFollowUpAt: nextPending ? nextPending.scheduledAt : null,
+    });
+
+    await logActivity({
+      leadId: followUp.leadId,
+      type: 'status_changed',
+      description: `Follow-up (${followUp.type}) was deleted`,
+      performedBy: deletedBy,
+      metadata: { followUpId },
+    });
+  }
+
+  return true;
+};
+

@@ -23,9 +23,19 @@ const DataGrid = ({
   enableSelection = false,
   entityName = "customers",
   onRowClicked = null,
+  selectedIds: controlledSelectedIds = null,
+  onSelectionChange = null,
   className = "",
 }) => {
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState(new Set());
+  const selectedIds = controlledSelectedIds || internalSelectedIds;
+
+  const updateSelectedIds = (newSet) => {
+    if (onSelectionChange) {
+      onSelectionChange(newSet);
+    }
+    setInternalSelectedIds(newSet);
+  };
 
   // Pagination stats calculation
   const isBackendPagination = Boolean(paginationData && onPageChange);
@@ -49,9 +59,9 @@ const DataGrid = ({
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
-      setSelectedIds(new Set());
+      updateSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(allCurrentIds));
+      updateSelectedIds(new Set(allCurrentIds));
     }
   };
 
@@ -63,7 +73,7 @@ const DataGrid = ({
     } else {
       next.add(id);
     }
-    setSelectedIds(next);
+    updateSelectedIds(next);
   };
 
   return (

@@ -1,6 +1,19 @@
 import * as leadService from '../services/lead.service.js';
 import * as activityService from '../services/activity.service.js';
 
+export const getLeadStats = async (req, res, next) => {
+  try {
+    const stats = await leadService.getLeadStats();
+    res.status(200).json({
+      success: true,
+      message: 'Lead statistics fetched successfully',
+      data: stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createLead = async (req, res, next) => {
   try {
     const lead = await leadService.createLead(req.body, req.user._id);
@@ -87,6 +100,72 @@ export const getLeadActivities = async (req, res, next) => {
       success: true,
       message: 'Lead activities fetched successfully',
       data: { activities },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const convertLeadToCustomer = async (req, res, next) => {
+  try {
+    const result = await leadService.convertLeadToCustomer(req.params.id, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Lead converted to customer successfully',
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addLeadNote = async (req, res, next) => {
+  try {
+    const { content } = req.body;
+    const lead = await leadService.addLeadNote(req.params.id, content, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Note added successfully',
+      data: { lead },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkAssign = async (req, res, next) => {
+  try {
+    const { leadIds, assignedTo } = req.body;
+    await leadService.bulkAssignLeads(leadIds, assignedTo, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Leads assigned successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkUpdateStatus = async (req, res, next) => {
+  try {
+    const { leadIds, status } = req.body;
+    await leadService.bulkUpdateStatus(leadIds, status, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Lead statuses updated successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const bulkDelete = async (req, res, next) => {
+  try {
+    const { leadIds } = req.body;
+    await leadService.bulkDeleteLeads(leadIds, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Leads deleted successfully',
     });
   } catch (error) {
     next(error);

@@ -31,6 +31,13 @@ export const followupApi = apiSlice.injectEndpoints({
         "Dashboard"
       ] : ["FollowUp", "Dashboard"],
     }),
+    deleteFollowUp: builder.mutation({
+      query: (id) => ({
+        url: `follow-ups/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["FollowUp", "Lead", "Dashboard"],
+    }),
     getAllFollowUps: builder.query({
       query: () => "follow-ups",
       providesTags: ["FollowUp"],
@@ -43,4 +50,5 @@ export const {
   useGetAllFollowUpsQuery,
   useCreateFollowUpMutation,
   useUpdateFollowUpMutation,
+  useDeleteFollowUpMutation,
 } = followupApi;

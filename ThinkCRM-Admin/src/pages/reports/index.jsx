@@ -13,6 +13,7 @@ import {
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
 import DataGrid from "@/components/ui/DataGrid";
 import Flatpickr from "react-flatpickr";
+import RowActions from "@/components/ui/RowActions";
 import { getAvatarColor, renderStatusPill } from "@/components/common/tableUtils";
 
 const SOURCE_ICONS = {
@@ -154,6 +155,8 @@ const Reports = () => {
         minWidth: 50,
         maxWidth: 70,
         sortable: false,
+        filter: false,
+        resizable: false,
         pinned: "left",
         cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
         headerClass: "text-center",
@@ -176,8 +179,12 @@ const Reports = () => {
           const r = params.data;
           if (!r) return null;
           return (
-            <div className="py-1 font-inter truncate">
-              <span className="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 block truncate text-[14px] cursor-pointer hover:underline">
+            <div
+              className="py-1 font-inter truncate cursor-pointer group"
+              onClick={() => navigate(`/leads/${r._id || r.leadId}`)}
+              title="Click to view lead details"
+            >
+              <span className="font-bold text-primary-600 group-hover:text-primary-700 dark:text-primary-400 dark:group-hover:text-primary-300 block truncate text-[14px] group-hover:underline">
                 {r.fullName}
               </span>
               <span className="text-xs text-slate-400 block truncate font-medium">
@@ -273,8 +280,54 @@ const Reports = () => {
           </span>
         ),
       },
+      {
+        headerName: "Action",
+        pinned: "right",
+        width: 76,
+        minWidth: 70,
+        maxWidth: 85,
+        sortable: false,
+        filter: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center overflow-visible",
+        headerClass: "text-center",
+        cellRenderer: (params) => {
+          const r = params.data;
+          if (!r) return null;
+
+          const actions = [
+            {
+              label: "View Lead Details",
+              icon: "heroicons-outline:user",
+              onClick: () => navigate(`/leads/${r._id || r.leadId}`),
+            },
+            {
+              label: "Edit Lead",
+              icon: "heroicons-outline:pencil-square",
+              onClick: () => navigate(`/leads/${r._id || r.leadId}/edit`),
+            },
+            r.phone && {
+              label: "Call Lead",
+              icon: "heroicons-outline:phone",
+              onClick: () => {
+                window.location.href = `tel:${r.phone}`;
+              },
+            },
+            r.phone && {
+              label: "WhatsApp",
+              icon: "whatsapp",
+              onClick: () => {
+                const cleanPhone = String(r.phone).replace(/[^0-9]/g, "");
+                window.open(`https://wa.me/${cleanPhone}`, "_blank");
+              },
+            },
+          ];
+
+          return <RowActions actions={actions} label={`Actions for ${r.fullName}`} align="right" />;
+        },
+      },
     ],
-    []
+    [navigate]
   );
 
   const staffColumnDefs = useMemo(
@@ -286,6 +339,8 @@ const Reports = () => {
         minWidth: 50,
         maxWidth: 70,
         sortable: false,
+        filter: false,
+        resizable: false,
         pinned: "left",
         cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
         headerClass: "text-center",
@@ -296,13 +351,17 @@ const Reports = () => {
         minWidth: 240,
         flex: 1.5,
         pinned: "left",
+        cellClass: "flex items-center",
         cellRenderer: (params) => {
           const staff = params.data;
           if (!staff) return null;
+          const avatarColor = getAvatarColor(staff.name || "S");
           return (
-            <div className="flex items-center gap-3 py-1 font-inter">
-              <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-xs text-primary-600 flex-shrink-0">
-                {staff.name?.charAt(0) || "S"}
+            <div className="flex items-center gap-3 py-1 font-inter truncate">
+              <div
+                className={`h-8 w-8 rounded-full ${avatarColor.bg} ${avatarColor.text} ${avatarColor.border} border flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-2xs`}
+              >
+                {staff.name?.charAt(0)?.toUpperCase() || "S"}
               </div>
               <div className="truncate">
                 <span className="font-bold text-slate-900 dark:text-white block truncate text-[14px]">
@@ -321,7 +380,7 @@ const Reports = () => {
         field: "assigned",
         minWidth: 140,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white text-[14px]",
+        cellClass: "flex items-center justify-center font-inter font-semibold text-slate-800 dark:text-white text-[14px]",
         headerClass: "text-center",
       },
       {
@@ -329,7 +388,7 @@ const Reports = () => {
         field: "qualified",
         minWidth: 140,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-slate-800 dark:text-white text-[14px]",
+        cellClass: "flex items-center justify-center font-inter font-semibold text-slate-800 dark:text-white text-[14px]",
         headerClass: "text-center",
       },
       {
@@ -337,7 +396,7 @@ const Reports = () => {
         field: "won",
         minWidth: 130,
         flex: 1,
-        cellClass: "font-inter font-semibold text-center text-emerald-600 text-[14px]",
+        cellClass: "flex items-center justify-center font-inter font-semibold text-emerald-600 text-[14px]",
         headerClass: "text-center",
       },
       {
@@ -345,6 +404,7 @@ const Reports = () => {
         field: "conversion",
         minWidth: 130,
         flex: 1,
+        cellClass: "flex items-center justify-center font-inter",
         cellRenderer: (params) => (
           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 font-inter">
             {params.value}%
@@ -357,39 +417,81 @@ const Reports = () => {
         field: "revenue",
         minWidth: 160,
         flex: 1.2,
+        cellClass: "flex items-center justify-end font-inter font-bold text-slate-900 dark:text-white text-[14px] pr-3",
         cellRenderer: (params) => (
-          <span className="font-inter font-bold text-primary-600 text-[14px]">
+          <span className="font-inter font-bold text-slate-900 dark:text-white text-[14px]">
             {formatCurrency(params.value)}
           </span>
         ),
         headerClass: "text-right",
       },
       {
-        headerName: "Action",
+        headerName: "Actions",
         pinned: "right",
-        minWidth: 120,
-        width: 120,
+        width: 72,
+        minWidth: 68,
+        maxWidth: 76,
         sortable: false,
+        filter: false,
+        resizable: false,
+        cellClass: "flex items-center justify-center overflow-visible",
+        headerClass: "text-center",
         cellRenderer: (params) => {
           const staff = params.data;
           if (!staff) return null;
-          return (
-            <button
-              type="button"
-              onClick={() => {
+
+          const actions = [
+            {
+              label: "View Leads",
+              icon: "heroicons-outline:eye",
+              onClick: () => {
                 setAssignedStaff(staff.staffId);
                 setActiveTab("records");
-              }}
-              className="text-primary-600 hover:text-primary-700 font-bold text-xs font-inter px-3 py-1 bg-primary-50 dark:bg-primary-950/40 rounded-md transition"
-            >
-              View Leads
-            </button>
+              },
+            },
+            {
+              label: "Open Leads",
+              icon: "heroicons-outline:arrow-top-right-on-square",
+              onClick: () => {
+                navigate("/leads");
+              },
+            },
+            {
+              label: "Staff Profile",
+              icon: "heroicons-outline:user",
+              onClick: () => {
+                navigate("/staff");
+              },
+            },
+            { divider: true },
+            staff.email && {
+              label: "Copy Email",
+              icon: "heroicons-outline:clipboard",
+              onClick: () => {
+                navigator.clipboard?.writeText(staff.email);
+                toast.success(`Copied ${staff.email} to clipboard!`);
+              },
+            },
+            staff.email && {
+              label: "Send Email",
+              icon: "heroicons-outline:envelope",
+              onClick: () => {
+                window.location.href = `mailto:${staff.email}`;
+              },
+            },
+          ];
+
+          return (
+            <RowActions
+              actions={actions}
+              label={`Actions for ${staff.name}`}
+              align="right"
+            />
           );
         },
-        headerClass: "text-center",
       },
     ],
-    []
+    [navigate]
   );
 
   // Export Report Handlers

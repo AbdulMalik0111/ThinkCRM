@@ -13,9 +13,13 @@ router.get('/', requirePermission('leads.view'), followupController.getAllFollow
 router
   .route('/:id')
   .patch(
-    requirePermission('leads.update'), // since followups are part of leads
+    requirePermission('leads.update'),
     validate(updateFollowUpSchema),
     followupController.updateFollowUp
+  )
+  .delete(
+    requirePermission('leads.update'),
+    followupController.deleteFollowUp
   );
 
 export default router;

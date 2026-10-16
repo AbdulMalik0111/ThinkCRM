@@ -1,140 +1,258 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import Card from "@/components/ui/Card";
+import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
-import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import Textinput from "@/components/ui/Textinput";
-import Select from "@/components/ui/Select";
-import Tooltip from "@/components/ui/Tooltip";
-import { useGetLeadsQuery, useDeleteLeadMutation } from "@/store/api/leads/leadsApiSlice";
-import Loading from "@/components/Loading";
-import PermissionGuard from "@/components/PermissionGuard";
+import Flatpickr from "react-flatpickr";
+import "flatpickr/dist/flatpickr.css";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
-import Flatpickr from "react-flatpickr";
 
 // Shared Grid & Action Components
 import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
-import QuickViewDrawer from "@/components/ui/QuickViewDrawer";
-import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
-import { getAvatarColor, renderStatusPill, formatDate } from "@/components/common/tableUtils";
+import { getAvatarColor } from "@/components/common/tableUtils";
 
-const STATUS_OPTIONS = [
-  { value: "new", label: "New" },
-  { value: "attempted", label: "Attempted" },
-  { value: "contacted", label: "Contacted" },
-  { value: "qualified", label: "Qualified" },
-  { value: "won", label: "Won" },
-  { value: "lost", label: "Lost" },
-  { value: "junk", label: "Junk" },
-];
+// Modals
+import AddLeadModal from "./components/AddLeadModal";
+import AddFollowUpModal from "./components/AddFollowUpModal";
+import ConvertLeadModal from "./components/ConvertLeadModal";
+import DeleteLeadModal from "./components/DeleteLeadModal";
+import { LeadStatusBadge, LeadSourceBadge } from "./components/LeadStatusBadge";
 
-const SOURCE_OPTIONS = [
+// API Hooks
+import {
+  useGetLeadsQuery,
+  useGetLeadStatsQuery,
+  useBulkAssignLeadsMutation,
+  useBulkUpdateStatusMutation,
+  useBulkDeleteLeadsMutation,
+} from "@/store/api/leads/leadsApiSlice";
+import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
+
+const SOURCE_FILTER_OPTIONS = [
+  { value: "all", label: "All Sources" },
   { value: "website", label: "Website" },
+  { value: "meta_ads", label: "Meta Ads" },
   { value: "referral", label: "Referral" },
+  { value: "google_ads", label: "Google Ads" },
   { value: "social_media", label: "Social Media" },
   { value: "direct", label: "Direct" },
   { value: "other", label: "Other" },
 ];
 
-const PRIORITY_OPTIONS = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All Status" },
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "qualified", label: "Qualified" },
+  { value: "converted", label: "Converted" },
+  { value: "lost", label: "Lost" },
+  { value: "junk", label: "Junk" },
 ];
-
-const getStatusColor = (status) => {
-  const map = {
-    new: "bg-blue-500",
-    attempted: "bg-amber-500",
-    contacted: "bg-indigo-500",
-    qualified: "bg-purple-500",
-    won: "bg-success-500",
-    lost: "bg-danger-500",
-    junk: "bg-slate-500",
-  };
-  return map[status] || "bg-slate-400";
-};
-
-const getPriorityColor = (priority) => {
-  if (priority === "high") return "text-danger-500 bg-danger-50 border border-danger-200";
-  if (priority === "medium") return "text-amber-500 bg-amber-50 border border-amber-200";
-  return "text-success-500 bg-success-50 border border-success-200";
-};
 
 const Leads = () => {
   const navigate = useNavigate();
+
+  // Filters & Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
-  const [source, setSource] = useState("");
-  const [priority, setPriority] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [staffFilter, setStaffFilter] = useState("all");
   const [dateRange, setDateRange] = useState([]);
-  const [sortBy, setSortBy] = useState("-createdAt");
 
-  // Quick View & Delete state
-  const [quickViewLead, setQuickViewLead] = useState(null);
-  const [deleteConfirm, setDeleteConfirm] = useState({
-    isOpen: false,
-    lead: null,
-    isLoading: false,
-  });
+  // Selection state
+  const [selectedLeadIds, setSelectedLeadIds] = useState(new Set());
 
-  const queryParams = {
-    page: currentPage,
-    limit,
-    ...(search && { search }),
-    ...(status && { status }),
-    ...(source && { source }),
-    ...(priority && { priority }),
-    ...(dateRange[0] && { startDate: dateRange[0].toISOString() }),
-    ...(dateRange[1] && { endDate: dateRange[1].toISOString() }),
-    sort: sortBy,
+  // Modals State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [followUpLead, setFollowUpLead] = useState(null);
+  const [convertingLead, setConvertingLead] = useState(null);
+  const [deletingLead, setDeletingLead] = useState(null);
+
+  // Bulk Action State
+  const [bulkAssignStaffId, setBulkAssignStaffId] = useState("");
+  const [bulkStatusValue, setBulkStatusValue] = useState("");
+  const [bulkAssignLeads, { isLoading: isBulkAssigning }] = useBulkAssignLeadsMutation();
+  const [bulkUpdateStatus, { isLoading: isBulkUpdatingStatus }] = useBulkUpdateStatusMutation();
+  const [bulkDeleteLeads, { isLoading: isBulkDeleting }] = useBulkDeleteLeadsMutation();
+
+  // Queries
+  const { data: statsData, refetch: refetchStats } = useGetLeadStatsQuery();
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const staffList = staffData?.data?.users || staffData?.data?.staff || [];
+
+  const queryParams = useMemo(() => {
+    return {
+      page: currentPage,
+      limit,
+      ...(searchTerm && { search: searchTerm }),
+      ...(sourceFilter !== "all" && { source: sourceFilter }),
+      ...(statusFilter !== "all" && { status: statusFilter }),
+      ...(staffFilter !== "all" && { assignedTo: staffFilter }),
+      ...(dateRange[0] && { startDate: dateRange[0].toISOString() }),
+      ...(dateRange[1] && { endDate: dateRange[1].toISOString() }),
+    };
+  }, [currentPage, limit, searchTerm, sourceFilter, statusFilter, staffFilter, dateRange]);
+
+  const {
+    data: leadsData,
+    isLoading: isLeadsLoading,
+    isFetching: isLeadsFetching,
+    refetch: refetchLeads,
+  } = useGetLeadsQuery(queryParams);
+
+  const leads = leadsData?.data?.leads || [];
+  const totalLeads = leadsData?.data?.total || 0;
+  const totalPages = leadsData?.data?.totalPages || 1;
+
+  // Selected leads list
+  const selectedLeads = useMemo(() => {
+    return leads.filter((l) => selectedLeadIds.has(l._id));
+  }, [leads, selectedLeadIds]);
+
+  // Active filters count for the "Filters" badge
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (searchTerm.trim()) count++;
+    if (sourceFilter !== "all") count++;
+    if (statusFilter !== "all") count++;
+    if (staffFilter !== "all") count++;
+    if (dateRange.length > 0) count++;
+    return count;
+  }, [searchTerm, sourceFilter, statusFilter, staffFilter, dateRange]);
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSourceFilter("all");
+    setStatusFilter("all");
+    setStaffFilter("all");
+    setDateRange([]);
+    setCurrentPage(1);
   };
 
-  const { data: response, isLoading, isFetching, refetch } = useGetLeadsQuery(queryParams);
-  const [deleteLead] = useDeleteLeadMutation();
+  const handleRefresh = () => {
+    refetchLeads();
+    refetchStats();
+    toast.info("Refreshed leads data");
+  };
 
-  const leads = response?.data?.leads || [];
-  const totalPages = response?.data?.totalPages || 1;
-  const totalLeads = response?.data?.total || 0;
-
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm.lead) return;
+  // Bulk Operations Handlers
+  const handleBulkAssign = async () => {
+    if (!bulkAssignStaffId || selectedLeadIds.size === 0) return;
     try {
-      setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
-      await deleteLead(deleteConfirm.lead._id).unwrap();
-      toast.success("Lead deleted successfully");
-      setDeleteConfirm({ isOpen: false, lead: null, isLoading: false });
-      refetch();
+      await bulkAssignLeads({
+        leadIds: Array.from(selectedLeadIds),
+        assignedTo: bulkAssignStaffId,
+      }).unwrap();
+      toast.success(`Assigned ${selectedLeadIds.size} leads successfully`);
+      setBulkAssignStaffId("");
+      setSelectedLeadIds(new Set());
+      refetchLeads();
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete lead");
-      setDeleteConfirm((prev) => ({ ...prev, isLoading: false }));
+      toast.error(err?.data?.message || "Failed to bulk assign leads");
     }
   };
 
+  const handleBulkStatus = async () => {
+    if (!bulkStatusValue || selectedLeadIds.size === 0) return;
+    try {
+      await bulkUpdateStatus({
+        leadIds: Array.from(selectedLeadIds),
+        status: bulkStatusValue,
+      }).unwrap();
+      toast.success(`Updated status for ${selectedLeadIds.size} leads`);
+      setBulkStatusValue("");
+      setSelectedLeadIds(new Set());
+      refetchLeads();
+      refetchStats();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update leads status");
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeadIds.size === 0) return;
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${selectedLeadIds.size} selected leads? This cannot be undone.`
+      )
+    )
+      return;
+
+    try {
+      await bulkDeleteLeads({
+        leadIds: Array.from(selectedLeadIds),
+      }).unwrap();
+      toast.success(`Deleted ${selectedLeadIds.size} leads`);
+      setSelectedLeadIds(new Set());
+      refetchLeads();
+      refetchStats();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete selected leads");
+    }
+  };
+
+  const handleExportSelected = () => {
+    if (selectedLeads.length === 0) return;
+    const headers = [
+      "ID",
+      "Full Name",
+      "Phone",
+      "Email",
+      "Source",
+      "Status",
+      "Project Type",
+      "Assigned To",
+      "Created At",
+    ];
+    const rows = selectedLeads.map((l) => [
+      l.leadId || l._id,
+      `"${l.fullName || ""}"`,
+      `"${l.phone || ""}"`,
+      `"${l.email || ""}"`,
+      l.leadSource || "",
+      l.status || "",
+      `"${l.projectType || ""}"`,
+      `"${l.assignedTo?.firstName || ""} ${l.assignedTo?.lastName || ""}"`,
+      dayjs(l.createdAt).format("YYYY-MM-DD HH:mm"),
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `ThinkCRM_Leads_Export_${dayjs().format("YYYYMMDD_HHmmss")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Leads exported to CSV");
+  };
+
+  // DataGrid Column Definitions matching the rest of ThinkCRM
   const columnDefs = useMemo(
     () => [
       {
         headerName: "#",
         valueGetter: (params) => (currentPage - 1) * limit + params.node.rowIndex + 1,
-        width: 60,
-        minWidth: 60,
-        maxWidth: 65,
+        width: 50,
+        minWidth: 50,
+        maxWidth: 55,
         pinned: "left",
         sortable: false,
+        filter: false,
         resizable: false,
-        cellClass: "flex items-center justify-center font-medium text-slate-400 font-inter",
+        cellClass: "flex items-center justify-center font-semibold text-slate-400 font-inter text-[13.5px]",
         headerClass: "text-center",
       },
       {
-        headerName: "Lead Name",
+        headerName: "Lead",
         field: "fullName",
-        minWidth: 240,
-        flex: 1.5,
+        minWidth: 220,
+        flex: 1.4,
         pinned: "left",
         cellRenderer: (params) => {
           const lead = params.data;
@@ -155,8 +273,8 @@ const Leads = () => {
                 >
                   {lead.fullName}
                 </button>
-                <span className="text-xs text-slate-400 font-medium block truncate">
-                  {lead.company || lead.leadId ? `#${lead.leadId}` : "Direct Inquiry"}
+                <span className="text-[12px] text-slate-500 dark:text-slate-400 font-semibold block truncate">
+                  {lead.projectType || "Modular Kitchen"}
                 </span>
               </div>
             </div>
@@ -166,10 +284,10 @@ const Leads = () => {
       {
         headerName: "Phone",
         field: "phone",
-        minWidth: 150,
+        minWidth: 155,
         flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter font-medium text-slate-700 dark:text-slate-300 text-[14px]">
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
             {params.value || "—"}
           </span>
         ),
@@ -177,10 +295,10 @@ const Leads = () => {
       {
         headerName: "Email",
         field: "email",
-        minWidth: 200,
+        minWidth: 190,
         flex: 1.2,
         cellRenderer: (params) => (
-          <span className="text-slate-600 dark:text-slate-400 font-inter truncate text-[14px]">
+          <span className="text-slate-700 dark:text-slate-300 font-inter font-medium truncate text-[13.5px]">
             {params.value || "—"}
           </span>
         ),
@@ -188,89 +306,123 @@ const Leads = () => {
       {
         headerName: "Source",
         field: "leadSource",
-        minWidth: 140,
-        flex: 1,
-        cellRenderer: (params) => (
-          <span className="font-inter font-semibold capitalize text-slate-700 dark:text-slate-300 text-[14px]">
-            {params.value || "—"}
-          </span>
-        ),
+        minWidth: 125,
+        flex: 0.9,
+        cellRenderer: (params) => <LeadSourceBadge source={params.value} />,
       },
       {
         headerName: "Status",
         field: "status",
-        minWidth: 130,
+        minWidth: 125,
         flex: 0.9,
+        cellRenderer: (params) => <LeadStatusBadge status={params.value} />,
+      },
+      {
+        headerName: "Last Follow-up",
+        minWidth: 145,
+        flex: 1,
         cellRenderer: (params) => {
-          return renderStatusPill(params.value || "new");
+          const fu = params.data?.lastFollowUp;
+          if (!fu || !fu.scheduledAt) {
+            return <span className="text-slate-400 font-inter font-medium text-[13.5px]">—</span>;
+          }
+          return (
+            <div className="py-1 font-inter">
+              <div className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">
+                {dayjs(fu.scheduledAt).format("DD MMM YYYY")}
+              </div>
+              <div className="text-[12px] text-slate-500 font-medium capitalize">
+                {fu.notes ? fu.notes.slice(0, 20) : `${fu.type || "Call"} made`}
+              </div>
+            </div>
+          );
         },
       },
       {
-        headerName: "Priority",
-        field: "priority",
-        minWidth: 120,
-        flex: 0.8,
+        headerName: "Next Follow-up",
+        minWidth: 155,
+        flex: 1.1,
         cellRenderer: (params) => {
-          const val = params.value || "medium";
+          const fu = params.data?.nextFollowUp;
+          if (!fu || !fu.scheduledAt) {
+            return <span className="text-slate-400 font-inter font-medium text-[13.5px]">—</span>;
+          }
           return (
-            <span
-              className={`text-xs font-bold px-2.5 py-1 rounded-full capitalize font-inter ${getPriorityColor(
-                val
-              )}`}
-            >
-              {val}
-            </span>
+            <div className="py-1 font-inter">
+              <div className="text-[13.5px] font-bold text-[#ef4444]">
+                {dayjs(fu.scheduledAt).format("DD MMM YYYY")}
+              </div>
+              <div className="text-[12px] text-[#ef4444] font-semibold">
+                {dayjs(fu.scheduledAt).format("hh:mm A")}
+              </div>
+            </div>
           );
         },
       },
       {
         headerName: "Assigned To",
-        minWidth: 160,
+        minWidth: 155,
         flex: 1,
-        valueGetter: (params) => {
+        cellRenderer: (params) => {
           const u = params.data?.assignedTo;
-          return u ? `${u.firstName || ""} ${u.lastName || ""}`.trim() : "Unassigned";
+          if (!u) {
+            return <span className="text-slate-400 font-inter font-medium text-[13.5px]">Unassigned</span>;
+          }
+          const name = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+          return (
+            <div className="flex items-center gap-2 py-1 font-inter">
+              <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 flex-shrink-0">
+                {u.firstName?.charAt(0) || "U"}
+              </div>
+              <span className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100 truncate">
+                {name}
+              </span>
+            </div>
+          );
         },
-        cellRenderer: (params) => (
-          <span className="font-inter font-medium text-slate-700 dark:text-slate-300 text-[14px]">
-            {params.value}
-          </span>
-        ),
       },
       {
-        headerName: "Created",
+        headerName: "Created On",
         field: "createdAt",
-        minWidth: 130,
+        minWidth: 135,
         flex: 0.9,
-        cellRenderer: (params) => (
-          <span className="font-inter text-slate-500 text-[13.5px] font-medium">
-            {params.value ? dayjs(params.value).format("MMM D, YYYY") : "—"}
-          </span>
-        ),
+        cellRenderer: (params) => {
+          if (!params.value) return "—";
+          return (
+            <div className="py-1 font-inter">
+              <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
+                {dayjs(params.value).format("DD MMM YYYY")}
+              </div>
+              <div className="text-[11.5px] text-slate-400 font-medium">
+                {dayjs(params.value).format("hh:mm A")}
+              </div>
+            </div>
+          );
+        },
       },
       {
         headerName: "Actions",
         pinned: "right",
-        width: 76,
-        minWidth: 76,
+        width: 72,
+        minWidth: 70,
         maxWidth: 80,
         sortable: false,
         filter: false,
         resizable: false,
         cellClass: "flex items-center justify-center overflow-visible",
+        headerClass: "text-center",
         cellRenderer: (params) => {
           const lead = params.data;
           if (!lead) return null;
 
-          const actions = [
+          const cleanPhone = lead.phone ? lead.phone.replace(/\D/g, "") : "";
+
+          // View and Edit navigate to full pages as requested
+          // All actions (View, Edit, Add Follow-up, Convert, Call, WhatsApp, Email, Delete) go inside the 3-dot dropdown menu
+          const dropdownActions = [
             {
-              label: "Quick View",
+              label: "View Lead",
               icon: "heroicons-outline:eye",
-              onClick: () => setQuickViewLead(lead),
-            },
-            {
-              label: "View Full Profile",
-              icon: "heroicons-outline:user",
               onClick: () => navigate(`/leads/${lead._id}`),
             },
             {
@@ -278,216 +430,427 @@ const Leads = () => {
               icon: "heroicons-outline:pencil-square",
               onClick: () => navigate(`/leads/${lead._id}/edit`),
             },
-            lead.phone && {
-              label: "Call Lead",
-              icon: "heroicons-outline:phone",
-              onClick: () => {
-                window.location.href = `tel:${lead.phone}`;
-              },
+            {
+              label: "Add Follow-up",
+              icon: "heroicons-outline:calendar",
+              onClick: () => setFollowUpLead(lead),
             },
-            lead.phone && {
-              label: "Chat on WhatsApp",
-              icon: "whatsapp",
-              onClick: () => {
-                window.open(
-                  `https://wa.me/${lead.phone.replace(/\D/g, "")}`,
-                  "_blank"
-                );
-              },
+            {
+              label: "Convert to Customer",
+              icon: "heroicons-outline:user-plus",
+              onClick: () => setConvertingLead(lead),
             },
+            { divider: true },
+            ...(lead.phone
+              ? [
+                  {
+                    label: `Call (${lead.phone})`,
+                    icon: "heroicons-outline:phone",
+                    onClick: () => {
+                      window.location.href = `tel:${lead.phone}`;
+                    },
+                  },
+                ]
+              : []),
+            ...(cleanPhone
+              ? [
+                  {
+                    label: "WhatsApp Chat",
+                    icon: "whatsapp",
+                    onClick: () => {
+                      window.open(`https://wa.me/${cleanPhone}`, "_blank", "noreferrer");
+                    },
+                  },
+                ]
+              : []),
+            ...(lead.email
+              ? [
+                  {
+                    label: "Send Email",
+                    icon: "heroicons-outline:envelope",
+                    onClick: () => {
+                      window.location.href = `mailto:${lead.email}`;
+                    },
+                  },
+                ]
+              : []),
             { divider: true },
             {
               label: "Delete Lead",
               icon: "heroicons-outline:trash",
-              variant: "danger",
-              onClick: () => {
-                setDeleteConfirm({
-                  isOpen: true,
-                  lead: lead,
-                  isLoading: false,
-                });
-              },
+              danger: true,
+              onClick: () => setDeletingLead(lead),
             },
           ];
 
-          return <RowActions actions={actions} label="Lead actions" align="right" />;
+          return (
+            <div className="flex items-center justify-center w-full">
+              <RowActions actions={dropdownActions} label="Lead actions" align="right" />
+            </div>
+          );
         },
       },
     ],
     [currentPage, limit, navigate]
   );
 
-  const handleFilterReset = () => {
-    setSearch("");
-    setStatus("");
-    setSource("");
-    setPriority("");
-    setDateRange([]);
-    setCurrentPage(1);
+  // Real stats from backend (or zeros when loading)
+  const stats = statsData?.data || {
+    total: { value: 0, changePercent: 0, isPositive: true },
+    newLeads: { value: 0, changePercent: 0, isPositive: true },
+    contacted: { value: 0, changePercent: 0, isPositive: true },
+    qualified: { value: 0, changePercent: 0, isPositive: true },
+    converted: { value: 0, changePercent: 0, isPositive: true },
   };
 
-  if (isLoading) return <Loading />;
+  const kpiCards = [
+    {
+      title: "Total Leads",
+      value: stats.total.value,
+      change: stats.total.changePercent,
+      isPositive: stats.total.isPositive,
+      icon: "heroicons-outline:identification",
+      iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+    },
+    {
+      title: "New Leads",
+      value: stats.newLeads.value,
+      change: stats.newLeads.changePercent,
+      isPositive: stats.newLeads.isPositive,
+      icon: "heroicons-outline:user-plus",
+      iconBg: "bg-rose-50 text-rose-500 dark:bg-rose-900/30 dark:text-rose-400",
+    },
+    {
+      title: "Contacted",
+      value: stats.contacted.value,
+      change: stats.contacted.changePercent,
+      isPositive: stats.contacted.isPositive,
+      icon: "heroicons-outline:phone",
+      iconBg: "bg-sky-50 text-sky-500 dark:bg-sky-900/30 dark:text-sky-400",
+    },
+    {
+      title: "Qualified",
+      value: stats.qualified.value,
+      change: stats.qualified.changePercent,
+      isPositive: stats.qualified.isPositive,
+      icon: "heroicons-outline:shield-check",
+      iconBg: "bg-emerald-50 text-emerald-500 dark:bg-emerald-900/30 dark:text-emerald-400",
+    },
+    {
+      title: "Converted",
+      value: stats.converted.value,
+      change: stats.converted.changePercent,
+      isPositive: stats.converted.isPositive,
+      icon: "heroicons-outline:briefcase",
+      iconBg: "bg-amber-50 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400",
+    },
+  ];
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-5 font-inter">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h4 className="font-bold text-2xl text-slate-900 dark:text-white">Leads Management</h4>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Total {totalLeads} lead{totalLeads !== 1 ? 's' : ''} found
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Leads
+          </h1>
+          <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Manage your leads, track follow-ups and convert them into customers.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            icon="heroicons-outline:arrow-path"
-            className="btn-outline-dark h-10 w-10 p-0 flex items-center justify-center"
-            onClick={refetch}
-            disabled={isFetching}
-          />
-          <PermissionGuard permission="leads.create">
-            <Button
-              icon="heroicons-outline:plus"
-              text="Add New Lead"
-              className="btn-primary h-10"
-              onClick={() => navigate("/leads/new")}
-            />
-          </PermissionGuard>
+
+        {/* Top Right Action Button */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[13.5px] font-semibold transition shadow-none cursor-pointer"
+          >
+            <Icon icon="heroicons-outline:plus" className="text-lg" />
+            <span>Add Lead</span>
+          </button>
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-center">
-          {/* Search Input with Clear Button */}
-          <div className="relative">
+      {/* 5 Real-Time KPI Cards matching reference image */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {kpiCards.map((card, idx) => (
+          <div
+            key={idx}
+            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 p-4 flex items-center justify-between"
+          >
+            <div className="space-y-1">
+              <span className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400 block">
+                {card.title}
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  {card.value}
+                </span>
+                <span
+                  className={`inline-flex items-center text-[12px] font-semibold ${
+                    card.isPositive ? "text-emerald-600" : "text-rose-500"
+                  }`}
+                >
+                  {card.isPositive ? "↑" : "↓"} {Math.abs(card.change)}%
+                </span>
+              </div>
+            </div>
+            <div
+              className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 ${card.iconBg}`}
+            >
+              <Icon icon={card.icon} className="text-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 p-3.5 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search Input */}
+          <div className="flex-1 min-w-[240px] relative">
             <Icon
-              icon="heroicons-outline:magnifying-glass"
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none"
+              icon="heroicons-outline:search"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base"
             />
             <input
               type="text"
-              placeholder="Search leads, phone, email..."
-              value={search}
+              value={searchTerm}
               onChange={(e) => {
-                setSearch(e.target.value);
+                setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-11 pl-10 pr-9 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-primary-500 transition"
+              placeholder="Search by name, phone, email or source..."
+              className="w-full pl-10 pr-3.5 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-inter"
             />
-            {search && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setCurrentPage(1);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5"
-                title="Clear search"
-              >
-                <Icon icon="heroicons-outline:x-mark" className="text-sm" />
-              </button>
-            )}
           </div>
 
-          {/* Status Filter */}
-          <select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
-          >
-            <option value="">All Statuses</option>
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          {/* Source Dropdown */}
+          <div className="min-w-[140px]">
+            <select
+              value={sourceFilter}
+              onChange={(e) => {
+                setSourceFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              {SOURCE_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* Source Filter */}
-          <select
-            value={source}
-            onChange={(e) => {
-              setSource(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
-          >
-            <option value="">All Sources</option>
-            {SOURCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          {/* Status Dropdown */}
+          <div className="min-w-[140px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              {STATUS_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* Priority Filter */}
-          <select
-            value={priority}
-            onChange={(e) => {
-              setPriority(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg text-[14.5px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-primary-500 transition"
-          >
-            <option value="">All Priorities</option>
-            {PRIORITY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          {/* Staff Dropdown */}
+          <div className="min-w-[140px]">
+            <select
+              value={staffFilter}
+              onChange={(e) => {
+                setStaffFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="all">All Staff</option>
+              {staffList.map((st) => (
+                <option key={st._id} value={st._id}>
+                  {st.firstName} {st.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* Date Range Picker */}
-          <div className="relative flex items-center h-11 px-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg">
-            <Icon icon="heroicons-outline:calendar" className="text-slate-400 mr-2 flex-shrink-0 text-base" />
+          {/* Date Range Picker with Flatpickr */}
+          <div className="min-w-[210px] relative">
             <Flatpickr
-              className="w-full bg-transparent border-none p-0 text-[14px] font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-normal cursor-pointer"
               value={dateRange}
-              placeholder="Filter by date range"
-              options={{ mode: "range", dateFormat: "M d, Y" }}
               onChange={(dates) => {
                 setDateRange(dates);
-                if (dates.length === 2) setCurrentPage(1);
+                setCurrentPage(1);
               }}
+              options={{
+                mode: "range",
+                dateFormat: "d M Y",
+                allowInput: true,
+              }}
+              placeholder="01 Oct 2026 - 31 Oct 2026"
+              className="w-full pl-9 pr-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
             />
-            {dateRange.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDateRange([]);
-                  setCurrentPage(1);
-                }}
-                className="text-slate-400 hover:text-slate-700 ml-1 p-0.5"
-              >
-                <Icon icon="heroicons-outline:x-mark" className="text-sm" />
-              </button>
+            <Icon
+              icon="heroicons-outline:calendar"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none"
+            />
+          </div>
+
+          {/* Filters badge button */}
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[13px] font-semibold">
+            <Icon icon="heroicons-outline:funnel" className="text-base text-blue-600" />
+            <span>Filters</span>
+            {activeFiltersCount > 0 && (
+              <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center ml-1">
+                {activeFiltersCount}
+              </span>
             )}
           </div>
+
+          {/* Clear Filters */}
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="text-[13px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1 transition cursor-pointer"
+            >
+              Clear
+            </button>
+          )}
+
+          {/* Refresh button */}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            title="Refresh"
+            className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition ml-auto cursor-pointer"
+          >
+            <Icon
+              icon="heroicons-outline:refresh"
+              className={`text-base ${isLeadsFetching ? "animate-spin text-blue-600" : ""}`}
+            />
+          </button>
         </div>
 
-        {(search || status || source || priority || dateRange.length > 0) && (
-          <div className="flex justify-end mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60">
-            <button
-              onClick={handleFilterReset}
-              className="inline-flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-bold hover:underline"
-            >
-              <Icon icon="heroicons-outline:arrow-path" className="text-sm" />
-              Clear All Filters
-            </button>
+        {/* Bulk Actions Bar (Appears when leads are checked) */}
+        {selectedLeadIds.size > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl animate-fadeIn text-[13px]">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold pl-1">
+              <span className="h-6 min-w-[24px] px-2 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                {selectedLeadIds.size}
+              </span>
+              <span className="text-[13.5px]">leads selected</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Assign To Segmented Control */}
+              <div className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
+                <select
+                  value={bulkAssignStaffId}
+                  onChange={(e) => setBulkAssignStaffId(e.target.value)}
+                  className="bulk-action-select h-9 pl-3 pr-7 text-[13px] font-medium bg-transparent text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
+                >
+                  <option value="">Assign to staff...</option>
+                  {staffList.map((st) => (
+                    <option key={st._id} value={st._id}>
+                      {st.firstName} {st.lastName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleBulkAssign}
+                  disabled={!bulkAssignStaffId || isBulkAssigning}
+                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white text-[12.5px] font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed border-l border-slate-200 dark:border-slate-700"
+                >
+                  {isBulkAssigning ? (
+                    <Icon icon="heroicons-outline:refresh" className="animate-spin text-sm" />
+                  ) : (
+                    <Icon icon="heroicons-outline:user-plus" className="text-sm" />
+                  )}
+                  <span>Assign</span>
+                </button>
+              </div>
+
+              {/* Change Status Segmented Control */}
+              <div className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
+                <select
+                  value={bulkStatusValue}
+                  onChange={(e) => setBulkStatusValue(e.target.value)}
+                  className="bulk-action-select h-9 pl-3 pr-7 text-[13px] font-medium bg-transparent text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
+                >
+                  <option value="">Update status...</option>
+                  <option value="new">New</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="qualified">Qualified</option>
+                  <option value="converted">Converted</option>
+                  <option value="lost">Lost</option>
+                  <option value="junk">Junk</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleBulkStatus}
+                  disabled={!bulkStatusValue || isBulkUpdatingStatus}
+                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white text-[12.5px] font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed border-l border-slate-200 dark:border-slate-700"
+                >
+                  {isBulkUpdatingStatus ? (
+                    <Icon icon="heroicons-outline:refresh" className="animate-spin text-sm" />
+                  ) : (
+                    <Icon icon="heroicons-outline:check" className="text-sm" />
+                  )}
+                  <span>Apply</span>
+                </button>
+              </div>
+
+              {/* Export Selected */}
+              <button
+                type="button"
+                onClick={handleExportSelected}
+                className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[12.5px] font-semibold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              >
+                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm text-slate-500" />
+                <span>Export</span>
+              </button>
+
+              {/* Bulk Delete */}
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-lg text-[12.5px] font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                <Icon icon="heroicons-outline:trash" className="text-sm" />
+                <span>Delete</span>
+              </button>
+
+              {/* Deselect All */}
+              <button
+                type="button"
+                onClick={() => setSelectedLeadIds(new Set())}
+                className="h-9 inline-flex items-center px-2.5 text-[12.5px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:underline transition cursor-pointer"
+              >
+                Deselect
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Leads AG Grid Table */}
+      {/* Main Leads DataGrid Table - Consistent with Customers module */}
       <DataGrid
         rowData={leads}
         columnDefs={columnDefs}
         enableSelection={true}
-        entityName="leads"
+        selectedIds={selectedLeadIds}
+        onSelectionChange={(newSet) => setSelectedLeadIds(newSet)}
         pagination={true}
         paginationData={{
           page: currentPage,
@@ -495,99 +858,57 @@ const Leads = () => {
           total: totalLeads,
           totalPages,
         }}
-        onPageChange={(newPage) => setCurrentPage(newPage)}
-        onPageSizeChange={(newLimit) => {
-          setLimit(newLimit);
+        onPageChange={(p) => setCurrentPage(p)}
+        onPageSizeChange={(sz) => {
+          setLimit(sz);
           setCurrentPage(1);
         }}
-        isLoading={isFetching}
-        emptyMessage="No leads found"
+        isLoading={isLeadsLoading}
+        emptyMessage="No leads found matching your criteria."
+        entityName="leads"
       />
 
-      {/* Reusable Quick View Drawer for Leads */}
-      <QuickViewDrawer
-        isOpen={Boolean(quickViewLead)}
-        onClose={() => setQuickViewLead(null)}
-        title={quickViewLead?.fullName}
-        subtitle={`Source: ${quickViewLead?.leadSource || "Direct"}`}
-        badge={
-          quickViewLead?.status && (
-            <span
-              className={`text-xs font-semibold px-2.5 py-0.5 rounded-full capitalize text-white ${getStatusColor(
-                quickViewLead.status
-              )}`}
-            >
-              {quickViewLead.status}
-            </span>
-          )
-        }
-        onViewDetails={() => navigate(`/leads/${quickViewLead?._id}`)}
-        onEdit={() => navigate(`/leads/${quickViewLead?._id}/edit`)}
-        groups={[
-          {
-            title: "Contact Information",
-            items: [
-              { label: "Phone", value: quickViewLead?.phone },
-              { label: "Email", value: quickViewLead?.email || "No email" },
-              {
-                label: "Assigned To",
-                value: quickViewLead?.assignedTo
-                  ? `${quickViewLead.assignedTo.firstName || ""} ${quickViewLead.assignedTo.lastName || ""}`.trim()
-                  : "Unassigned",
-              },
-              { label: "Priority", value: quickViewLead?.priority || "Medium" },
-            ],
-          },
-          {
-            title: "Project & Requirement",
-            items: [
-              {
-                label: "Project Type",
-                value:
-                  quickViewLead?.projectType ||
-                  quickViewLead?.requirement ||
-                  "General Inquiry",
-              },
-              {
-                label: "Budget",
-                value: quickViewLead?.budget
-                  ? `₹${Number(quickViewLead.budget).toLocaleString("en-IN")}`
-                  : "Not specified",
-              },
-              {
-                label: "City / Location",
-                value: quickViewLead?.city || quickViewLead?.location || "—",
-              },
-              {
-                label: "Created Date",
-                value: quickViewLead?.createdAt
-                  ? dayjs(quickViewLead.createdAt).format("MMM D, YYYY")
-                  : "—",
-              },
-              {
-                label: "Notes / Description",
-                value:
-                  quickViewLead?.notes ||
-                  quickViewLead?.description ||
-                  "No notes available",
-                fullWidth: true,
-              },
-            ],
-          },
-        ]}
+      {/* 1. Add Lead Modal */}
+      <AddLeadModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
       />
 
-      {/* Reusable Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={deleteConfirm.isOpen}
-        onClose={() =>
-          setDeleteConfirm({ isOpen: false, lead: null, isLoading: false })
-        }
-        onConfirm={handleConfirmDelete}
-        title="Delete Lead"
-        entityName={deleteConfirm.lead?.fullName || "this lead"}
-        isLoading={deleteConfirm.isLoading}
-        confirmText="Delete Lead"
+      {/* 2. Add Follow-up Modal */}
+      <AddFollowUpModal
+        isOpen={Boolean(followUpLead)}
+        lead={followUpLead}
+        onClose={() => setFollowUpLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
+      />
+
+      {/* 3. Convert Lead to Customer Modal */}
+      <ConvertLeadModal
+        isOpen={Boolean(convertingLead)}
+        lead={convertingLead}
+        onClose={() => setConvertingLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
+      />
+
+      {/* 4. Delete Lead Modal */}
+      <DeleteLeadModal
+        isOpen={Boolean(deletingLead)}
+        lead={deletingLead}
+        onClose={() => setDeletingLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
       />
     </div>
   );

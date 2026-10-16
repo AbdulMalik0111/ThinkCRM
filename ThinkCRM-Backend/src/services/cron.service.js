@@ -9,7 +9,9 @@ import { logger } from '../utils/logger.js';
 const sendReminder = async (followup, timeLabel) => {
   if (!followup.assignedTo || !followup.assignedTo.email) return;
 
-  const leadName = followup.leadId ? `${followup.leadId.firstName} ${followup.leadId.lastName}` : 'a Lead';
+  const leadName = followup.leadId
+    ? (followup.leadId.fullName || `${followup.leadId.firstName || ''} ${followup.leadId.lastName || ''}`.trim() || 'a Lead')
+    : 'a Lead';
   
   // Format: "3:00 PM on Oct 10, 2026"
   const timeFormatted = new Date(followup.scheduledAt).toLocaleString('en-US', {
@@ -58,7 +60,7 @@ export const startCronJobs = () => {
       // Look for pending followups that are not overdue/cancelled
       const pendingFollowups = await FollowUp.find({
         status: 'pending',
-      }).populate('assignedTo', 'firstName lastName email').populate('leadId', 'firstName lastName');
+      }).populate('assignedTo', 'firstName lastName email').populate('leadId', 'fullName firstName lastName');
 
       for (const followup of pendingFollowups) {
         const scheduledTime = new Date(followup.scheduledAt);
