@@ -203,8 +203,20 @@ const customerSchema = new mongoose.Schema(
 
 customerSchema.pre('save', async function (next) {
   if (this.isNew && !this.customerId) {
-    const count = await mongoose.model('Customer').countDocuments();
-    this.customerId = `CUS-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
+    const currentYear = new Date().getFullYear();
+    const prefix = `CUS-${currentYear}-`;
+    const lastCust = await mongoose.model('Customer')
+      .findOne({ customerId: { $regex: `^${prefix}` } })
+      .sort({ customerId: -1 });
+
+    let nextNum = 1;
+    if (lastCust && lastCust.customerId) {
+      const match = lastCust.customerId.match(/(\d+)$/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    this.customerId = `${prefix}${String(nextNum).padStart(5, '0')}`;
   }
 
   // Auto-compose location from city, state if not explicitly given

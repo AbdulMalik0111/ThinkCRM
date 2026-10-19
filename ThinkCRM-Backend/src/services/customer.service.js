@@ -14,7 +14,8 @@ import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
  * Converts a lead to a customer, or links it to an existing verified customer (Deduplication).
  * Idempotent: repeated calls safely return the linked customer record.
  */
-export const convertLeadToCustomer = async (leadId, createdBy) => {
+export const convertLeadToCustomer = async (leadId, createdBy, options = {}) => {
+  const { preserveStatus = false } = options;
   const lead = await Lead.findById(leadId);
   if (!lead) {
     throw new AppError('Lead not found', 404);
@@ -24,7 +25,7 @@ export const convertLeadToCustomer = async (leadId, createdBy) => {
   if (lead.customerId) {
     const existing = await Customer.findOne({ _id: lead.customerId, deletedAt: null });
     if (existing) {
-      if (lead.status !== 'converted' && lead.status !== 'won') {
+      if (!preserveStatus && lead.status !== 'converted' && lead.status !== 'won' && lead.status !== 'qualified') {
         lead.status = 'converted';
         await lead.save();
       }
@@ -39,7 +40,7 @@ export const convertLeadToCustomer = async (leadId, createdBy) => {
   });
   if (existingByLead) {
     lead.customerId = existingByLead._id;
-    if (lead.status !== 'converted' && lead.status !== 'won') {
+    if (!preserveStatus && lead.status !== 'converted' && lead.status !== 'won' && lead.status !== 'qualified') {
       lead.status = 'converted';
     }
     await lead.save();
@@ -87,7 +88,9 @@ export const convertLeadToCustomer = async (leadId, createdBy) => {
   if (matchedCustomer) {
     // LINK TO EXISTING VERIFIED CUSTOMER
     lead.customerId = matchedCustomer._id;
-    lead.status = 'converted';
+    if (!preserveStatus && lead.status !== 'won' && lead.status !== 'qualified') {
+      lead.status = 'converted';
+    }
     await lead.save();
 
     // Ensure lead._id is in matchedCustomer.leads
@@ -173,7 +176,9 @@ export const convertLeadToCustomer = async (leadId, createdBy) => {
   });
 
   lead.customerId = customer._id;
-  lead.status = 'converted';
+  if (!preserveStatus && lead.status !== 'won' && lead.status !== 'qualified') {
+    lead.status = 'converted';
+  }
   await lead.save();
 
   // Re-link existing quotations and followups on this lead

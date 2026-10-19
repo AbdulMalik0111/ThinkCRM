@@ -336,7 +336,7 @@ const ImportLeadModal = ({ isOpen, onClose, onSuccess }) => {
         {!importResult && (
           <>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-700">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                   Upload Leads CSV File
                 </p>
@@ -347,10 +347,10 @@ const ImportLeadModal = ({ isOpen, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={handleDownloadSample}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition self-start sm:self-auto cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition self-start sm:self-auto cursor-pointer whitespace-nowrap flex-shrink-0"
               >
-                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm text-slate-500" />
-                <span>Download Sample Leads CSV</span>
+                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm text-slate-500 flex-shrink-0" />
+                <span className="whitespace-nowrap">Download Sample Leads CSV</span>
               </button>
             </div>
 

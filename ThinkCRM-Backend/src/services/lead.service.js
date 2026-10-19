@@ -135,6 +135,17 @@ export const createLead = async (leadData, createdBy) => {
     }
   }
 
+  // Auto-create / link Customer record so that any created lead is immediately searchable and visible in Customer tab
+  try {
+    const cust = await convertService(lead._id, createdBy, { preserveStatus: true });
+    if (cust && !lead.customerId) {
+      lead.customerId = cust._id;
+      await lead.save();
+    }
+  } catch (custErr) {
+    console.warn(`Auto-creating customer for new lead ${lead._id} failed:`, custErr.message);
+  }
+
   return lead;
 };
 
@@ -337,6 +348,20 @@ export const updateLead = async (leadId, updateData, updatedBy) => {
       performedBy: updatedBy,
       metadata: { oldStatus, newStatus: updateData.status },
     });
+
+    if (updateData.status === 'won' || updateData.status === 'converted') {
+      try {
+        if (!lead.customerId) {
+          const cust = await convertService(lead._id, updatedBy);
+          if (cust) {
+            lead.customerId = cust._id;
+            await lead.save();
+          }
+        }
+      } catch (convErr) {
+        console.warn('Auto-convert to customer failed during lead status change:', convErr.message);
+      }
+    }
   }
 
   if (updateData.measurementStatus) {
@@ -488,6 +513,21 @@ export const bulkUpdateStatus = async (leadIds, status, performedBy) => {
       performedBy,
       metadata: { status },
     });
+
+    if (status === 'won' || status === 'converted') {
+      try {
+        const lead = await Lead.findById(id);
+        if (lead && !lead.customerId) {
+          const cust = await convertService(id, performedBy);
+          if (cust) {
+            lead.customerId = cust._id;
+            await lead.save();
+          }
+        }
+      } catch (convErr) {
+        console.warn(`Auto-convert to customer failed for lead ${id}:`, convErr.message);
+      }
+    }
   }
 
   return true;
@@ -925,6 +965,17 @@ export const importLeads = async (leadsList, userId, duplicatePolicy = 'skip') =
           { _id: customerId },
           { $addToSet: { leads: newLead._id } }
         );
+      } else {
+        // Auto-create Customer record so that any imported lead is immediately searchable and visible in Customer tab
+        try {
+          const cust = await convertService(newLead._id, userId, { preserveStatus: true });
+          if (cust && !newLead.customerId) {
+            newLead.customerId = cust._id;
+            await newLead.save();
+          }
+        } catch (custErr) {
+          console.warn(`Auto-creating customer for imported lead ${newLead._id} failed:`, custErr.message);
+        }
       }
 
       // Log creation activity

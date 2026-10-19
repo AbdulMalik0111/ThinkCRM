@@ -12,11 +12,9 @@ import {
   useAddCustomerNoteMutation,
   useUpdateCustomerNoteMutation,
   useDeleteCustomerNoteMutation,
-  useDeleteCustomerDocumentMutation,
   useUpdateCustomerFollowUpMutation,
   useDeleteCustomerFollowUpMutation,
   useSendCustomerQuotationMutation,
-  useDeleteCustomerQuotationMutation,
 } from "@/store/api/customers/customersApiSlice";
 
 // Modals
@@ -24,8 +22,6 @@ import SendEmailModal from "./SendEmailModal";
 import SendWhatsAppModal from "./SendWhatsAppModal";
 import ScheduleFollowUpModal from "./ScheduleFollowUpModal";
 import AddProjectModal from "./AddProjectModal";
-import UploadDocumentModal from "./UploadDocumentModal";
-import UploadCustomerQuotationModal from "./UploadCustomerQuotationModal";
 import LogCallModal from "./LogCallModal";
 import CustomerActivities from "./CustomerActivities";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
@@ -89,8 +85,6 @@ const CustomerView = () => {
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
-  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
   const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
 
   // Customer Deletion State
@@ -107,33 +101,15 @@ const CustomerView = () => {
     isLoading: false,
   });
 
-  // Document deletion state
-  const [deleteDocConfirm, setDeleteDocConfirm] = useState({
-    isOpen: false,
-    docId: null,
-    docName: "",
-    isLoading: false,
-  });
-
-  // Quotation deletion state
-  const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState({
-    isOpen: false,
-    quoteId: null,
-    quoteNumber: "",
-    isLoading: false,
-  });
-
   // RTK Query
   const { data, isLoading, isError, refetch } = useGetCustomerByIdQuery(id);
   const [deleteCustomer] = useDeleteCustomerMutation();
   const [addCustomerNote, { isLoading: isAddingNote }] = useAddCustomerNoteMutation();
   const [updateCustomerNote, { isLoading: isUpdatingNote }] = useUpdateCustomerNoteMutation();
   const [deleteCustomerNote] = useDeleteCustomerNoteMutation();
-  const [deleteCustomerDocument] = useDeleteCustomerDocumentMutation();
   const [updateCustomerFollowUp] = useUpdateCustomerFollowUpMutation();
   const [deleteCustomerFollowUp] = useDeleteCustomerFollowUpMutation();
   const [sendCustomerQuotation, { isLoading: isSendingQuotation }] = useSendCustomerQuotationMutation();
-  const [deleteCustomerQuotation] = useDeleteCustomerQuotationMutation();
 
   const handleConfirmDeleteCustomer = async () => {
     try {
@@ -155,20 +131,6 @@ const CustomerView = () => {
       refetch();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to send quotation");
-    }
-  };
-
-  const handleConfirmDeleteQuotation = async () => {
-    if (!deleteQuoteConfirm.quoteId) return;
-    try {
-      setDeleteQuoteConfirm((prev) => ({ ...prev, isLoading: true }));
-      await deleteCustomerQuotation(deleteQuoteConfirm.quoteId).unwrap();
-      toast.success("Quotation deleted successfully");
-      setDeleteQuoteConfirm({ isOpen: false, quoteId: null, quoteNumber: "", isLoading: false });
-      refetch();
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete quotation");
-      setDeleteQuoteConfirm((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -242,20 +204,6 @@ const CustomerView = () => {
     } catch (err) {
       toast.error(err?.data?.message || "Failed to delete note");
       setDeleteNoteConfirm((prev) => ({ ...prev, isLoading: false }));
-    }
-  };
-
-  const handleConfirmDeleteDoc = async () => {
-    if (!deleteDocConfirm.docId) return;
-    try {
-      setDeleteDocConfirm((prev) => ({ ...prev, isLoading: true }));
-      await deleteCustomerDocument({ id, docId: deleteDocConfirm.docId }).unwrap();
-      toast.success("Document deleted successfully");
-      setDeleteDocConfirm({ isOpen: false, docId: null, docName: "", isLoading: false });
-      refetch();
-    } catch (err) {
-      toast.error(err?.data?.message || "Failed to delete document");
-      setDeleteDocConfirm((prev) => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -520,22 +468,6 @@ const CustomerView = () => {
                     )}
                   </MenuItem>
 
-                  <MenuItem>
-                    {({ active }) => (
-                      <button
-                        type="button"
-                        onClick={() => setIsQuotationModalOpen(true)}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
-                          active
-                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
-                            : "text-slate-700 dark:text-slate-200 hover:text-amber-600"
-                        }`}
-                      >
-                        <Icon icon="heroicons-outline:document-arrow-up" className="text-base text-amber-600 dark:text-amber-400" />
-                        <span>Upload Quotation</span>
-                      </button>
-                    )}
-                  </MenuItem>
 
                   <MenuItem>
                     {({ active }) => (
@@ -590,22 +522,6 @@ const CustomerView = () => {
                     )}
                   </MenuItem>
 
-                  <MenuItem>
-                    {({ active }) => (
-                      <button
-                        type="button"
-                        onClick={() => setIsDocumentModalOpen(true)}
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
-                          active
-                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
-                            : "text-slate-700 dark:text-slate-200"
-                        }`}
-                      >
-                        <Icon icon="heroicons-outline:arrow-up-tray" className="text-base text-teal-500" />
-                        <span>Upload Document</span>
-                      </button>
-                    )}
-                  </MenuItem>
 
                   {customer.sourceLeadId && (
                     <MenuItem>
@@ -704,11 +620,11 @@ const CustomerView = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsQuotationModalOpen(true)}
+                  onClick={() => setActiveTab("quotations")}
                   className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-emerald-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
-                  <Icon icon="heroicons-outline:document-arrow-up" className="text-emerald-500 text-base" />
-                  <span>Quotation</span>
+                  <Icon icon="heroicons-outline:document-text" className="text-emerald-500 text-base" />
+                  <span>Quotations</span>
                 </button>
                 <button
                   type="button"
@@ -1210,22 +1126,16 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 4. QUOTATIONS TAB - Display and Manage All Quotations Across Leads & Customer */}
+      {/* 4. QUOTATIONS TAB - View-only Quotations Display (Uploaded and Managed on Lead Details) */}
       {activeTab === "quotations" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer & Lead Quotations</h4>
               <p className="text-xs text-slate-500">
-                All proposals linked to this customer and their connected requirements
+                View proposal documents linked to this customer. New quotations are uploaded and managed on the Lead Details page.
               </p>
             </div>
-            <Button
-              text="Upload Quotation"
-              icon="heroicons-outline:document-arrow-up"
-              className="btn-primary btn-sm text-xs font-semibold"
-              onClick={() => setIsQuotationModalOpen(true)}
-            />
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -1247,6 +1157,7 @@ const CustomerView = () => {
                     const reqLabel = leadInfo
                       ? `${leadInfo.projectType || "Project"} (${leadInfo.leadId || "Lead"})`
                       : "Customer Proposal";
+                    const leadRawId = leadInfo?._id || leadInfo;
 
                     return (
                       <tr key={q._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
@@ -1254,10 +1165,23 @@ const CustomerView = () => {
                           {q.quotationNumber || `QT-${q._id?.slice(-6).toUpperCase()}`}
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
-                            <Icon icon="heroicons-outline:link" className="text-xs" />
-                            <span>{reqLabel}</span>
-                          </span>
+                          {leadRawId ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/leads/${leadRawId}?tab=quotations`)}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
+                              title="View and manage quotation on Lead page"
+                            >
+                              <Icon icon="heroicons-outline:link" className="text-xs" />
+                              <span>{reqLabel}</span>
+                              <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-[10px] ml-0.5" />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                              <Icon icon="heroicons-outline:link" className="text-xs" />
+                              <span>{reqLabel}</span>
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3.5 font-bold text-primary-600 text-sm">
                           {formatCurrency(q.totalAmount || q.subtotal || q.amount)}
@@ -1280,43 +1204,31 @@ const CustomerView = () => {
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {q.pdfUrl && (
-                              <a
-                                href={q.pdfUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 font-semibold px-2 py-1 rounded hover:bg-primary-50 dark:hover:bg-primary-950/40 transition"
-                                title="Download PDF"
-                              >
-                                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
-                                <span>PDF</span>
-                              </a>
+                            {q.pdfUrl ? (
+                              <>
+                                <a
+                                  href={q.pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 font-semibold px-2.5 py-1 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition"
+                                  title="View Quotation PDF"
+                                >
+                                  <Icon icon="heroicons-outline:eye" className="text-sm" />
+                                  <span>View PDF</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadFile(q.pdfUrl, `${q.quotationNumber || "quotation"}.pdf`)}
+                                  className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-600 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
+                                  title="Download Quotation PDF"
+                                >
+                                  <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                                  <span>Download</span>
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 text-xs italic">No file attached</span>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleSendQuotation(q._id)}
-                              disabled={isSendingQuotation}
-                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition disabled:opacity-50"
-                              title="Send Quotation to Client via Email"
-                            >
-                              <Icon icon="heroicons-outline:paper-airplane" className="text-sm" />
-                              <span>{q.status === "sent" ? "Resend" : "Send"}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeleteQuoteConfirm({
-                                  isOpen: true,
-                                  quoteId: q._id,
-                                  quoteNumber: q.quotationNumber || "this quotation",
-                                  isLoading: false,
-                                })
-                              }
-                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-                              title="Delete Quotation"
-                            >
-                              <Icon icon="heroicons-outline:trash" className="text-sm" />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1325,7 +1237,7 @@ const CustomerView = () => {
                   {quotations.length === 0 && (
                     <tr>
                       <td colSpan="6" className="p-8 text-center text-slate-400">
-                        No quotations created for this customer or their connected leads yet. Click &ldquo;Upload Quotation&rdquo; to add one.
+                        No quotations linked to this customer yet. Quotations are uploaded and managed on the Lead Details page.
                       </td>
                     </tr>
                   )}
@@ -1454,22 +1366,16 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 6. FILES & DOCUMENTS TAB - Unified Customer and Lead Documents */}
+      {/* 6. FILES & DOCUMENTS TAB - View-only Unified Customer and Lead Documents */}
       {activeTab === "files" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer Files & Documents</h4>
               <p className="text-xs text-slate-500">
-                Unified storage for documents across customer profiles and connected lead requirements
+                View documents across connected lead requirements and customer records. Files are uploaded and managed on the Lead Details page.
               </p>
             </div>
-            <Button
-              text="Upload File"
-              icon="heroicons-outline:arrow-up-tray"
-              className="btn-primary btn-sm text-xs font-semibold"
-              onClick={() => setIsDocumentModalOpen(true)}
-            />
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 font-inter">
@@ -1512,36 +1418,21 @@ const CustomerView = () => {
                       href={doc.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-primary-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                      className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 font-semibold px-2.5 py-1 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition text-xs"
                       title="View Document"
                     >
                       <Icon icon="heroicons-outline:eye" className="text-sm" />
+                      <span>View</span>
                     </a>
                     <button
                       type="button"
                       onClick={() => handleDownloadFile(doc.url, doc.name)}
-                      className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                      className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 hover:text-emerald-600 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition text-xs cursor-pointer"
                       title="Download File"
                     >
                       <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                      <span>Download</span>
                     </button>
-                    {!isLeadDoc && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setDeleteDocConfirm({
-                            isOpen: true,
-                            docId: doc._id,
-                            docName: doc.name,
-                            isLoading: false,
-                          })
-                        }
-                        className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-danger-600 hover:bg-red-50 transition"
-                        title="Delete File"
-                      >
-                        <Icon icon="heroicons-outline:trash" className="text-sm" />
-                      </button>
-                    )}
                   </div>
                 </div>
               );
@@ -1549,7 +1440,7 @@ const CustomerView = () => {
 
             {documents.length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
-                No documents uploaded yet. Upload contracts, blueprints, or design specifications.
+                No documents found. Documents and files are uploaded and managed on the Lead Details page.
               </div>
             )}
           </div>
@@ -1697,18 +1588,7 @@ const CustomerView = () => {
         onClose={() => setIsProjectModalOpen(false)}
         customerId={customer._id}
       />
-      <UploadDocumentModal
-        isOpen={isDocumentModalOpen}
-        onClose={() => setIsDocumentModalOpen(false)}
-        customerId={customer._id}
-      />
-      <UploadCustomerQuotationModal
-        isOpen={isQuotationModalOpen}
-        onClose={() => setIsQuotationModalOpen(false)}
-        customer={customer}
-        leads={leads}
-        onSuccess={() => refetch()}
-      />
+
       <LogCallModal
         isOpen={isLogCallModalOpen}
         onClose={() => setIsLogCallModalOpen(false)}
@@ -1781,30 +1661,6 @@ const CustomerView = () => {
         message="This note will be permanently deleted from the customer record along with any attachments."
         isLoading={deleteNoteConfirm.isLoading}
         confirmText="Delete Note"
-      />
-
-      {/* Delete Document Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={deleteDocConfirm.isOpen}
-        onClose={() => setDeleteDocConfirm({ isOpen: false, docId: null, docName: "", isLoading: false })}
-        onConfirm={handleConfirmDeleteDoc}
-        title="Delete Document"
-        entityName={deleteDocConfirm.docName || "this document"}
-        message="This document will be permanently deleted from the customer's records."
-        isLoading={deleteDocConfirm.isLoading}
-        confirmText="Delete Document"
-      />
-
-      {/* Delete Quotation Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={deleteQuoteConfirm.isOpen}
-        onClose={() => setDeleteQuoteConfirm({ isOpen: false, quoteId: null, quoteNumber: "", isLoading: false })}
-        onConfirm={handleConfirmDeleteQuotation}
-        title="Delete Quotation"
-        entityName={deleteQuoteConfirm.quoteNumber || "this quotation"}
-        message="This quotation document and proposal will be permanently removed from CRM records."
-        isLoading={deleteQuoteConfirm.isLoading}
-        confirmText="Delete Quotation"
       />
     </div>
   );
