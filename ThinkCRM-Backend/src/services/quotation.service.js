@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Quotation } from '../models/Quotation.js';
 import { Lead } from '../models/Lead.js';
 import { AppError } from '../utils/AppError.js';
@@ -14,22 +16,32 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
 
   let uploadedFile = null;
   if (file) {
+    // 1. Always save the actual uploaded file locally so it's guaranteed accessible as real PDF/doc
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'quotations');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const safeFileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const localFilePath = path.join(uploadsDir, safeFileName);
+    fs.writeFileSync(localFilePath, file.buffer);
+    const localUrl = `/uploads/quotations/${safeFileName}`;
+
+    uploadedFile = {
+      fileName: file.originalname,
+      url: localUrl,
+      mimeType: file.mimetype || 'application/pdf',
+      storageKey: safeFileName,
+    };
+
+    // 2. Also attempt Cloudinary if configured
     try {
       const result = await uploadToCloudinary(file.buffer, 'quotations');
-      uploadedFile = {
-        fileName: file.originalname,
-        url: result.secure_url,
-        mimeType: file.mimetype,
-        storageKey: result.public_id,
-      };
+      if (result && result.secure_url) {
+        uploadedFile.url = result.secure_url;
+        uploadedFile.storageKey = result.public_id;
+      }
     } catch (uploadError) {
-      console.warn('Cloudinary upload warning:', uploadError?.message);
-      uploadedFile = {
-        fileName: file.originalname,
-        url: `https://ui-avatars.com/api/?name=${encodeURIComponent(file.originalname)}&background=0284c7&color=fff`,
-        mimeType: file.mimetype || 'application/pdf',
-        storageKey: 'local_' + Date.now(),
-      };
+      console.warn('Cloudinary upload warning (using local file):', uploadError?.message);
     }
   }
 
@@ -77,34 +89,46 @@ export const sendQuotation = async (leadId, quotationId, sentBy) => {
     throw new AppError('Quotation not found', 404);
   }
 
+  if (!quotation.customerEmail && lead.email) {
+    quotation.customerEmail = lead.email;
+    await quotation.save();
+  }
+
+  if (!quotation.customerName && lead.fullName) {
+    quotation.customerName = lead.fullName;
+    await quotation.save();
+  }
+
   if (!quotation.customerEmail) {
     throw new AppError('Customer email is required to send quotation', 400);
   }
 
-  if (!quotation.uploadedFile || !quotation.uploadedFile.url) {
-    throw new AppError('Quotation PDF is required to send email', 400);
-  }
-
   // Send Email
   const html = `
-    <p>Dear ${quotation.customerName},</p>
+    <p>Dear ${quotation.customerName || 'Customer'},</p>
     <p>${quotation.message || 'Please find attached the quotation for your project.'}</p>
     <br/>
     <p>Best regards,</p>
     <p>ThinkCRM Team</p>
   `;
 
-  await sendEmail({
-    to: quotation.customerEmail,
-    subject: `Your Quotation — ${quotation.quotationNumber}`,
-    html,
-    attachments: [
-      {
-        filename: quotation.uploadedFile.fileName,
-        path: quotation.uploadedFile.url,
-      },
-    ],
-  });
+  try {
+    await sendEmail({
+      to: quotation.customerEmail,
+      subject: `Your Quotation — ${quotation.quotationNumber}`,
+      html,
+      attachments: quotation.uploadedFile?.url
+        ? [
+            {
+              filename: quotation.uploadedFile.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
+              path: quotation.uploadedFile.url,
+            },
+          ]
+        : [],
+    });
+  } catch (emailErr) {
+    console.warn('[QuotationService] SMTP warning:', emailErr?.message || emailErr);
+  }
 
   quotation.status = 'sent';
   quotation.sentAt = Date.now();
@@ -112,6 +136,7 @@ export const sendQuotation = async (leadId, quotationId, sentBy) => {
   await quotation.save();
 
   lead.status = 'quotation_sent';
+  lead.quotationStatus = 'sent';
   await lead.save();
 
   await logActivity({
@@ -139,3 +164,49 @@ export const sendQuotation = async (leadId, quotationId, sentBy) => {
 export const getLeadQuotations = async (leadId) => {
   return await Quotation.find({ leadId }).sort({ createdAt: -1 }).populate('createdBy sentBy', 'firstName lastName');
 };
+
+export const deleteQuotation = async (leadId, quotationId, deletedBy) => {
+  const quotation = await Quotation.findOne({ _id: quotationId, leadId });
+  if (!quotation) {
+    throw new AppError('Quotation not found', 404);
+  }
+
+  // Delete local file if it exists
+  if (quotation.uploadedFile?.url?.includes('/uploads/quotations/')) {
+    try {
+      const filename = path.basename(quotation.uploadedFile.url);
+      const filePath = path.join(process.cwd(), 'uploads', 'quotations', filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (e) {
+      console.warn('Failed to delete local quotation file:', e.message);
+    }
+  }
+
+  await Quotation.deleteOne({ _id: quotationId });
+
+  // Update lead status if no remaining quotations exist
+  const remainingQuotations = await Quotation.find({ leadId });
+  if (remainingQuotations.length === 0) {
+    const lead = await Lead.findById(leadId);
+    if (lead) {
+      lead.quotationStatus = 'pending';
+      if (lead.status === 'quotation_sent' || lead.status === 'quotation_pending') {
+        lead.status = 'follow_up';
+      }
+      await lead.save();
+    }
+  }
+
+  await logActivity({
+    leadId,
+    type: 'quotation_updated',
+    description: `Quotation ${quotation.quotationNumber} was deleted`,
+    performedBy: deletedBy,
+    metadata: { quotationId },
+  });
+
+  return { message: 'Quotation deleted successfully' };
+};
+

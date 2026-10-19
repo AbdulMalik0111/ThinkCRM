@@ -274,19 +274,12 @@ const TableToolbar = ({
           </div>
         )}
 
-        {/* Filters Button with Badge */}
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 h-[38px] px-3.5 rounded-lg border border-primary-200 dark:border-primary-800/80 bg-primary-50/60 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[13px] font-semibold transition"
-        >
-          <Icon icon="heroicons-outline:funnel" className="text-sm text-primary-500" />
-          <span>Filters</span>
-          {calculatedCount > 0 && (
-            <span className="h-4.5 min-w-[18px] px-1 rounded-full bg-primary-600 text-white text-[10.5px] font-bold flex items-center justify-center">
-              {calculatedCount}
-            </span>
-          )}
-        </button>
+        {/* Active Filters Count Badge */}
+        {calculatedCount > 0 && (
+          <div className="inline-flex items-center gap-1.5 h-[38px] px-3 rounded-lg border border-primary-200 dark:border-primary-800/80 bg-primary-50/60 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 text-[13px] font-semibold">
+            <span>{calculatedCount} Active Filter{calculatedCount > 1 ? "s" : ""}</span>
+          </div>
+        )}
 
         {/* Clear Filters Button - distinct neutral outlined style */}
         {onClearFilters && hasActiveFilters && (

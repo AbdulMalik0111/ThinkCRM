@@ -146,27 +146,7 @@ const DataGrid = ({
                       isCenter ? "text-center" : isRight ? "text-right" : "text-left"
                     }`}
                   >
-                    <div
-                      className={`inline-flex items-center gap-1.5 ${
-                        isCenter ? "justify-center" : isRight ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <span>{col.headerName || ""}</span>
-                      {/* Funnel Icon matching reference design on all columns except # */}
-                      {!isIndex && col.headerName && (
-                        <svg
-                          className="w-3.5 h-3.5 text-slate-400 opacity-60 flex-shrink-0 cursor-pointer hover:opacity-100"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
-                        </svg>
-                      )}
-                    </div>
+                    <span>{col.headerName || ""}</span>
                   </th>
                 );
               })}

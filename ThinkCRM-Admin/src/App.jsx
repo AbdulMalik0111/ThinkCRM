@@ -21,6 +21,7 @@ const Permissions = lazy(() => import("./pages/staff/permissions"));
 // Notifications & Reports
 const Notifications = lazy(() => import("./pages/notifications"));
 const Reports = lazy(() => import("./pages/reports"));
+const SearchPage = lazy(() => import("./pages/search"));
 
 // System
 const Settings = lazy(() => import("./pages/settings"));
@@ -80,6 +81,7 @@ function App() {
             {/* Reports & Notifications */}
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<Notifications />} />
+            <Route path="search" element={<SearchPage />} />
             
             {/* System */}
             <Route path="settings" element={<Settings />} />

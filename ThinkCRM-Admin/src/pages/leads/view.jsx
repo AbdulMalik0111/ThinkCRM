@@ -1,11 +1,11 @@
-import React, { useState, Fragment } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, Fragment } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from "@headlessui/react";
 import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
-import { useGetLeadByIdQuery } from "@/store/api/leads/leadsApiSlice";
+import { useGetLeadByIdQuery, useDeleteLeadDocumentMutation } from "@/store/api/leads/leadsApiSlice";
 import { getAvatarColor } from "@/components/common/tableUtils";
 import { LeadStatusBadge } from "./components/LeadStatusBadge";
 
@@ -13,6 +13,7 @@ import { LeadStatusBadge } from "./components/LeadStatusBadge";
 import AddFollowUpModal from "./components/AddFollowUpModal";
 import AddMeasurementModal from "./components/AddMeasurementModal";
 import UploadQuotationModal from "./components/UploadQuotationModal";
+import UploadLeadDocumentModal from "./components/UploadLeadDocumentModal";
 import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
 import SendWhatsAppModal from "./components/SendWhatsAppModal";
@@ -43,18 +44,45 @@ const priorityStyles = {
 const LeadView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
   const { data, isLoading, error, refetch } = useGetLeadByIdQuery(id);
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "overview");
+
+  useEffect(() => {
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   // Modals state
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
   const [isAddMeasurementOpen, setIsAddMeasurementOpen] = useState(false);
   const [isUploadQuotationOpen, setIsUploadQuotationOpen] = useState(false);
+  const [isUploadDocumentOpen, setIsUploadDocumentOpen] = useState(false);
+  const [deleteDocState, setDeleteDocState] = useState(null);
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
+
+  const [deleteLeadDocument, { isLoading: isDeletingDoc }] = useDeleteLeadDocumentMutation();
+
+  const handleConfirmDeleteDoc = async () => {
+    if (!deleteDocState) return;
+    try {
+      await deleteLeadDocument({
+        leadId: id,
+        docId: deleteDocState._id,
+      }).unwrap();
+      toast.success("Document deleted successfully");
+      setDeleteDocState(null);
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || err?.message || "Failed to delete document");
+    }
+  };
 
   if (isLoading) return <Loading />;
   if (error) {
@@ -81,6 +109,55 @@ const LeadView = () => {
     : "Unassigned";
 
   const leadFiles = lead.documents || [];
+
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes) || bytes <= 0) return "";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const getDocumentIconMeta = (doc) => {
+    const name = (doc.name || "").toLowerCase();
+    const type = (doc.type || "").toLowerCase();
+    if (name.endsWith(".pdf") || type.includes("pdf")) {
+      return {
+        icon: "heroicons-outline:document-text",
+        badgeColor: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+        iconColor: "text-rose-600 bg-rose-50 dark:bg-rose-900/30",
+      };
+    }
+    if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp") || type.includes("photo") || type.includes("image")) {
+      return {
+        icon: "heroicons-outline:photo",
+        badgeColor: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+        iconColor: "text-sky-600 bg-sky-50 dark:bg-sky-900/30",
+      };
+    }
+    if (type.includes("plan") || type.includes("drawing")) {
+      return {
+        icon: "heroicons-outline:square-3-stack-3d",
+        badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
+        iconColor: "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30",
+      };
+    }
+    return {
+      icon: "heroicons-outline:document",
+      badgeColor: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+      iconColor: "text-slate-600 bg-slate-100 dark:bg-slate-800",
+    };
+  };
+
+  const getFullFileUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    const backendOrigin = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1")
+      .replace(/\/api\/v1\/?$/, "");
+    return `${backendOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
+  };
 
   return (
     <div className="space-y-6 font-inter">
@@ -303,7 +380,7 @@ const LeadView = () => {
                       <button
                         type="button"
                         onClick={() => setIsUploadQuotationOpen(true)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap ${
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
                           active
                             ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
                             : "text-slate-700 dark:text-slate-200"
@@ -311,6 +388,23 @@ const LeadView = () => {
                       >
                         <Icon icon="heroicons-outline:document-text" className="text-base text-emerald-500 flex-shrink-0" />
                         <span>Upload Quotation</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsUploadDocumentOpen(true)}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                          active
+                            ? "bg-slate-100 dark:bg-slate-700/80 text-slate-900 dark:text-white"
+                            : "text-slate-700 dark:text-slate-200"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:paper-clip" className="text-base text-teal-500 flex-shrink-0" />
+                        <span>Upload Document</span>
                       </button>
                     )}
                   </MenuItem>
@@ -695,75 +789,117 @@ const LeadView = () => {
       {activeTab === "measurements" && <LeadMeasurements leadId={lead._id} />}
 
       {/* 4. QUOTATIONS TAB */}
-      {activeTab === "quotations" && <LeadQuotations leadId={lead._id} />}
+      {activeTab === "quotations" && <LeadQuotations leadId={lead._id} lead={lead} />}
 
       {/* 5. FILES TAB */}
       {activeTab === "files" && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-4">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
             <div>
               <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
-                Lead Documents & Files
+                Lead Files & Documents
               </h4>
               <p className="text-xs text-slate-500 font-medium">
-                Files, quotations, and documents attached to this lead
+                Floor plans, site photos, architectural drawings, and project attachments
               </p>
             </div>
             <button
               type="button"
-              onClick={() => setIsUploadQuotationOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
+              onClick={() => setIsUploadDocumentOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer self-start sm:self-auto"
             >
-              <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
+              <Icon icon="heroicons-outline:paper-clip" className="text-sm" />
               <span>Upload Document</span>
             </button>
           </div>
 
           {leadFiles.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              <Icon icon="heroicons-outline:folder-open" className="mx-auto text-4xl mb-3 text-slate-300 dark:text-slate-600" />
+              <div className="h-16 w-16 mx-auto mb-3 rounded-2xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center text-slate-400">
+                <Icon icon="heroicons-outline:folder-open" className="text-3xl text-slate-400 dark:text-slate-500" />
+              </div>
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No documents uploaded yet</p>
-              <p className="text-xs text-slate-400 mt-1 mb-4">Quotations and project files will appear here once attached.</p>
+              <p className="text-xs text-slate-400 mt-1 mb-4 max-w-sm mx-auto">
+                Upload site photos, floor plans, drawings, or reference files for this lead.
+              </p>
               <button
                 type="button"
-                onClick={() => setIsUploadQuotationOpen(true)}
+                onClick={() => setIsUploadDocumentOpen(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
               >
-                <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
-                <span>Upload Document</span>
+                <Icon icon="heroicons-outline:paper-clip" className="text-sm" />
+                <span>Upload First Document</span>
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {leadFiles.map((doc, idx) => (
-                <div
-                  key={doc._id || idx}
-                  className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40 flex items-start gap-3"
-                >
-                  <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="heroicons-outline:document" className="text-xl" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h5 className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate">
-                      {doc.title || doc.name || `Document #${idx + 1}`}
-                    </h5>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                      {doc.createdAt ? dayjs(doc.createdAt).format("DD MMM YYYY") : "Attached"}
-                    </p>
-                    {doc.fileUrl && (
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 mt-2 hover:underline"
+              {leadFiles.map((doc, idx) => {
+                const iconMeta = getDocumentIconMeta(doc);
+                const fileUrl = getFullFileUrl(doc.url || doc.fileUrl);
+                const fileSize = formatFileSize(doc.size);
+                const uploadedDate = doc.uploadedAt || doc.createdAt;
+
+                return (
+                  <div
+                    key={doc._id || idx}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col justify-between gap-3 shadow-none group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconMeta.iconColor}`}>
+                        <Icon icon={iconMeta.icon} className="text-xl" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <h5 className="text-[13px] font-bold text-slate-800 dark:text-slate-100 truncate" title={doc.name || doc.title}>
+                            {doc.name || doc.title || `Document #${idx + 1}`}
+                          </h5>
+                          {doc.type && (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex-shrink-0 capitalize ${iconMeta.badgeColor}`}>
+                              {doc.type}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 font-medium">
+                          {uploadedDate && (
+                            <span>{dayjs(uploadedDate).format("DD MMM YYYY")}</span>
+                          )}
+                          {fileSize && (
+                            <>
+                              <span>•</span>
+                              <span>{fileSize}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                      {fileUrl ? (
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700 transition"
+                        >
+                          <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-sm" />
+                          <span>View File</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-400">File unavailable</span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setDeleteDocState(doc)}
+                        className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                        title="Delete Document"
                       >
-                        <Icon icon="heroicons-outline:arrow-down-tray" />
-                        <span>Download</span>
-                      </a>
-                    )}
+                        <Icon icon="heroicons-outline:trash" className="text-sm" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -802,6 +938,66 @@ const LeadView = () => {
           setActiveTab("quotations");
         }}
       />
+
+      <UploadLeadDocumentModal
+        isOpen={isUploadDocumentOpen}
+        lead={lead}
+        onClose={() => setIsUploadDocumentOpen(false)}
+        onSuccess={() => {
+          refetch();
+          setActiveTab("files");
+        }}
+      />
+
+      {/* Delete Document Confirmation Modal */}
+      {deleteDocState && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn font-inter">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md p-6 space-y-4 shadow-none">
+            <div className="flex items-start gap-4">
+              <div className="h-10 w-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center flex-shrink-0 border border-rose-100 dark:border-rose-900/40">
+                <Icon icon="heroicons-outline:exclamation-triangle" className="text-xl" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                  Delete Document
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                  Are you sure you want to delete <span className="font-semibold text-slate-700 dark:text-slate-200">"{deleteDocState.name || deleteDocState.title || "this document"}"</span>? This file will be permanently removed from this lead.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setDeleteDocState(null)}
+                disabled={isDeletingDoc}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteDoc}
+                disabled={isDeletingDoc}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg transition cursor-pointer inline-flex items-center gap-1.5 shadow-none"
+              >
+                {isDeletingDoc ? (
+                  <>
+                    <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="heroicons-outline:trash" className="text-sm" />
+                    <span>Delete Document</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConvertLeadModal
         isOpen={isConvertModalOpen}

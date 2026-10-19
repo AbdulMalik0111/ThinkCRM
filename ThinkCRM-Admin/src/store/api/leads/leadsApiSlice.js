@@ -113,6 +113,29 @@ export const leadsApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Lead", "LeadStats", "Dashboard"],
     }),
+    uploadLeadDocument: builder.mutation({
+      query: ({ leadId, formData }) => ({
+        url: `leads/${leadId}/documents`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: (result, error, { leadId }) => [
+        { type: "Lead", id: leadId },
+        { type: "Lead", id: `Activity-${leadId}` },
+        "Lead",
+      ],
+    }),
+    deleteLeadDocument: builder.mutation({
+      query: ({ leadId, docId }) => ({
+        url: `leads/${leadId}/documents/${docId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { leadId }) => [
+        { type: "Lead", id: leadId },
+        { type: "Lead", id: `Activity-${leadId}` },
+        "Lead",
+      ],
+    }),
   }),
 });
 
@@ -131,5 +154,7 @@ export const {
   useBulkAssignLeadsMutation,
   useBulkUpdateStatusMutation,
   useBulkDeleteLeadsMutation,
+  useUploadLeadDocumentMutation,
+  useDeleteLeadDocumentMutation,
 } = leadsApi;
 

@@ -102,7 +102,7 @@ textarea.form-control:focus {
 }
 
 /* Modern Dropdown Selects for Forms, Popups, and Modals with Clean Chevron Arrow */
-select:not(.datagrid-page-select):not(.flatpickr-monthDropdown-months):not(.bulk-action-select),
+select:not(.datagrid-page-select):not(.flatpickr-monthDropdown-months):not(.bulk-action-select):not(.table-select),
 select.form-control,
 .select,
 .fromGroup select,
@@ -127,7 +127,7 @@ select.custom-select {
   transition: all 0.2s ease-in-out !important;
 }
 
-.dark select:not(.datagrid-page-select):not(.flatpickr-monthDropdown-months):not(.bulk-action-select),
+.dark select:not(.datagrid-page-select):not(.flatpickr-monthDropdown-months):not(.bulk-action-select):not(.table-select),
 .dark select.form-control,
 .dark .select,
 .dark .fromGroup select,
@@ -136,6 +136,48 @@ select.custom-select {
   background-color: #1e293b !important;
   color: #f8fafc !important;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
+}
+
+/* Professional Table Dropdown Selects (Single border, single arrow, generous spacing) */
+select.table-select {
+  min-height: 32px !important;
+  height: 32px !important;
+  max-height: 32px !important;
+  padding: 4px 24px 4px 10px !important;
+  border-radius: 8px !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 7px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 13px 13px !important;
+  outline: none !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+select.table-select::-ms-expand {
+  display: none !important;
+}
+
+select.table-select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25) !important;
+}
+
+.dark select.table-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2394a3b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='m6 8 4 4 4-4'/%3e%3c/svg%3e") !important;
 }
 
 /* Bulk Action Select in Tables */

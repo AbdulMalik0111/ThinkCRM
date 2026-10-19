@@ -11,6 +11,7 @@ const leadSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     phone: {
       type: String,
@@ -75,6 +76,18 @@ const leadSchema = new mongoose.Schema(
         'quotation_pending', 'quotation_sent', 'negotiation', 'won', 'converted', 'lost', 'junk'
       ],
       default: 'new',
+      index: true,
+    },
+    measurementStatus: {
+      type: String,
+      enum: ['not_done', 'pending', 'scheduled', 'done', 'completed'],
+      default: 'not_done',
+      index: true,
+    },
+    quotationStatus: {
+      type: String,
+      enum: ['pending', 'sent', 'approved', 'draft', 'rejected', 'not_uploaded'],
+      default: 'pending',
       index: true,
     },
     priority: {

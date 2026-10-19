@@ -1,10 +1,15 @@
+import fs from 'fs';
+import path from 'path';
 import { Lead } from '../models/Lead.js';
 import { FollowUp } from '../models/FollowUp.js';
 import { Customer } from '../models/Customer.js';
+import { Measurement } from '../models/Measurement.js';
+import { Quotation } from '../models/Quotation.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { convertLeadToCustomer as convertService } from './customer.service.js';
 import { sendEmail } from '../integrations/email/email.service.js';
+import { uploadToCloudinary } from '../utils/cloudinary.js';
 
 /**
  * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
@@ -213,15 +218,21 @@ export const getLeads = async (query = {}) => {
     .populate('createdBy', 'firstName lastName avatar email')
     .lean();
 
-  // Enrich each lead with their last follow-up and next follow-up
+  // Enrich each lead with their last follow-up, next follow-up, measurement, and quotation status
   const leadIds = rawLeads.map((l) => l._id);
   const now = new Date();
 
-  const allFollowUps = await FollowUp.find({
-    leadId: { $in: leadIds },
-  })
-    .sort({ scheduledAt: 1 })
-    .lean();
+  const [allFollowUps, allMeasurements, allQuotations] = await Promise.all([
+    FollowUp.find({ leadId: { $in: leadIds } })
+      .sort({ scheduledAt: 1 })
+      .lean(),
+    Measurement.find({ leadId: { $in: leadIds } })
+      .sort({ createdAt: -1 })
+      .lean(),
+    Quotation.find({ leadId: { $in: leadIds } })
+      .sort({ createdAt: -1 })
+      .lean(),
+  ]);
 
   const leads = rawLeads.map((lead) => {
     const leadFollowUps = allFollowUps.filter((f) => String(f.leadId) === String(lead._id));
@@ -236,8 +247,40 @@ export const getLeads = async (query = {}) => {
       .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
     const lastFollowUp = completedOrPast[0] || null;
 
+    // Measurement status resolution
+    let measurementStatus = lead.measurementStatus;
+    if (!measurementStatus || measurementStatus === 'not_done') {
+      const leadMeas = allMeasurements.find((m) => String(m.leadId) === String(lead._id));
+      if (leadMeas) {
+        measurementStatus = leadMeas.status === 'completed' ? 'done' : leadMeas.status === 'scheduled' ? 'scheduled' : 'not_done';
+      } else if (lead.status === 'measurement_completed') {
+        measurementStatus = 'done';
+      } else if (lead.status === 'measurement_scheduled') {
+        measurementStatus = 'scheduled';
+      } else {
+        measurementStatus = 'not_done';
+      }
+    }
+
+    // Quotation status resolution
+    let quotationStatus = lead.quotationStatus;
+    if (!quotationStatus) {
+      const leadQuot = allQuotations.find((q) => String(q.leadId) === String(lead._id));
+      if (leadQuot) {
+        quotationStatus = leadQuot.status === 'accepted' ? 'approved' : leadQuot.status === 'sent' ? 'sent' : leadQuot.status === 'draft' ? 'draft' : 'pending';
+      } else if (lead.status === 'quotation_sent') {
+        quotationStatus = 'sent';
+      } else if (lead.status === 'quotation_pending') {
+        quotationStatus = 'pending';
+      } else {
+        quotationStatus = 'pending';
+      }
+    }
+
     return {
       ...lead,
+      measurementStatus,
+      quotationStatus,
       lastFollowUp,
       nextFollowUp,
     };
@@ -291,6 +334,34 @@ export const updateLead = async (leadId, updateData, updatedBy) => {
       performedBy: updatedBy,
       metadata: { oldStatus, newStatus: updateData.status },
     });
+  }
+
+  if (updateData.measurementStatus) {
+    try {
+      await logActivity({
+        leadId: lead._id,
+        type: 'measurement_updated',
+        description: `Measurement status updated to ${updateData.measurementStatus}`,
+        performedBy: updatedBy,
+        metadata: { measurementStatus: updateData.measurementStatus },
+      });
+    } catch (actErr) {
+      console.warn('Activity log failed for measurement_updated:', actErr.message);
+    }
+  }
+
+  if (updateData.quotationStatus) {
+    try {
+      await logActivity({
+        leadId: lead._id,
+        type: 'quotation_updated',
+        description: `Quotation status updated to ${updateData.quotationStatus}`,
+        performedBy: updatedBy,
+        metadata: { quotationStatus: updateData.quotationStatus },
+      });
+    } catch (actErr) {
+      console.warn('Activity log failed for quotation_updated:', actErr.message);
+    }
   }
 
   return lead;
@@ -495,5 +566,106 @@ export const sendLeadEmail = async (leadId, emailOptions, userId) => {
   });
 
   return result;
+};
+
+export const addLeadDocument = async (leadId, docData, file, userId) => {
+  const lead = await Lead.findById(leadId);
+  if (!lead) {
+    throw new AppError('Lead not found', 404);
+  }
+
+  let finalUrl = '';
+  let finalSize = 0;
+  let finalFileType = '';
+  let finalPublicId = '';
+
+  if (file) {
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'documents');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const safeFileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const localFilePath = path.join(uploadsDir, safeFileName);
+    fs.writeFileSync(localFilePath, file.buffer);
+    finalUrl = `/uploads/documents/${safeFileName}`;
+    finalSize = file.size;
+    finalFileType = file.mimetype || path.extname(file.originalname).slice(1);
+
+    try {
+      const result = await uploadToCloudinary(file.buffer, 'thinkcrm/leads/documents');
+      if (result && result.secure_url) {
+        finalUrl = result.secure_url;
+        finalPublicId = result.public_id;
+      }
+    } catch (e) {
+      // Keep local url on error
+    }
+  } else if (docData.url) {
+    finalUrl = docData.url;
+    finalSize = docData.size || 0;
+    finalFileType = docData.fileType || docData.type || 'other';
+  }
+
+  if (!finalUrl) {
+    throw new AppError('Document file or valid URL is required', 400);
+  }
+
+  const newDoc = {
+    name: (docData.name || file?.originalname || 'Document').trim(),
+    type: docData.type || docData.category || 'Other',
+    url: finalUrl,
+    size: finalSize,
+    uploadedBy: userId,
+    uploadedAt: new Date(),
+  };
+
+  lead.documents.push(newDoc);
+  await lead.save();
+
+  await logActivity({
+    leadId: lead._id,
+    type: 'file_uploaded',
+    description: `Document uploaded for lead ${lead.fullName}: ${newDoc.name}`,
+    performedBy: userId,
+  });
+
+  return lead.documents;
+};
+
+export const deleteLeadDocument = async (leadId, docId, userId) => {
+  const lead = await Lead.findById(leadId);
+  if (!lead) {
+    throw new AppError('Lead not found', 404);
+  }
+
+  const docIndex = lead.documents.findIndex((d) => d._id.toString() === docId.toString());
+  if (docIndex === -1) {
+    throw new AppError('Document not found', 404);
+  }
+
+  const doc = lead.documents[docIndex];
+  if (doc.url && doc.url.includes('/uploads/documents/')) {
+    try {
+      const filename = path.basename(doc.url);
+      const filePath = path.join(process.cwd(), 'uploads', 'documents', filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (e) {
+      console.warn('Failed to delete local document file:', e.message);
+    }
+  }
+
+  lead.documents.splice(docIndex, 1);
+  await lead.save();
+
+  await logActivity({
+    leadId: lead._id,
+    type: 'file_uploaded',
+    description: `Document deleted from lead ${lead.fullName}: ${doc.name}`,
+    performedBy: userId,
+  });
+
+  return lead.documents;
 };
 

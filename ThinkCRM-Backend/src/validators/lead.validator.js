@@ -19,6 +19,9 @@ const statusEnum = z.enum([
   'quotation_pending', 'quotation_sent', 'negotiation', 'won', 'converted', 'lost', 'junk'
 ]);
 
+const measurementStatusEnum = z.enum(['not_done', 'pending', 'scheduled', 'done', 'completed']);
+const quotationStatusEnum = z.enum(['pending', 'sent', 'approved', 'draft', 'rejected', 'not_uploaded']);
+
 export const createLeadSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   phone: z.string().min(1, 'Phone is required'),
@@ -37,6 +40,8 @@ export const createLeadSchema = z.object({
   expectedStartDate: z.string().optional().nullable(),
   leadSource: leadSourceEnum.optional().default('Website'),
   status: statusEnum.optional().default('new'),
+  measurementStatus: measurementStatusEnum.optional().default('not_done'),
+  quotationStatus: quotationStatusEnum.optional().default('pending'),
   priority: priorityEnum.optional().default('medium'),
   assignedTo: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -68,6 +73,8 @@ export const updateLeadSchema = z.object({
   leadSource: leadSourceEnum.optional(),
   priority: priorityEnum.optional(),
   status: statusEnum.optional(),
+  measurementStatus: measurementStatusEnum.optional(),
+  quotationStatus: quotationStatusEnum.optional(),
   assignedTo: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),

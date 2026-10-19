@@ -21,7 +21,7 @@ const RowActions = ({ actions = [], label = "Row actions", align = "right" }) =>
   const calculatePosition = () => {
     if (!buttonRef.current) return null;
     const rect = buttonRef.current.getBoundingClientRect();
-    const menuWidth = 220;
+    const menuWidth = 240;
     const visibleCount = actions.filter(Boolean).length;
     const menuHeight = visibleCount * 40 + 16;
     const windowWidth = window.innerWidth;
@@ -158,7 +158,7 @@ const RowActions = ({ actions = [], label = "Row actions", align = "right" }) =>
               maxHeight: `${menuPosition.maxHeight || 380}px`,
               zIndex: 99999,
             }}
-            className="w-[220px] overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 focus:outline-none animate-fadeIn font-inter space-y-0.5 shadow-xl"
+            className="w-[240px] overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-1.5 focus:outline-none animate-fadeIn font-inter space-y-0.5 shadow-xl"
             role="menu"
             aria-orientation="vertical"
           >

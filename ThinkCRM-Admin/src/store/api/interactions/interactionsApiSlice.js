@@ -57,6 +57,17 @@ export const interactionsApi = apiSlice.injectEndpoints({
         { type: "Lead", id: leadId },
       ],
     }),
+    deleteQuotation: builder.mutation({
+      query: ({ leadId, quotationId }) => ({
+        url: `leads/${leadId}/quotations/${quotationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { leadId }) => [
+        { type: "Quotation", id: `List-${leadId}` },
+        { type: "Lead", id: `Activity-${leadId}` },
+        { type: "Lead", id: leadId },
+      ],
+    }),
   }),
 });
 
@@ -67,4 +78,5 @@ export const {
   useGetLeadQuotationsQuery,
   useCreateQuotationMutation,
   useSendQuotationMutation,
+  useDeleteQuotationMutation,
 } = interactionsApi;

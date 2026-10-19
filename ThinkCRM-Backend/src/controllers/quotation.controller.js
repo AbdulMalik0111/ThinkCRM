@@ -38,3 +38,15 @@ export const getLeadQuotations = async (req, res, next) => {
     next(error);
   }
 };
+
+export const deleteQuotation = async (req, res, next) => {
+  try {
+    const result = await quotationService.deleteQuotation(req.params.id, req.params.quotationId, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: result.message || 'Quotation deleted successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};

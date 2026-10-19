@@ -102,4 +102,25 @@ router.post(
   quotationController.sendQuotation
 );
 
+router.delete(
+  '/:id/quotations/:quotationId',
+  requirePermission('quotations.create'),
+  quotationController.deleteQuotation
+);
+
+router
+  .route('/:id/documents')
+  .post(
+    requirePermission('leads.update'),
+    upload.single('file'),
+    leadController.addLeadDocument
+  );
+
+router
+  .route('/:id/documents/:docId')
+  .delete(
+    requirePermission('leads.update'),
+    leadController.deleteLeadDocument
+  );
+
 export default router;

@@ -29,6 +29,7 @@ const quotationSchema = new mongoose.Schema(
     quotationNumber: {
       type: String,
       required: true,
+      index: true,
     },
     amount: {
       type: Number,

@@ -18,12 +18,15 @@ import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
 import SendWhatsAppModal from "./components/SendWhatsAppModal";
 import SendEmailModal from "./components/SendEmailModal";
+import AddMeasurementModal from "./components/AddMeasurementModal";
+import UploadQuotationModal from "./components/UploadQuotationModal";
 import { LeadStatusBadge, LeadSourceBadge } from "./components/LeadStatusBadge";
 
 // API Hooks
 import {
   useGetLeadsQuery,
   useGetLeadStatsQuery,
+  useUpdateLeadMutation,
   useBulkAssignLeadsMutation,
   useBulkUpdateStatusMutation,
   useBulkDeleteLeadsMutation,
@@ -44,13 +47,232 @@ const SOURCE_FILTER_OPTIONS = [
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Status" },
   { value: "new", label: "New" },
+  { value: "attempted", label: "Attempted" },
   { value: "contacted", label: "Contacted" },
+  { value: "follow_up", label: "Follow Up" },
   { value: "in_progress", label: "In Progress" },
   { value: "qualified", label: "Qualified" },
   { value: "converted", label: "Converted" },
   { value: "lost", label: "Lost" },
   { value: "junk", label: "Junk" },
 ];
+
+export const LEAD_SOURCE_OPTIONS = [
+  { value: "Website", label: "Website", badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800" },
+  { value: "Meta Ads", label: "Meta Ads", badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800" },
+  { value: "Meta", label: "Meta Ads", badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800" },
+  { value: "Google Ads", label: "Google Ads", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800" },
+  { value: "Google", label: "Google Ads", badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800" },
+  { value: "Referral", label: "Referral", badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800" },
+  { value: "Social Media", label: "Social Media", badgeClass: "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800" },
+  { value: "Direct", label: "Direct", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" },
+  { value: "WhatsApp", label: "WhatsApp", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" },
+  { value: "Phone", label: "Phone Call", badgeClass: "bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800" },
+  { value: "Walk-in", label: "Walk-in", badgeClass: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800" },
+  { value: "Other", label: "Other", badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
+];
+
+export const PROJECT_TYPE_OPTIONS = [
+  { value: "Modular Kitchen", label: "Modular Kitchen", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Full Home Interior", label: "Full Home Interior", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Full Home", label: "Full Home Interior", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Kitchen", label: "Kitchen", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Wardrobe", label: "Wardrobe", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Bedroom", label: "Bedroom", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Living Room", label: "Living Room", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Office Interior", label: "Office Interior", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Office", label: "Office Interior", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Commercial", label: "Commercial", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+  { value: "Other", label: "Other", badgeClass: "bg-slate-50 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700" },
+];
+
+export const LEAD_STATUS_OPTIONS = [
+  {
+    value: "new",
+    label: "New Lead",
+    badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+  },
+  {
+    value: "attempted",
+    label: "Attempted",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+  {
+    value: "contacted",
+    label: "Contacted",
+    badgeClass: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+  },
+  {
+    value: "follow_up",
+    label: "Follow-up",
+    badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
+  },
+  {
+    value: "in_progress",
+    label: "Call Not Picked Up",
+    badgeClass: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800",
+  },
+  {
+    value: "qualified",
+    label: "Qualified",
+    badgeClass: "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800",
+  },
+  {
+    value: "measurement_pending",
+    label: "Measurement Pending",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+  {
+    value: "measurement_scheduled",
+    label: "Measurement Scheduled",
+    badgeClass: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+  },
+  {
+    value: "measurement_completed",
+    label: "Measurement Done",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "quotation_pending",
+    label: "Quotation Pending",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+  {
+    value: "quotation_sent",
+    label: "Quotation Sent",
+    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
+  },
+  {
+    value: "negotiation",
+    label: "Negotiation",
+    badgeClass: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800",
+  },
+  {
+    value: "won",
+    label: "Converted / Won",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "converted",
+    label: "Converted / Won",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "lost",
+    label: "Lost Lead",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+  },
+  {
+    value: "junk",
+    label: "Junk Lead",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  },
+];
+
+export const MEASUREMENT_STATUS_OPTIONS = [
+  {
+    value: "not_done",
+    label: "Not Done",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  },
+  {
+    value: "pending",
+    label: "Not Done",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  },
+  {
+    value: "scheduled",
+    label: "Scheduled",
+    badgeClass: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+  },
+  {
+    value: "done",
+    label: "Done",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "completed",
+    label: "Done",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+];
+
+export const QUOTATION_STATUS_OPTIONS = [
+  {
+    value: "pending",
+    label: "Pending",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+  {
+    value: "sent",
+    label: "Sent",
+    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
+  },
+  {
+    value: "approved",
+    label: "Approved",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  {
+    value: "draft",
+    label: "Draft",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+  },
+  {
+    value: "not_uploaded",
+    label: "Not Uploaded",
+    badgeClass: "bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700",
+  },
+];
+
+const TableSelectDropdown = ({
+  value,
+  options,
+  onChange,
+  badgeClass = "",
+  disabled = false,
+}) => {
+  const valStr = String(value || "").trim().toLowerCase();
+  const matched = options.find(
+    (o) =>
+      o.value.toLowerCase() === valStr ||
+      o.value.toLowerCase().replace(/[_\s]+/g, "") === valStr.replace(/[_\s]+/g, "")
+  );
+
+  const selectedValue = matched ? matched.value : value || options[0]?.value || "";
+  const dynamicBadge = matched?.badgeClass || badgeClass || "bg-slate-50 text-slate-700 border-slate-200";
+
+  return (
+    <select
+      value={selectedValue}
+      disabled={disabled}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => {
+        e.stopPropagation();
+        onChange(e.target.value);
+      }}
+      className={`table-select border ${dynamicBadge}`}
+    >
+      {!matched && value && (
+        <option
+          value={value}
+          className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100 py-1.5 font-medium"
+        >
+          {value}
+        </option>
+      )}
+      {options.map((opt) => (
+        <option
+          key={opt.value}
+          value={opt.value}
+          className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100 py-1.5 font-medium"
+        >
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+};
 
 const Leads = () => {
   const navigate = useNavigate();
@@ -74,6 +296,8 @@ const Leads = () => {
   const [deletingLead, setDeletingLead] = useState(null);
   const [whatsAppLead, setWhatsAppLead] = useState(null);
   const [emailLead, setEmailLead] = useState(null);
+  const [measurementLead, setMeasurementLead] = useState(null);
+  const [quotationLead, setQuotationLead] = useState(null);
 
   // Bulk Action State
   const [bulkAssignStaffId, setBulkAssignStaffId] = useState("");
@@ -81,6 +305,22 @@ const Leads = () => {
   const [bulkAssignLeads, { isLoading: isBulkAssigning }] = useBulkAssignLeadsMutation();
   const [bulkUpdateStatus, { isLoading: isBulkUpdatingStatus }] = useBulkUpdateStatusMutation();
   const [bulkDeleteLeads, { isLoading: isBulkDeleting }] = useBulkDeleteLeadsMutation();
+  const [updateLead] = useUpdateLeadMutation();
+
+  const handleUpdateLeadField = async (leadId, fieldData, successMessage) => {
+    try {
+      await updateLead({ id: leadId, data: fieldData }).unwrap();
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+      refetchLeads();
+      if (fieldData.status) {
+        refetchStats();
+      }
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update lead");
+    }
+  };
 
   // Queries
   const { data: statsData, refetch: refetchStats } = useGetLeadStatsQuery();
@@ -202,25 +442,31 @@ const Leads = () => {
     if (selectedLeads.length === 0) return;
     const headers = [
       "ID",
-      "Full Name",
+      "Customer Name",
       "Phone",
       "Email",
-      "Source",
-      "Status",
       "Project Type",
+      "Status",
+      "Measurement",
+      "Quotation",
+      "Source",
       "Assigned To",
-      "Created At",
+      "Last Follow-up",
+      "Next Follow-up",
     ];
     const rows = selectedLeads.map((l) => [
       l.leadId || l._id,
       `"${l.fullName || ""}"`,
       `"${l.phone || ""}"`,
       `"${l.email || ""}"`,
-      l.leadSource || "",
-      l.status || "",
       `"${l.projectType || ""}"`,
-      `"${l.assignedTo?.firstName || ""} ${l.assignedTo?.lastName || ""}"`,
-      dayjs(l.createdAt).format("YYYY-MM-DD HH:mm"),
+      l.status || "",
+      l.measurementStatus || "not_done",
+      l.quotationStatus || "pending",
+      l.leadSource || "",
+      `"${l.assignedTo?.firstName || ""} ${l.assignedTo?.lastName || ""}"`.trim(),
+      l.lastFollowUp?.scheduledAt ? dayjs(l.lastFollowUp.scheduledAt).format("YYYY-MM-DD") : "",
+      l.nextFollowUp?.scheduledAt ? dayjs(l.nextFollowUp.scheduledAt).format("YYYY-MM-DD HH:mm") : "",
     ]);
 
     const csvContent =
@@ -253,33 +499,30 @@ const Leads = () => {
         headerClass: "text-center",
       },
       {
-        headerName: "Lead",
+        headerName: "Customer Name",
         field: "fullName",
-        minWidth: 220,
-        flex: 1.4,
+        minWidth: 200,
+        flex: 1.3,
         pinned: "left",
         cellRenderer: (params) => {
           const lead = params.data;
           if (!lead) return null;
-          const avatarColor = getAvatarColor(lead.fullName || "Lead");
+          const avatarColor = getAvatarColor(lead.fullName || "Customer");
           return (
             <div className="flex items-center gap-3 py-1 font-inter">
               <div
                 className={`h-9 w-9 rounded-full flex items-center justify-center font-bold uppercase text-xs flex-shrink-0 border border-slate-200 dark:border-slate-700 ${avatarColor}`}
               >
-                {lead.fullName?.charAt(0) || "L"}
+                {lead.fullName?.charAt(0) || "C"}
               </div>
               <div className="truncate">
                 <button
                   type="button"
                   onClick={() => navigate(`/leads/${lead._id}`)}
-                  className="font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 transition text-left truncate block text-[14px] hover:underline"
+                  className="font-bold text-slate-900 hover:text-primary-600 dark:text-slate-100 dark:hover:text-primary-400 transition text-left truncate block text-[14px]"
                 >
                   {lead.fullName}
                 </button>
-                <span className="text-[12px] text-slate-500 dark:text-slate-400 font-semibold block truncate">
-                  {lead.projectType || "Modular Kitchen"}
-                </span>
               </div>
             </div>
           );
@@ -288,27 +531,25 @@ const Leads = () => {
       {
         headerName: "Phone",
         field: "phone",
-        minWidth: 165,
-        flex: 1,
+        minWidth: 180,
+        flex: 1.1,
         cellRenderer: (params) => {
           const phone = params.value;
-          if (!phone) return <span className="text-slate-400">—</span>;
+          if (!phone) return <span className="text-slate-400 font-inter">—</span>;
+          const cleanPhone = String(phone).replace(/[^0-9+]/g, "");
           return (
-            <div className="flex items-center gap-1.5 font-inter">
-              <span className="font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
+            <div className="flex items-center gap-2 font-inter">
+              <span className="font-semibold text-slate-800 dark:text-slate-100 text-[14.5px] whitespace-nowrap">
                 {phone}
               </span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setWhatsAppLead(params.data);
-                }}
-                className="text-[#25D366] hover:text-[#1eb855] p-0.5 rounded transition cursor-pointer"
-                title="Send WhatsApp Message"
+              <a
+                href={`tel:${cleanPhone}`}
+                onClick={(e) => e.stopPropagation()}
+                className="h-7 w-7 rounded-md flex items-center justify-center bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 dark:hover:bg-blue-900/50 transition cursor-pointer flex-shrink-0"
+                title={`Call ${phone}`}
               >
-                <Icon icon="whatsapp" className="text-sm" />
-              </button>
+                <Icon icon="heroicons-outline:phone" className="text-sm" />
+              </a>
             </div>
           );
         },
@@ -316,14 +557,14 @@ const Leads = () => {
       {
         headerName: "Email",
         field: "email",
-        minWidth: 195,
+        minWidth: 210,
         flex: 1.2,
         cellRenderer: (params) => {
           const email = params.value;
-          if (!email) return <span className="text-slate-400">—</span>;
+          if (!email) return <span className="text-slate-400 font-inter">—</span>;
           return (
-            <div className="flex items-center gap-1.5 font-inter truncate">
-              <span className="text-slate-700 dark:text-slate-300 font-medium truncate text-[13.5px]">
+            <div className="flex items-center gap-2 font-inter truncate">
+              <span className="font-bold text-slate-800 dark:text-slate-100 truncate text-[14.5px]">
                 {email}
               </span>
               <button
@@ -332,7 +573,7 @@ const Leads = () => {
                   e.stopPropagation();
                   setEmailLead(params.data);
                 }}
-                className="text-indigo-500 hover:text-indigo-600 p-0.5 rounded transition cursor-pointer flex-shrink-0"
+                className="h-7 w-7 rounded-md flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 dark:hover:bg-indigo-900/50 transition cursor-pointer flex-shrink-0"
                 title="Send Email"
               >
                 <Icon icon="heroicons-outline:envelope" className="text-sm" />
@@ -342,18 +583,148 @@ const Leads = () => {
         },
       },
       {
-        headerName: "Source",
-        field: "leadSource",
-        minWidth: 125,
-        flex: 0.9,
-        cellRenderer: (params) => <LeadSourceBadge source={params.value} />,
+        headerName: "Project Type",
+        field: "projectType",
+        minWidth: 195,
+        flex: 1.2,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          const currentProjectType = lead.projectType || "Modular Kitchen";
+          return (
+            <TableSelectDropdown
+              value={currentProjectType}
+              options={PROJECT_TYPE_OPTIONS}
+              onChange={(newVal) =>
+                handleUpdateLeadField(
+                  lead._id,
+                  { projectType: newVal },
+                  `Project type updated to ${newVal}`
+                )
+              }
+              badgeClass="bg-slate-50 text-slate-800 border-slate-200 hover:border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+            />
+          );
+        },
       },
       {
         headerName: "Status",
         field: "status",
-        minWidth: 125,
-        flex: 0.9,
-        cellRenderer: (params) => <LeadStatusBadge status={params.value} />,
+        minWidth: 235,
+        flex: 1.4,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          const currentStatus = lead.status || "new";
+
+          return (
+            <TableSelectDropdown
+              value={currentStatus}
+              options={LEAD_STATUS_OPTIONS.filter((o) => o.value !== "converted")}
+              onChange={(newVal) => {
+                const opt = LEAD_STATUS_OPTIONS.find((o) => o.value === newVal);
+                handleUpdateLeadField(
+                  lead._id,
+                  { status: newVal },
+                  `Lead status updated to ${opt?.label || newVal}`
+                );
+              }}
+            />
+          );
+        },
+      },
+      {
+        headerName: "Measurement",
+        field: "measurementStatus",
+        minWidth: 155,
+        flex: 1,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          const currentMeas =
+            lead.measurementStatus ||
+            (lead.status === "measurement_completed"
+              ? "done"
+              : lead.status === "measurement_scheduled"
+              ? "scheduled"
+              : "not_done");
+
+          return (
+            <TableSelectDropdown
+              value={currentMeas}
+              options={[
+                { value: "not_done", label: "Not Done", badgeClass: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700" },
+                { value: "scheduled", label: "Scheduled", badgeClass: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800" },
+                { value: "done", label: "Done", badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800" },
+              ]}
+              onChange={(newVal) => {
+                const opt = MEASUREMENT_STATUS_OPTIONS.find((o) => o.value === newVal);
+                handleUpdateLeadField(
+                  lead._id,
+                  { measurementStatus: newVal },
+                  `Measurement updated to ${opt?.label || newVal}`
+                );
+              }}
+            />
+          );
+        },
+      },
+      {
+        headerName: "Quotation",
+        field: "quotationStatus",
+        minWidth: 160,
+        flex: 1,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          const currentQuot =
+            lead.quotationStatus ||
+            (lead.status === "quotation_sent"
+              ? "sent"
+              : lead.status === "quotation_pending"
+              ? "pending"
+              : "pending");
+
+          return (
+            <TableSelectDropdown
+              value={currentQuot}
+              options={QUOTATION_STATUS_OPTIONS}
+              onChange={(newVal) => {
+                const opt = QUOTATION_STATUS_OPTIONS.find((o) => o.value === newVal);
+                handleUpdateLeadField(
+                  lead._id,
+                  { quotationStatus: newVal },
+                  `Quotation updated to ${opt?.label || newVal}`
+                );
+              }}
+            />
+          );
+        },
+      },
+      {
+        headerName: "Source",
+        field: "leadSource",
+        minWidth: 155,
+        flex: 1,
+        cellRenderer: (params) => {
+          const lead = params.data;
+          if (!lead) return null;
+          const currentSource = lead.leadSource || "Website";
+
+          return (
+            <TableSelectDropdown
+              value={currentSource}
+              options={LEAD_SOURCE_OPTIONS}
+              onChange={(newVal) =>
+                handleUpdateLeadField(
+                  lead._id,
+                  { leadSource: newVal },
+                  `Source updated to ${newVal}`
+                )
+              }
+            />
+          );
+        },
       },
       {
         headerName: "Last Follow-up",
@@ -399,7 +770,7 @@ const Leads = () => {
       },
       {
         headerName: "Assigned To",
-        minWidth: 155,
+        minWidth: 150,
         flex: 1,
         cellRenderer: (params) => {
           const u = params.data?.assignedTo;
@@ -415,25 +786,6 @@ const Leads = () => {
               <span className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100 truncate">
                 {name}
               </span>
-            </div>
-          );
-        },
-      },
-      {
-        headerName: "Created On",
-        field: "createdAt",
-        minWidth: 135,
-        flex: 0.9,
-        cellRenderer: (params) => {
-          if (!params.value) return "—";
-          return (
-            <div className="py-1 font-inter">
-              <div className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
-                {dayjs(params.value).format("DD MMM YYYY")}
-              </div>
-              <div className="text-[11.5px] text-slate-400 font-medium">
-                {dayjs(params.value).format("hh:mm A")}
-              </div>
             </div>
           );
         },
@@ -468,6 +820,28 @@ const Leads = () => {
               icon: "heroicons-outline:pencil-square",
               onClick: () => navigate(`/leads/${lead._id}/edit`),
             },
+            { divider: true },
+            {
+              label: "Schedule Measurement",
+              icon: "heroicons-outline:scale",
+              onClick: () => setMeasurementLead(lead),
+            },
+            {
+              label: "Upload Quotation",
+              icon: "heroicons-outline:document-text",
+              onClick: () => setQuotationLead(lead),
+            },
+            {
+              label: "Upload Files / Docs",
+              icon: "heroicons-outline:arrow-up-tray",
+              onClick: () => setQuotationLead(lead),
+            },
+            {
+              label: "View Files & Docs",
+              icon: "heroicons-outline:folder-open",
+              onClick: () => navigate(`/leads/${lead._id}?tab=files`),
+            },
+            { divider: true },
             {
               label: "Add Follow-up",
               icon: "heroicons-outline:calendar",
@@ -741,26 +1115,20 @@ const Leads = () => {
             />
           </div>
 
-          {/* Filters badge button */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[13px] font-semibold">
-            <Icon icon="heroicons-outline:funnel" className="text-base text-blue-600" />
-            <span>Filters</span>
-            {activeFiltersCount > 0 && (
-              <span className="h-5 w-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center ml-1">
-                {activeFiltersCount}
-              </span>
-            )}
-          </div>
-
-          {/* Clear Filters */}
+          {/* Active filters indicator & Clear Filters */}
           {activeFiltersCount > 0 && (
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="text-[13px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-white px-2 py-1 transition cursor-pointer"
-            >
-              Clear
-            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[12.5px] font-semibold border border-blue-200 dark:border-blue-800">
+                {activeFiltersCount} active filter{activeFiltersCount > 1 ? "s" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-[13px] font-semibold text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1 transition cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
           )}
 
           {/* Refresh button */}
@@ -961,6 +1329,28 @@ const Leads = () => {
         isOpen={Boolean(emailLead)}
         lead={emailLead}
         onClose={() => setEmailLead(null)}
+      />
+
+      {/* 7. Schedule Measurement Modal */}
+      <AddMeasurementModal
+        isOpen={Boolean(measurementLead)}
+        lead={measurementLead}
+        onClose={() => setMeasurementLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
+      />
+
+      {/* 8. Upload Quotation & Files Modal */}
+      <UploadQuotationModal
+        isOpen={Boolean(quotationLead)}
+        lead={quotationLead}
+        onClose={() => setQuotationLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
       />
     </div>
   );
