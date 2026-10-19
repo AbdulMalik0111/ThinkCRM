@@ -5,6 +5,7 @@ import { useLoginMutation } from "@/store/api/auth/authApiSlice";
 import { setUser } from "@/store/api/auth/authSlice";
 import { toast } from "react-toastify";
 import Icon from "@/components/ui/Icon";
+import { validateEmail } from "@/utils/validation";
 
 const Login = () => {
   const [view, setView] = useState("login"); // 'login' or 'forgot'
@@ -22,8 +23,20 @@ const Login = () => {
   const onLoginSubmit = async (e) => {
     e.preventDefault();
     if (isLoading) return; // Prevent multiple clicks
+
+    const trimmedEmail = (email || "").trim().toLowerCase();
+    const emailCheck = validateEmail(trimmedEmail, true);
+    if (!emailCheck.isValid) {
+      toast.error(emailCheck.error);
+      return;
+    }
+    if (!password) {
+      toast.error("Password is required");
+      return;
+    }
+
     try {
-      const response = await login({ email, password }).unwrap();
+      const response = await login({ email: trimmedEmail, password }).unwrap();
       
       if (response.success) {
         dispatch(setUser({ 
@@ -43,6 +56,13 @@ const Login = () => {
   const onForgotSubmit = async (e) => {
     e.preventDefault();
     if (isForgotLoading) return; // Prevent multiple clicks
+
+    const trimmedEmail = (email || "").trim().toLowerCase();
+    const emailCheck = validateEmail(trimmedEmail, true);
+    if (!emailCheck.isValid) {
+      toast.error(emailCheck.error);
+      return;
+    }
     
     setIsForgotLoading(true);
     try {

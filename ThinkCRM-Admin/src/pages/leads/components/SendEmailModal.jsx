@@ -3,6 +3,7 @@ import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { toast } from "react-toastify";
 import { useSendLeadEmailMutation } from "@/store/api/leads/leadsApiSlice";
+import { validateEmail, validateText, focusFirstError } from "@/utils/validation";
 
 const EMAIL_TEMPLATES = [
   {
@@ -46,6 +47,7 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [errors, setErrors] = useState({});
 
   const [sendLeadEmail, { isLoading }] = useSendLeadEmailMutation();
 
@@ -59,6 +61,7 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
       setMessage(
         `Dear ${name},\n\nThank you for your interest in ThinkCRM. We would love to discuss your ${projectType} project requirements and how we can bring your ideas to life.\n\nPlease let us know when would be a convenient time for a quick call or site meeting.\n\nWarm regards,\nThinkCRM Team`
       );
+      setErrors({});
     }
   }, [lead, isOpen]);
 
@@ -80,6 +83,8 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
 
       setSubject(sub);
       setMessage(bod);
+      if (errors.subject) setErrors((prev) => ({ ...prev, subject: null }));
+      if (errors.message) setErrors((prev) => ({ ...prev, message: null }));
     }
   };
 
@@ -101,28 +106,47 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
     setAttachments((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const validate = () => {
+    const newErrors = {};
+
+    const toVal = validateEmail(to, { required: true, label: "Recipient Email" });
+    if (!toVal.isValid) newErrors.to = toVal.error;
+
+    if (cc && cc.trim()) {
+      const ccVal = validateEmail(cc, { required: false, label: "Cc Email" });
+      if (!ccVal.isValid) newErrors.cc = ccVal.error;
+    }
+
+    if (bcc && bcc.trim()) {
+      const bccVal = validateEmail(bcc, { required: false, label: "Bcc Email" });
+      if (!bccVal.isValid) newErrors.bcc = bccVal.error;
+    }
+
+    const subVal = validateText(subject, { required: true, minLength: 2, maxLength: 200, label: "Subject" });
+    if (!subVal.isValid) newErrors.subject = subVal.error;
+
+    const msgVal = validateText(message, { required: true, minLength: 5, maxLength: 5000, label: "Message" });
+    if (!msgVal.isValid) newErrors.message = msgVal.error;
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors);
+      return false;
+    }
+    return true;
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!to || !to.trim()) {
-      toast.error("Recipient email address is required");
-      return;
-    }
-    if (!subject || !subject.trim()) {
-      toast.error("Subject line is required");
-      return;
-    }
-    if (!message || !message.trim()) {
-      toast.error("Message body cannot be empty");
-      return;
-    }
+    if (!validate()) return;
 
     try {
       await sendLeadEmail({
         id: lead._id,
         emailData: {
-          to: to.trim(),
-          cc: cc.trim() || undefined,
-          bcc: bcc.trim() || undefined,
+          to: to.trim().toLowerCase(),
+          cc: cc.trim().toLowerCase() || undefined,
+          bcc: bcc.trim().toLowerCase() || undefined,
           subject: subject.trim(),
           message: message.trim(),
           attachments,
@@ -130,6 +154,7 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
       }).unwrap();
 
       toast.success("Email sent to lead successfully!");
+      setErrors({});
       onClose();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to send email to lead");
@@ -151,19 +176,25 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
             <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1 block">
               To <span className="text-danger-500">*</span>
             </label>
-            <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 bg-white dark:bg-slate-900">
+            <div className={`flex items-center gap-2 border rounded-lg px-3 py-2 bg-white dark:bg-slate-900 ${
+              errors.to ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
+            }`}>
               <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1.5 whitespace-nowrap">
                 {lead?.fullName || "Lead"}
               </span>
               <input
+                id="to"
                 type="email"
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  if (errors.to) setErrors((prev) => ({ ...prev, to: null }));
+                }}
                 placeholder="lead@example.com"
                 className="bg-transparent text-sm text-slate-800 dark:text-slate-100 flex-1 outline-none"
-                required
               />
             </div>
+            {errors.to && <p className="text-xs text-rose-500 mt-1 font-medium">{errors.to}</p>}
           </div>
           <button
             type="button"
@@ -180,22 +211,36 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
             <div>
               <label className="form-label text-xs font-semibold text-slate-500 mb-1 block">Cc</label>
               <input
+                id="cc"
                 type="text"
                 value={cc}
-                onChange={(e) => setCc(e.target.value)}
+                onChange={(e) => {
+                  setCc(e.target.value);
+                  if (errors.cc) setErrors((prev) => ({ ...prev, cc: null }));
+                }}
                 placeholder="cc@example.com"
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none ${
+                  errors.cc ? "border-rose-400" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
+                }`}
               />
+              {errors.cc && <p className="text-xs text-rose-500 mt-1 font-medium">{errors.cc}</p>}
             </div>
             <div>
               <label className="form-label text-xs font-semibold text-slate-500 mb-1 block">Bcc</label>
               <input
+                id="bcc"
                 type="text"
                 value={bcc}
-                onChange={(e) => setBcc(e.target.value)}
+                onChange={(e) => {
+                  setBcc(e.target.value);
+                  if (errors.bcc) setErrors((prev) => ({ ...prev, bcc: null }));
+                }}
                 placeholder="bcc@example.com"
-                className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-1.5 text-xs rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none ${
+                  errors.bcc ? "border-rose-400" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
+                }`}
               />
+              {errors.bcc && <p className="text-xs text-rose-500 mt-1 font-medium">{errors.bcc}</p>}
             </div>
           </div>
         )}
@@ -209,7 +254,7 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
             <select
               value={selectedTemplate}
               onChange={(e) => handleTemplateChange(e.target.value)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="">Select a reusable template...</option>
               {EMAIL_TEMPLATES.map((tmpl) => (
@@ -227,19 +272,25 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
             Subject <span className="text-danger-500">*</span>
           </label>
           <input
+            id="subject"
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (errors.subject) setErrors((prev) => ({ ...prev, subject: null }));
+            }}
             placeholder="e.g. Following up on your Modular Kitchen inquiry"
-            className="w-full px-3.5 py-2 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-            required
+            className={`w-full px-3.5 py-2 text-sm font-medium rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none ${
+              errors.subject ? "border-rose-400 focus:border-rose-500" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
+            }`}
           />
+          {errors.subject && <p className="text-xs text-rose-500 mt-1 font-medium">{errors.subject}</p>}
         </div>
 
         {/* Message Editor */}
         <div>
           <label className="form-label text-xs font-semibold uppercase text-slate-500 mb-1 block">
-            Message
+            Message <span className="text-danger-500">*</span>
           </label>
           {/* Format Toolbar */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-t-lg text-slate-600 dark:text-slate-300">
@@ -258,13 +309,19 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
             <Icon icon="heroicons:link" className="text-sm cursor-pointer hover:text-blue-600 ml-1" />
           </div>
           <textarea
+            id="message"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              if (errors.message) setErrors((prev) => ({ ...prev, message: null }));
+            }}
             rows={7}
             placeholder="Write your email message here or edit the selected template..."
-            className="w-full p-3 border-x border-b border-slate-200 dark:border-slate-700 rounded-b-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-blue-500 font-sans leading-relaxed"
-            required
+            className={`w-full p-3 border-x border-b rounded-b-lg bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none font-sans leading-relaxed ${
+              errors.message ? "border-rose-400 focus:border-rose-500" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
+            }`}
           />
+          {errors.message && <p className="text-xs text-rose-500 mt-1 font-medium">{errors.message}</p>}
         </div>
 
         {/* Attachments list */}

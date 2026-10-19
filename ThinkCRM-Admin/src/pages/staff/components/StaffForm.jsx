@@ -7,6 +7,8 @@ import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
 import Radio from "@/components/ui/Radio";
 import Icon from "@/components/ui/Icon";
+import PhoneInputWithCountry from "@/components/ui/PhoneInputWithCountry";
+import { validatePhone, validateEmail, validateText, focusFirstError } from "@/utils/validation";
 
 const roleOptions = [
   { value: "Owner", label: "Owner" },
@@ -35,10 +37,12 @@ const StaffForm = ({
 }) => {
   const navigate = useNavigate();
   
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
     password: "",
     role: "Staff",
     permissionMode: "INHERIT_ROLE",
@@ -51,6 +55,7 @@ const StaffForm = ({
         firstName: initialData.firstName || "",
         lastName: initialData.lastName || "",
         email: initialData.email || "",
+        phone: initialData.phone || "",
         password: "", // Not edited here
         role: initialData.role || "Staff",
         permissionMode: initialData.permissionMode || "INHERIT_ROLE",
@@ -105,10 +110,56 @@ const StaffForm = ({
     }));
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    const fnRes = validateText(formData.firstName, { required: true, fieldName: "First Name", min: 2, max: 50 });
+    if (!fnRes.isValid) newErrors.firstName = fnRes.error;
+
+    const lnRes = validateText(formData.lastName, { required: true, fieldName: "Last Name", min: 1, max: 50 });
+    if (!lnRes.isValid) newErrors.lastName = lnRes.error;
+
+    const emRes = validateEmail(formData.email, { required: true, fieldName: "Email" });
+    if (!emRes.isValid) newErrors.email = emRes.error;
+
+    if (formData.phone) {
+      const phRes = validatePhone(formData.phone, { required: false });
+      if (!phRes.isValid) newErrors.phone = phRes.error;
+    }
+
+    if (!isEdit) {
+      if (!formData.password || formData.password.length < 6) {
+        newErrors.password = "Password must be at least 6 characters";
+      }
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors, ["firstName", "lastName", "email", "phone", "password"]);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
+    let finalPhone = undefined;
+    if (formData.phone) {
+      const phRes = validatePhone(formData.phone, { required: false });
+      finalPhone = phRes.formatted || formData.phone.trim();
+    }
+
     onSubmit({
       ...formData,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: finalPhone,
+      password: formData.password ? formData.password.trim() : undefined,
       permissions: formData.assignedPermissions,
     });
   };
@@ -121,35 +172,65 @@ const StaffForm = ({
             label="First Name *" 
             placeholder="e.g. John" 
             type="text" 
+            name="firstName"
             value={formData.firstName} 
-            onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} 
+            onChange={(e) => {
+              setFormData({ ...formData, firstName: e.target.value });
+              if (errors.firstName) setErrors(prev => ({ ...prev, firstName: null }));
+            }} 
+            error={errors.firstName ? { message: errors.firstName } : undefined}
             required 
           />
           <Textinput 
             label="Last Name *" 
             placeholder="e.g. Doe" 
             type="text" 
+            name="lastName"
             value={formData.lastName} 
-            onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} 
+            onChange={(e) => {
+              setFormData({ ...formData, lastName: e.target.value });
+              if (errors.lastName) setErrors(prev => ({ ...prev, lastName: null }));
+            }} 
+            error={errors.lastName ? { message: errors.lastName } : undefined}
             required 
           />
           <Textinput 
             label="Email *" 
             placeholder="e.g. john@thinkcrm.com" 
             type="email" 
+            name="email"
             value={formData.email} 
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+            onChange={(e) => {
+              setFormData({ ...formData, email: e.target.value });
+              if (errors.email) setErrors(prev => ({ ...prev, email: null }));
+            }} 
             disabled={isEdit} 
+            error={errors.email ? { message: errors.email } : undefined}
             required 
+          />
+          <PhoneInputWithCountry
+            label="Phone Number"
+            value={formData.phone}
+            onChange={(val) => {
+              setFormData((prev) => ({ ...prev, phone: val }));
+              if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
+            }}
+            error={errors.phone}
+            name="phone"
           />
           {!isEdit && (
             <Textinput 
               label="Password *" 
-              placeholder="Enter secure password" 
+              placeholder="Enter secure password (min 6 characters)" 
               type="password" 
+              name="password"
               hasicon 
               value={formData.password} 
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
+              onChange={(e) => {
+                setFormData({ ...formData, password: e.target.value });
+                if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+              }} 
+              error={errors.password ? { message: errors.password } : undefined}
               required 
             />
           )}

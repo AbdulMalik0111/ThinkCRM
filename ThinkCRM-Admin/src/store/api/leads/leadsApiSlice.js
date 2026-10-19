@@ -136,6 +136,14 @@ export const leadsApi = apiSlice.injectEndpoints({
         "Lead",
       ],
     }),
+    importLeads: builder.mutation({
+      query: (leads) => ({
+        url: "leads/import",
+        method: "POST",
+        body: { leads },
+      }),
+      invalidatesTags: ["Lead", "LeadStats", "Dashboard"],
+    }),
   }),
 });
 
@@ -156,5 +164,7 @@ export const {
   useBulkDeleteLeadsMutation,
   useUploadLeadDocumentMutation,
   useDeleteLeadDocumentMutation,
+  useImportLeadsMutation,
 } = leadsApi;
+
 

@@ -20,6 +20,7 @@ router.get('/stats', requirePermission('leads.view'), leadController.getLeadStat
 router.post('/bulk/assign', requirePermission('leads.assign'), leadController.bulkAssign);
 router.post('/bulk/status', requirePermission('leads.update'), leadController.bulkUpdateStatus);
 router.post('/bulk/delete', requirePermission('leads.delete'), leadController.bulkDelete);
+router.post('/import', requirePermission('leads.create'), leadController.importLeads);
 
 router
   .route('/')

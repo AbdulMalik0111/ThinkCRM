@@ -1,15 +1,18 @@
 import fs from 'fs';
 import path from 'path';
+import mongoose from 'mongoose';
 import { Lead } from '../models/Lead.js';
 import { FollowUp } from '../models/FollowUp.js';
 import { Customer } from '../models/Customer.js';
+import { User } from '../models/User.js';
 import { Measurement } from '../models/Measurement.js';
 import { Quotation } from '../models/Quotation.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { convertLeadToCustomer as convertService } from './customer.service.js';
-import { sendEmail } from '../integrations/email/email.service.js';
-import { uploadToCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
+import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
 
 /**
  * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
@@ -410,31 +413,9 @@ export const assignLead = async (leadId, assignedTo, assignedBy) => {
  * Convert Lead to Customer (Real conversion workflow)
  */
 export const convertLeadToCustomer = async (leadId, createdBy) => {
-  const lead = await Lead.findById(leadId);
-  if (!lead) {
-    throw new AppError('Lead not found', 404);
-  }
-
-  // Check if customer already exists for this lead
-  let customer = await Customer.findOne({ sourceLeadId: leadId });
-  if (!customer) {
-    customer = await convertService(leadId, createdBy);
-  }
-
-  // Update lead status to 'converted' or 'won'
-  lead.status = 'converted';
-  await lead.save();
-
-  await logActivity({
-    leadId: lead._id,
-    customerId: customer._id,
-    type: 'customer_created',
-    description: `Lead ${lead.fullName} converted to customer ${customer.customerId || customer._id}`,
-    performedBy: createdBy,
-    metadata: { customerId: customer._id },
-  });
-
-  return { customer, lead };
+  const customer = await convertService(leadId, createdBy);
+  const updatedLead = await Lead.findById(leadId);
+  return { customer, lead: updatedLead };
 };
 
 /**
@@ -457,8 +438,12 @@ export const addLeadNote = async (leadId, content, author) => {
 
   await logActivity({
     leadId: lead._id,
+    customerId: lead.customerId || undefined,
     type: 'note_added',
-    description: `Note added: "${content.slice(0, 50)}${content.length > 50 ? '...' : ''}"`,
+    description: `Note added: "${(content || '').trim()}"`,
+    metadata: {
+      content: (content || '').trim(),
+    },
     performedBy: author,
   });
 
@@ -580,25 +565,17 @@ export const addLeadDocument = async (leadId, docData, file, userId) => {
   let finalPublicId = '';
 
   if (file) {
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'documents');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    const safeFileName = `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const localFilePath = path.join(uploadsDir, safeFileName);
-    fs.writeFileSync(localFilePath, file.buffer);
-    finalUrl = `/uploads/documents/${safeFileName}`;
-    finalSize = file.size;
-    finalFileType = file.mimetype || path.extname(file.originalname).slice(1);
-
     try {
-      const result = await uploadToCloudinary(file.buffer, 'thinkcrm/leads/documents');
-      if (result && result.secure_url) {
-        finalUrl = result.secure_url;
-        finalPublicId = result.public_id;
-      }
-    } catch (e) {
-      // Keep local url on error
+      const uploadResult = await uploadToCloudinary(file.buffer, 'thinkcrm/leads/documents', {
+        resource_type: 'auto',
+      });
+      finalUrl = uploadResult.secure_url;
+      finalSize = uploadResult.bytes || file.size;
+      finalFileType = file.mimetype || uploadResult.format || path.extname(file.originalname).slice(1);
+      finalPublicId = uploadResult.public_id;
+    } catch (uploadErr) {
+      console.error('Cloudinary lead document upload error:', uploadErr);
+      throw new AppError(`Failed to upload document to Cloudinary: ${uploadErr.message}`, 500);
     }
   } else if (docData.url) {
     finalUrl = docData.url;
@@ -615,6 +592,7 @@ export const addLeadDocument = async (leadId, docData, file, userId) => {
     type: docData.type || docData.category || 'Other',
     url: finalUrl,
     size: finalSize,
+    publicId: finalPublicId,
     uploadedBy: userId,
     uploadedAt: new Date(),
   };
@@ -624,6 +602,7 @@ export const addLeadDocument = async (leadId, docData, file, userId) => {
 
   await logActivity({
     leadId: lead._id,
+    customerId: lead.customerId || undefined,
     type: 'file_uploaded',
     description: `Document uploaded for lead ${lead.fullName}: ${newDoc.name}`,
     performedBy: userId,
@@ -644,6 +623,13 @@ export const deleteLeadDocument = async (leadId, docId, userId) => {
   }
 
   const doc = lead.documents[docIndex];
+
+  // Delete from Cloudinary if public ID exists
+  if (doc.publicId) {
+    await deleteFromCloudinary(doc.publicId);
+  }
+
+  // Delete legacy local file if any existed
   if (doc.url && doc.url.includes('/uploads/documents/')) {
     try {
       const filename = path.basename(doc.url);
@@ -652,7 +638,7 @@ export const deleteLeadDocument = async (leadId, docId, userId) => {
         fs.unlinkSync(filePath);
       }
     } catch (e) {
-      console.warn('Failed to delete local document file:', e.message);
+      console.warn('Failed to delete legacy local document file:', e.message);
     }
   }
 
@@ -667,5 +653,300 @@ export const deleteLeadDocument = async (leadId, docId, userId) => {
   });
 
   return lead.documents;
+};
+
+/**
+ * Bulk import leads from CSV data
+ * Handles validation, enum normalization, staff assignment resolution,
+ * in-file and database duplicate detection, and customer link preservation.
+ */
+export const importLeads = async (leadsList, userId, duplicatePolicy = 'skip') => {
+  if (!Array.isArray(leadsList) || leadsList.length === 0) {
+    throw new AppError('No lead records provided for import', 400);
+  }
+
+  let importedCount = 0;
+  let skippedCount = 0;
+  let failedCount = 0;
+  const errors = [];
+
+  const seenPhones = new Set();
+  const seenEmails = new Set();
+
+  const mapProjectType = (pt) => {
+    if (!pt) return 'Modular Kitchen';
+    const s = String(pt).trim().toLowerCase();
+    if (s.includes('modular') && s.includes('kitchen')) return 'Modular Kitchen';
+    if (s.includes('kitchen')) return 'Modular Kitchen';
+    if (s.includes('wardrobe') && s.includes('design')) return 'Wardrobe Design';
+    if (s.includes('wardrobe')) return 'Wardrobe';
+    if (s.includes('bedroom')) return 'Bedroom';
+    if (s.includes('living')) return 'Living Room';
+    if (s.includes('office') && s.includes('interior')) return 'Office Interior';
+    if (s.includes('office')) return 'Office';
+    if (s.includes('full home') && s.includes('interior')) return 'Full Home Interior';
+    if (s.includes('full home') || s.includes('home')) return 'Full Home';
+    if (s.includes('commercial')) return 'Commercial';
+    return 'Other';
+  };
+
+  const mapLeadSource = (src) => {
+    if (!src) return 'Website';
+    const s = String(src).trim().toLowerCase();
+    if (s.includes('meta') && s.includes('ad')) return 'Meta Ads';
+    if (s.includes('meta')) return 'Meta Ads';
+    if (s.includes('fb') || s.includes('facebook')) return 'Facebook';
+    if (s.includes('insta')) return 'Instagram';
+    if (s.includes('google') && s.includes('ad')) return 'Google Ads';
+    if (s.includes('google')) return 'Google';
+    if (s.includes('whatsapp')) return 'WhatsApp';
+    if (s.includes('referral')) return 'Referral';
+    if (s.includes('phone') || s.includes('call')) return 'Phone';
+    if (s.includes('walk')) return 'Walk-in';
+    if (s.includes('manual')) return 'Manual';
+    if (s.includes('web')) return 'Website';
+    return 'Website';
+  };
+
+  const mapStatus = (st) => {
+    if (!st) return 'new';
+    const s = String(st).trim().toLowerCase().replace(/[\s-]/g, '_');
+    const validStatuses = [
+      'new', 'attempted', 'contacted', 'qualified', 'follow_up', 'in_progress',
+      'measurement_pending', 'measurement_scheduled', 'measurement_completed',
+      'quotation_pending', 'quotation_sent', 'negotiation', 'won', 'converted', 'lost', 'junk'
+    ];
+    if (validStatuses.includes(s)) return s;
+    if (s === 'won' || s === 'converted') return 'converted';
+    return 'new';
+  };
+
+  const mapPriority = (pr) => {
+    if (!pr) return 'medium';
+    const s = String(pr).trim().toLowerCase();
+    if (['low', 'medium', 'high', 'urgent'].includes(s)) return s;
+    return 'medium';
+  };
+
+  // Cache staff lookups for efficiency
+  const staffCache = new Map();
+
+  for (let i = 0; i < leadsList.length; i++) {
+    const row = leadsList[i];
+    const rowNum = i + 1;
+
+    try {
+      const fullName = (row.fullName || row['Full Name'] || row.name || row['Name'] || '').trim();
+      const phone = String(row.phone || row['Phone'] || row['Phone Number'] || row['Mobile'] || '').trim();
+      const alternatePhone = String(row.alternatePhone || row['Alternate Phone'] || row['Alt Phone'] || '').trim();
+      const email = String(row.email || row['Email'] || '').trim().toLowerCase();
+
+      // Required field validation
+      if (!fullName) {
+        failedCount++;
+        errors.push({ row: rowNum, error: 'Full name is required' });
+        continue;
+      }
+      if (!phone) {
+        failedCount++;
+        errors.push({ row: rowNum, error: 'Phone number is required' });
+        continue;
+      }
+
+      // Phone validation using validator
+      const phoneRes = validateAndNormalizePhone(phone, 'IN');
+      if (!phoneRes.isValid) {
+        failedCount++;
+        errors.push({ row: rowNum, error: phoneRes.error || `Invalid phone number: ${phone}` });
+        continue;
+      }
+      const phoneDigits = phoneRes.canonical;
+      const formattedPhone = phoneRes.formatted;
+
+      // Email format check if provided
+      let emailNorm = undefined;
+      if (email && String(email).trim()) {
+        const cleanEmail = String(email).trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) {
+          failedCount++;
+          errors.push({ row: rowNum, error: `Invalid email address format: "${email}"` });
+          continue;
+        }
+        emailNorm = cleanEmail;
+      }
+
+      // 1. In-File Duplicate Checking
+      if (seenPhones.has(phoneDigits) || (emailNorm && seenEmails.has(emailNorm))) {
+        skippedCount++;
+        errors.push({ row: rowNum, error: `Duplicate record within the same file (Phone: ${phone})` });
+        continue;
+      }
+      seenPhones.add(phoneDigits);
+      if (emailNorm) seenEmails.add(emailNorm);
+
+      // 2. Database Duplicate Checking
+      const dupQuery = [];
+      if (phoneDigits && phoneDigits.length >= 7) {
+        const phoneRegexStr = phoneDigits.split('').join('\\D*');
+        dupQuery.push({ phone: { $regex: phoneRegexStr } });
+        dupQuery.push({ alternatePhone: { $regex: phoneRegexStr } });
+      }
+      if (emailNorm) {
+        dupQuery.push({ email: emailNorm });
+      }
+
+      if (dupQuery.length > 0) {
+        const existingLead = await Lead.findOne({
+          isDeleted: false,
+          $or: dupQuery,
+        });
+
+        if (existingLead) {
+          if (duplicatePolicy === 'skip') {
+            skippedCount++;
+            continue;
+          }
+        }
+      }
+
+      // 3. Resolve Staff Assignment
+      let assignedTo = null;
+      const staffVal = String(row.assignedStaff || row['Assigned Staff'] || row['Assigned To'] || row.assignedTo || '').trim();
+      if (staffVal) {
+        if (staffCache.has(staffVal.toLowerCase())) {
+          assignedTo = staffCache.get(staffVal.toLowerCase());
+        } else if (mongoose.Types.ObjectId.isValid(staffVal)) {
+          assignedTo = staffVal;
+          staffCache.set(staffVal.toLowerCase(), assignedTo);
+        } else {
+          const staffUser = await User.findOne({
+            $or: [
+              { email: staffVal.toLowerCase() },
+              {
+                $expr: {
+                  $regexMatch: {
+                    input: { $concat: ['$firstName', ' ', '$lastName'] },
+                    regex: staffVal,
+                    options: 'i',
+                  },
+                },
+              },
+              { firstName: { $regex: staffVal, $options: 'i' } },
+            ],
+          });
+          if (staffUser) {
+            assignedTo = staffUser._id;
+            staffCache.set(staffVal.toLowerCase(), assignedTo);
+          }
+        }
+      }
+
+      // 4. Map Enums & Fields
+      const projectType = mapProjectType(row.projectType || row['Project Type'] || row.project || row['Project']);
+      const leadSource = mapLeadSource(row.leadSource || row['Lead Source'] || row.source || row['Source']);
+      const status = mapStatus(row.status || row['Status']);
+      const priority = mapPriority(row.priority || row['Priority']);
+
+      // Budget handling
+      const rawBudget = row.budget ?? row['Budget'] ?? row.budgetRange ?? row['Budget Range'] ?? 0;
+      let numericBudget = undefined;
+      let budgetRange = undefined;
+      if (typeof rawBudget === 'number' && !isNaN(rawBudget)) {
+        numericBudget = rawBudget;
+        budgetRange = rawBudget ? `₹${rawBudget.toLocaleString('en-IN')}` : undefined;
+      } else if (typeof rawBudget === 'string') {
+        const parsedNum = Number(rawBudget.replace(/[^0-9.]/g, ''));
+        if (!isNaN(parsedNum) && parsedNum > 0) {
+          numericBudget = parsedNum;
+        }
+        budgetRange = rawBudget.trim() || undefined;
+      }
+
+      const requirement = String(row.requirement || row['Requirement'] || row.projectDescription || row['Project Description'] || '').trim();
+      const preferredTimeline = String(row.preferredTimeline || row['Preferred Timeline'] || row.timeline || row['Timeline'] || '').trim();
+      const city = String(row.city || row['City'] || '').trim();
+      const location = String(row.location || row['Location'] || city || '').trim();
+      const address = String(row.address || row['Address'] || '').trim();
+      const state = String(row.state || row['State'] || '').trim();
+      const pincode = String(row.pincode || row['Pincode'] || '').trim();
+      const notes = String(row.notes || row['Notes'] || '').trim();
+
+      // 5. Existing Customer Linking (Preserve relationships without duplicate customer creation)
+      let customerId = null;
+      const potentialCustomerQueries = [];
+      if (phoneDigits && phoneDigits.length >= 7) {
+        const phoneRegexStr = phoneDigits.split('').join('\\D*');
+        potentialCustomerQueries.push({ phone: { $regex: phoneRegexStr } });
+        potentialCustomerQueries.push({ alternatePhone: { $regex: phoneRegexStr } });
+      }
+      if (emailNorm) {
+        potentialCustomerQueries.push({ email: emailNorm });
+      }
+
+      if (potentialCustomerQueries.length > 0) {
+        const matchedCustomer = await Customer.findOne({
+          deletedAt: null,
+          $or: potentialCustomerQueries,
+        });
+        if (matchedCustomer) {
+          customerId = matchedCustomer._id;
+        }
+      }
+
+      // 6. Create the Lead
+      const newLead = await Lead.create({
+        fullName,
+        phone: formattedPhone,
+        alternatePhone: alternatePhone || undefined,
+        email: emailNorm || undefined,
+        projectType,
+        projectDescription: requirement || undefined,
+        budget: numericBudget,
+        budgetRange,
+        preferredTimeline: preferredTimeline || undefined,
+        leadSource,
+        status,
+        priority,
+        city: city || undefined,
+        location: location || undefined,
+        address: address || undefined,
+        state: state || undefined,
+        pincode: pincode || undefined,
+        notes: notes || undefined,
+        notesList: notes ? [{ content: notes, author: userId, createdAt: new Date() }] : [],
+        assignedTo: assignedTo || undefined,
+        createdBy: userId,
+        customerId: customerId || null,
+      });
+
+      // If customer exists, link this new lead into customer.leads array
+      if (customerId) {
+        await Customer.updateOne(
+          { _id: customerId },
+          { $addToSet: { leads: newLead._id } }
+        );
+      }
+
+      // Log creation activity
+      await logActivity({
+        leadId: newLead._id,
+        type: 'lead_created',
+        description: `Lead imported via CSV: ${newLead.fullName} (${newLead.projectType})`,
+        performedBy: userId,
+      });
+
+      importedCount++;
+    } catch (rowErr) {
+      failedCount++;
+      errors.push({ row: rowNum, error: rowErr.message || 'Failed to import lead record' });
+    }
+  }
+
+  return {
+    imported: importedCount,
+    skipped: skippedCount,
+    failed: failedCount,
+    errors,
+  };
 };
 

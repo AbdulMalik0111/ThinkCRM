@@ -972,7 +972,7 @@ const LeadView = () => {
                 type="button"
                 onClick={() => setDeleteDocState(null)}
                 disabled={isDeletingDoc}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer font-inter"
               >
                 Cancel
               </button>

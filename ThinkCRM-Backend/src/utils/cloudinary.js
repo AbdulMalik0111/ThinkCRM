@@ -59,8 +59,23 @@ export const uploadToCloudinary = (fileSource, folder = 'thinkcrm/documents', cu
 export const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   try {
     if (!publicId) return;
-    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    const res = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+    if (res?.result === 'not found' && resourceType === 'image') {
+      await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+    }
   } catch (error) {
     console.error('Failed to delete file from Cloudinary:', error);
   }
 };
+
+/**
+ * Generates an authenticated download/view URL directly from Cloudinary API.
+ * This works even if public CDN delivery for PDF/ZIP is not yet enabled in the dashboard.
+ */
+export const getCloudinaryDownloadUrl = (publicId, format = 'pdf', resourceType = 'image') => {
+  return cloudinary.utils.private_download_url(publicId, format, {
+    resource_type: resourceType,
+    type: 'upload',
+  });
+};
+

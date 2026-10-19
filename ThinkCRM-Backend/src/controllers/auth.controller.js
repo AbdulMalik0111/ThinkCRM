@@ -41,7 +41,8 @@ export const getMe = async (req, res, next) => {
 
 export const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const currentPassword = req.body.currentPassword || req.body.oldPassword;
+    const { newPassword } = req.body;
     const { user, accessToken, refreshToken } = await authService.changePassword(
       req.user._id,
       currentPassword,

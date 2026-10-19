@@ -4,6 +4,7 @@ import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useCreateMeasurementMutation } from "@/store/api/interactions/interactionsApiSlice";
+import { validateDate, focusFirstError } from "@/utils/validation";
 
 const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
   const [createMeasurement, { isLoading }] = useCreateMeasurementMutation();
@@ -28,10 +29,18 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.date) newErrors.date = "Date is required";
+    const dateVal = validateDate(formData.date, { required: true, label: "Measurement Date" });
+    if (!dateVal.isValid) newErrors.date = dateVal.error;
     if (!formData.time) newErrors.time = "Time is required";
+    if (formData.notes && formData.notes.length > 2000) {
+      newErrors.notes = "Notes cannot exceed 2000 characters";
+    }
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors);
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -50,6 +59,7 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
       }).unwrap();
 
       toast.success("Measurement scheduled successfully");
+      setErrors({});
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
@@ -158,8 +168,11 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
               value={formData.notes}
               onChange={handleChange}
               placeholder="e.g., Modular kitchen layout, master bedroom wardrobe dimensions, balcony glass..."
-              className="w-full px-3.5 py-2.5 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 font-inter"
+              className={`w-full px-3.5 py-2.5 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 font-inter ${
+                errors.notes ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
+              }`}
             />
+            {errors.notes && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.notes}</p>}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useAddCustomerNoteMutation } from "@/store/api/customers/customersApiSlice";
+import { validatePhone, validateText } from "@/utils/validation";
 
 const WA_TEMPLATES = [
   {
@@ -28,6 +29,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
   const [message, setMessage] = useState(
     `This is a follow-up on your ${customer?.projectType || "interior"} project. Please let me know if you would like to schedule a site visit or need any more information.\n\nThanks,\nThinkCRM Team`
   );
+  const [messageError, setMessageError] = useState("");
   const [addCustomerNote] = useAddCustomerNoteMutation();
 
   const handleUseTemplate = (tmpl) => {
@@ -37,15 +39,29 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
       .replace(/{{name}}/g, name)
       .replace(/{{projectType}}/g, projectType);
     setMessage(formatted);
+    setMessageError("");
   };
 
   const handleSendWhatsApp = async () => {
     if (!customer?.phone) {
-      toast.error("Customer does not have a valid phone number");
+      toast.error("Customer does not have a phone number");
       return;
     }
-    if (!message.trim()) {
-      toast.error("Message cannot be empty");
+
+    const phoneValidation = validatePhone(customer.phone);
+    if (!phoneValidation.isValid) {
+      toast.error(phoneValidation.error || "Customer has an invalid phone number");
+      return;
+    }
+
+    const msgValidation = validateText(message, {
+      required: true,
+      minLength: 2,
+      maxLength: 1000,
+      label: "WhatsApp message",
+    });
+    if (!msgValidation.isValid) {
+      setMessageError(msgValidation.error);
       return;
     }
 
@@ -62,7 +78,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
     try {
       await addCustomerNote({
         id: customer._id,
-        content: `WhatsApp message initiated: "${message.slice(0, 100)}..."`,
+        content: `WhatsApp message initiated: "${message.trim()}"`,
       }).unwrap();
     } catch (e) {
       // Non-blocking
@@ -141,11 +157,21 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
           </div>
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, 1000))}
+            onChange={(e) => {
+              setMessage(e.target.value.slice(0, 1000));
+              if (messageError) setMessageError("");
+            }}
             rows={5}
             placeholder="Type your WhatsApp message..."
-            className="w-full p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-emerald-500 transition leading-relaxed"
+            className={`w-full p-3.5 border rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none transition leading-relaxed ${
+              messageError
+                ? "border-rose-400 focus:border-rose-500"
+                : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
+            }`}
           />
+          {messageError && (
+            <p className="text-xs text-rose-500 mt-1 font-medium">{messageError}</p>
+          )}
         </div>
 
         {/* Footer Actions */}

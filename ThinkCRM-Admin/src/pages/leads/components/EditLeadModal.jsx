@@ -4,6 +4,8 @@ import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import { useUpdateLeadMutation } from "@/store/api/leads/leadsApiSlice";
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
+import PhoneInputWithCountry from "@/components/ui/PhoneInputWithCountry";
+import { validatePhone, validateEmail, validateText, focusFirstError } from "@/utils/validation";
 
 const SOURCE_OPTIONS = [
   { value: "website", label: "Website" },
@@ -93,17 +95,10 @@ const EditLeadModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   useEffect(() => {
     if (lead) {
-      let rawPhone = lead.phone || "";
-      let cCode = "+91";
-      if (rawPhone.startsWith("+91")) {
-        cCode = "+91";
-        rawPhone = rawPhone.replace("+91", "").trim();
-      }
-
       setFormData({
         fullName: lead.fullName || "",
-        phone: rawPhone,
-        countryCode: cCode,
+        phone: lead.phone || "",
+        countryCode: "+91",
         email: lead.email || "",
         leadSource: lead.leadSource || "website",
         status: lead.status || "new",
@@ -142,15 +137,27 @@ const EditLeadModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    }
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Enter a valid email address";
-    }
+
+    const nameRes = validateText(formData.fullName, { required: true, fieldName: "Full Name", min: 2, max: 100 });
+    if (!nameRes.isValid) newErrors.fullName = nameRes.error;
+
+    const phoneRes = validatePhone(formData.phone, { required: true });
+    if (!phoneRes.isValid) newErrors.phone = phoneRes.error;
+
+    const emailRes = validateEmail(formData.email, { required: false });
+    if (!emailRes.isValid) newErrors.email = emailRes.error;
+
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (Object.keys(newErrors).length > 0) {
+      if (newErrors.fullName || newErrors.phone || newErrors.email) {
+        setActiveTab("basic");
+      }
+      focusFirstError(newErrors, ["fullName", "phone", "email"]);
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -161,9 +168,12 @@ const EditLeadModal = ({ isOpen, lead, onClose, onSuccess }) => {
     }
 
     try {
+      const phoneRes = validatePhone(formData.phone, { required: true });
+      const finalPhone = phoneRes.formatted || formData.phone.trim();
+
       const payload = {
         fullName: formData.fullName.trim(),
-        phone: `${formData.countryCode} ${formData.phone.trim().replace(/^(\+91|\+)/, "").trim()}`,
+        phone: finalPhone,
         email: formData.email.trim() || undefined,
         leadSource: formData.leadSource,
         status: formData.status,
@@ -262,25 +272,18 @@ const EditLeadModal = ({ isOpen, lead, onClose, onSuccess }) => {
                   </div>
 
                   {/* Phone */}
-                  <div>
-                    <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-                      Phone <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500">
-                      <span className="inline-flex items-center px-3 text-[13.5px] font-semibold text-slate-500 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 font-inter">
-                        🇮🇳 +91
-                      </span>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="Enter phone number"
-                        className="flex-1 px-3 py-2 text-[13.5px] bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter"
-                      />
-                    </div>
-                    {errors.phone && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.phone}</p>}
-                  </div>
+                  <PhoneInputWithCountry
+                    label="Phone Number"
+                    required
+                    value={formData.phone}
+                    onChange={(val) => {
+                      setFormData((prev) => ({ ...prev, phone: val }));
+                      if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
+                    }}
+                    error={errors.phone}
+                    placeholder="Enter 10-digit mobile number"
+                    name="phone"
+                  />
 
                   {/* Email */}
                   <div>

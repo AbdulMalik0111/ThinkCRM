@@ -211,3 +211,19 @@ export const deleteLeadDocument = async (req, res, next) => {
   }
 };
 
+export const importLeads = async (req, res, next) => {
+  try {
+    const leads = req.body.leads || req.body;
+    const duplicatePolicy = req.body.duplicatePolicy || 'skip';
+    const result = await leadService.importLeads(leads, req.user._id, duplicatePolicy);
+    res.status(200).json({
+      success: true,
+      message: `Lead import processed: ${result.imported} imported, ${result.skipped} skipped, ${result.failed} failed`,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+

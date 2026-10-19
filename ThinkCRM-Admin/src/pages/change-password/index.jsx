@@ -37,6 +37,7 @@ const ChangePassword = () => {
   const onSubmit = async (data) => {
     try {
       await changePassword({
+        currentPassword: data.oldPassword,
         oldPassword: data.oldPassword,
         newPassword: data.newPassword,
       }).unwrap();

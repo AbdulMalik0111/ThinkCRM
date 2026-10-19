@@ -122,6 +122,10 @@ const customerSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: 'User',
         },
+        leadId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Lead',
+        },
         createdAt: {
           type: Date,
           default: Date.now,
@@ -161,6 +165,10 @@ const customerSchema = new mongoose.Schema(
           type: String,
           default: 'Other',
         },
+        leadId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Lead',
+        },
         uploadedBy: {
           type: mongoose.Schema.Types.ObjectId,
           ref: 'User',
@@ -177,6 +185,12 @@ const customerSchema = new mongoose.Schema(
       required: false,
       sparse: true,
     },
+    leads: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lead',
+      },
+    ],
     deletedAt: {
       type: Date,
       default: null,

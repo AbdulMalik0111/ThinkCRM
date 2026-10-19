@@ -102,6 +102,29 @@ export const customersApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }, "FollowUp", "Dashboard"],
     }),
+    updateCustomerFollowUp: builder.mutation({
+      query: ({ customerId, followUpId, data }) => ({
+        url: `customers/${customerId}/follow-ups/${followUpId}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { customerId }) => [
+        { type: "Customer", id: customerId },
+        "FollowUp",
+        "Dashboard",
+      ],
+    }),
+    deleteCustomerFollowUp: builder.mutation({
+      query: ({ customerId, followUpId }) => ({
+        url: `customers/${customerId}/follow-ups/${followUpId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { customerId }) => [
+        { type: "Customer", id: customerId },
+        "FollowUp",
+        "Dashboard",
+      ],
+    }),
     updateCustomerNote: builder.mutation({
       query: ({ id, noteId, content }) => ({
         url: `customers/${id}/notes/${noteId}`,
@@ -126,6 +149,68 @@ export const customersApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: "Customer", id }],
     }),
+    createCustomerQuotation: builder.mutation({
+      query: ({ customerId, formData }) => ({
+        url: `customers/${customerId}/quotations`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: (result, error, { customerId }) => [
+        { type: "Customer", id: customerId },
+        { type: "Quotation" },
+        "Lead",
+      ],
+    }),
+    sendCustomerQuotation: builder.mutation({
+      query: (quotationId) => ({
+        url: `quotations/${quotationId}/send`,
+        method: "POST",
+      }),
+      invalidatesTags: [
+        { type: "Customer" },
+        { type: "Quotation" },
+        "Lead",
+      ],
+    }),
+    deleteCustomerQuotation: builder.mutation({
+      query: (quotationId) => ({
+        url: `quotations/${quotationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: [
+        { type: "Customer" },
+        { type: "Quotation" },
+        "Lead",
+      ],
+    }),
+    logCustomerCall: builder.mutation({
+      query: ({ customerId, data }) => ({
+        url: `customers/${customerId}/calls`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { customerId }) => [{ type: "Customer", id: customerId }],
+    }),
+    logCustomerWhatsApp: builder.mutation({
+      query: ({ customerId, data }) => ({
+        url: `customers/${customerId}/whatsapp`,
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { customerId }) => [{ type: "Customer", id: customerId }],
+    }),
+    getDuplicateCustomers: builder.query({
+      query: () => "customers/duplicates",
+      providesTags: ["Customer"],
+    }),
+    resolveDuplicateCustomers: builder.mutation({
+      query: (data) => ({
+        url: "customers/merge",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: [{ type: "Customer" }, "Lead", "Dashboard"],
+    }),
   }),
 });
 
@@ -143,6 +228,15 @@ export const {
   useDeleteCustomerDocumentMutation,
   useAddCustomerProjectMutation,
   useCreateCustomerFollowUpMutation,
+  useUpdateCustomerFollowUpMutation,
+  useDeleteCustomerFollowUpMutation,
   useSendCustomerEmailMutation,
+  useCreateCustomerQuotationMutation,
+  useSendCustomerQuotationMutation,
+  useDeleteCustomerQuotationMutation,
+  useLogCustomerCallMutation,
+  useLogCustomerWhatsAppMutation,
+  useGetDuplicateCustomersQuery,
+  useResolveDuplicateCustomersMutation,
   useImportCustomersMutation,
 } = customersApi;

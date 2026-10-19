@@ -35,7 +35,7 @@ export const getDashboardStats = async (req, res, next) => {
       Quotation.countDocuments({ status: 'sent' }),
       Lead.countDocuments({ status: 'won', isDeleted: false }),
       Lead.countDocuments({ status: 'lost', isDeleted: false }),
-      Customer.countDocuments({ status: 'active', isDeleted: false }),
+      Customer.countDocuments({ deletedAt: null }),
     ]);
 
     const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(2) : 0;

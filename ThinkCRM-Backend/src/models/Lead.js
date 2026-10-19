@@ -127,6 +127,7 @@ const leadSchema = new mongoose.Schema(
         url: { type: String, required: true },
         size: { type: Number },
         type: { type: String },
+        publicId: { type: String },
         uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         uploadedAt: { type: Date, default: Date.now },
       },
@@ -138,6 +139,12 @@ const leadSchema = new mongoose.Schema(
       type: String,
       index: true,
       sparse: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      index: true,
+      default: null,
     },
     isDeleted: {
       type: Boolean,

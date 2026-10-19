@@ -307,7 +307,7 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
                                   {dayjs(act.createdAt).format("D MMM, hh:mm A")}
                                 </span>
                               </div>
-                              <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">
+                              <p className="text-slate-500 text-xs mt-0.5 whitespace-pre-wrap break-words">
                                 {act.description || act.content}
                               </p>
                             </div>

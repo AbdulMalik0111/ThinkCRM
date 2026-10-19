@@ -19,6 +19,14 @@ router
   );
 
 router
+  .route('/:id/reset-password')
+  .post(requirePermission('staff.update'), userController.resetPassword);
+
+router
+  .route('/:id/activity')
+  .get(requirePermission('staff.view'), userController.getStaffActivity);
+
+router
   .route('/:id')
   .get(requirePermission('staff.view'), userController.getUserById)
   .patch(

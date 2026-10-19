@@ -4,6 +4,7 @@ import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useCreateFollowUpMutation } from "@/store/api/leads/followupApiSlice";
+import { validateText, focusFirstError } from "@/utils/validation";
 
 const FOLLOWUP_TYPES = [
   { value: "call", label: "Call" },
@@ -46,9 +47,14 @@ const AddFollowUpModal = ({ isOpen, lead, onClose, onSuccess }) => {
     const newErrors = {};
     if (!formData.date) newErrors.date = "Date is required";
     if (!formData.time) newErrors.time = "Time is required";
-    if (!formData.notes.trim()) newErrors.notes = "Notes are required";
+    const notesRes = validateText(formData.notes, { required: true, fieldName: "Notes", min: 2, max: 1000, allowSpecialChars: true });
+    if (!notesRes.isValid) newErrors.notes = notesRes.error;
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors, ["date", "time", "notes"]);
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {

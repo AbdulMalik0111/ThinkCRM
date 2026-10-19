@@ -5,34 +5,71 @@ import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useCreateCustomerFollowUpMutation } from "@/store/api/customers/customersApiSlice";
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
+import { validateText, validateDate, focusFirstError } from "@/utils/validation";
 import dayjs from "dayjs";
 
-const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
+const ScheduleFollowUpModal = ({ isOpen, onClose, customer, leads = [] }) => {
   const [type, setType] = useState("call");
   const [date, setDate] = useState(dayjs().add(1, "day").format("YYYY-MM-DD"));
   const [time, setTime] = useState("10:00");
   const [priority, setPriority] = useState("medium");
   const [assignedTo, setAssignedTo] = useState(customer?.assignedStaff?._id || customer?.assignedStaff || "");
+  const [leadId, setLeadId] = useState(leads?.[0]?._id || "");
   const [notes, setNotes] = useState("");
   const [reminders, setReminders] = useState({
     tenMin: true,
     fiveMin: true,
     exactTime: true,
   });
+  const [errors, setErrors] = useState({});
 
   const { data: staffData } = useGetStaffQuery({ limit: 100 });
   const staffList = staffData?.data?.users || staffData?.data?.staff || [];
 
   const [createCustomerFollowUp, { isLoading }] = useCreateCustomerFollowUpMutation();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!date || !time) {
-      toast.error("Please pick a scheduled date and time");
-      return;
+  const handleFieldChange = (setter, field) => (e) => {
+    setter(e.target.value);
+    if (errors[field]) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[field];
+        return updated;
+      });
+    }
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    const dateVal = validateDate(date, { required: true, label: "Scheduled Date" });
+    if (!dateVal.isValid) newErrors.date = dateVal.error;
+
+    if (!time || !time.trim()) {
+      newErrors.time = "Please specify a scheduled time";
     }
 
+    if (notes && notes.length > 2000) {
+      newErrors.notes = "Notes cannot exceed 2000 characters";
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
     const scheduledAt = new Date(`${date}T${time}:00`);
+    if (isNaN(scheduledAt.getTime())) {
+      setErrors({ date: "Please enter a valid calendar date and time" });
+      return;
+    }
 
     try {
       await createCustomerFollowUp({
@@ -41,6 +78,7 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
           type,
           scheduledAt,
           priority,
+          leadId: leadId || undefined,
           notes: notes.trim() || undefined,
           assignedTo: assignedTo || undefined,
           reminder10mSent: !reminders.tenMin,
@@ -50,6 +88,7 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
       }).unwrap();
 
       toast.success("Follow-up scheduled successfully!");
+      setErrors({});
       onClose();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to schedule follow-up");
@@ -75,7 +114,27 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
           </div>
         </div>
 
-        {/* Type & Priority */}
+        {/* Connected Lead selector when available */}
+        {leads && leads.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Related Lead / Requirement
+            </label>
+            <select
+              value={leadId}
+              onChange={(e) => setLeadId(e.target.value)}
+              className="w-full h-11 px-3.5 pr-10 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
+            >
+              <option value="">General Follow-up (Customer Level)</option>
+              {leads.map((l) => (
+                <option key={l._id} value={l._id}>
+                  {l.projectType || "Project"} — {l.leadId || "Lead"} (Status: {l.status})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
@@ -123,13 +182,20 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none z-10"
               />
               <input
+                id="date"
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full h-11 pl-10 pr-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
-                required
+                onChange={handleFieldChange(setDate, "date")}
+                className={`w-full h-11 pl-10 pr-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition cursor-pointer ${
+                  errors.date
+                    ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                    : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+                }`}
               />
             </div>
+            {errors.date && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.date}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
@@ -141,13 +207,20 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none z-10"
               />
               <input
+                id="time"
                 type="time"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full h-11 pl-10 pr-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
-                required
+                onChange={handleFieldChange(setTime, "time")}
+                className={`w-full h-11 pl-10 pr-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition cursor-pointer ${
+                  errors.time
+                    ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                    : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+                }`}
               />
             </div>
+            {errors.time && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.time}</p>
+            )}
           </div>
         </div>
 
@@ -176,12 +249,20 @@ const ScheduleFollowUpModal = ({ isOpen, onClose, customer }) => {
             Notes / Agenda
           </label>
           <textarea
+            id="notes"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={handleFieldChange(setNotes, "notes")}
             rows={3}
             placeholder="e.g. Discuss material samples and revision 2 of floor plan..."
-            className="w-full min-h-[96px] p-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition resize-y"
+            className={`w-full min-h-[96px] p-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition resize-y ${
+              errors.notes
+                ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+            }`}
           />
+          {errors.notes && (
+            <p className="text-xs text-rose-500 mt-1 font-medium">{errors.notes}</p>
+          )}
         </div>
 
         {/* Reminders */}

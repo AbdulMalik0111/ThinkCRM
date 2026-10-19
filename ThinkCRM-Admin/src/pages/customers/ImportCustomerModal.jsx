@@ -4,6 +4,7 @@ import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
 import { useImportCustomersMutation } from "@/store/api/customers/customersApiSlice";
+import { validatePhone, validateEmail } from "@/utils/validation";
 
 /**
  * Professional CSV Customer Import Modal:
@@ -97,11 +98,23 @@ const ImportCustomerModal = ({ isOpen, onClose, onSuccess }) => {
       const location = record["Location"] || record["location"] || city || "";
       const address = record["Address"] || record["address"] || "";
 
-      if (!fullName) {
-        errors.push(`Row ${i + 1}: Missing customer name.`);
+      if (!fullName || fullName.trim().length < 2) {
+        errors.push(`Row ${i + 1}: Name must be at least 2 characters.`);
       }
       if (!phone) {
         errors.push(`Row ${i + 1}: Missing phone number.`);
+      } else {
+        const phoneValidation = validatePhone(phone);
+        if (!phoneValidation.isValid) {
+          errors.push(`Row ${i + 1}: Invalid phone number "${phone}" (${phoneValidation.error}).`);
+        }
+      }
+
+      if (email && email.trim()) {
+        const emailValidation = validateEmail(email);
+        if (!emailValidation.isValid) {
+          errors.push(`Row ${i + 1}: Invalid email address format "${email}".`);
+        }
       }
 
       records.push({

@@ -1,4 +1,7 @@
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { User } from '../models/User.js';
+import { Activity } from '../models/Activity.js';
 import { AppError } from '../utils/AppError.js';
 
 export const createUser = async (userData) => {
@@ -84,4 +87,67 @@ export const deleteUser = async (userId) => {
   user.isActive = false;
   user.status = 'disabled';
   await user.save({ validateBeforeSave: false });
+};
+
+export const generateTempPassword = () => {
+  // Generate a random, human-friendly, yet cryptographically strong temporary password
+  // Format: Think# + 4 random uppercase/lowercase chars + 2 random digits, e.g. Think#xK9m21
+  const alphabet = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  let randomPart = '';
+  for (let i = 0; i < 4; i++) {
+    randomPart += alphabet[crypto.randomInt(0, alphabet.length)];
+  }
+  for (let i = 0; i < 2; i++) {
+    randomPart += digits[crypto.randomInt(0, digits.length)];
+  }
+  return `Think#${randomPart}`;
+};
+
+export const resetPassword = async (userId, customPassword = null) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError('Invalid staff ID', 400);
+  }
+
+  const user = await User.findById(userId).select('+passwordHash');
+  if (!user) {
+    throw new AppError('Staff member not found', 404);
+  }
+
+  const tempPassword = customPassword && customPassword.trim().length >= 6
+    ? customPassword.trim()
+    : generateTempPassword();
+
+  user.passwordHash = tempPassword;
+  user.refreshToken = null;
+  await user.save();
+
+  return {
+    tempPassword,
+    user,
+  };
+};
+
+export const getStaffActivity = async (userId, query = {}) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError('Invalid staff ID', 400);
+  }
+
+  const { limit = 50 } = query;
+  const rawActivities = await Activity.find({ performedBy: userId })
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit, 10));
+
+  const activity = rawActivities.map((act) => ({
+    _id: act._id,
+    action: act.type,
+    entityType: act.customerId ? 'Customer' : act.leadId ? 'Lead' : 'System',
+    createdAt: act.createdAt,
+    details: {
+      description: act.description,
+      ...(act.metadata || {}),
+    },
+  }));
+
+  return activity;
 };

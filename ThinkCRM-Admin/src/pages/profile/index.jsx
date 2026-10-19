@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import { useSelector } from "react-redux";
+import { validateText, validateEmail, focusFirstError } from "@/utils/validation";
 
 const Profile = () => {
   const { user } = useSelector((state) => state.auth);
@@ -11,13 +12,34 @@ const Profile = () => {
     lastName: user?.lastName || "",
     email: user?.email || "",
   });
+  const [formErrors, setFormErrors] = useState({});
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const errors = {};
+    const fnCheck = validateText(formData.firstName, { fieldName: "First Name", required: true, minLength: 2, maxLength: 50 });
+    if (!fnCheck.isValid) errors.firstName = fnCheck.error;
+
+    const lnCheck = validateText(formData.lastName, { fieldName: "Last Name", required: true, minLength: 1, maxLength: 50 });
+    if (!lnCheck.isValid) errors.lastName = lnCheck.error;
+
+    const emailCheck = validateEmail(formData.email, true);
+    if (!emailCheck.isValid) errors.email = emailCheck.error;
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      focusFirstError(errors);
+      return;
+    }
+    setFormErrors({});
     // Simulate save
     setIsEditing(false);
   };
@@ -68,8 +90,13 @@ const Profile = () => {
                     value={formData.firstName}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full border border-slate-200 dark:border-slate-700 rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70"
+                    className={`w-full border rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70 ${
+                      formErrors.firstName ? "border-red-500 focus:ring-red-500" : "border-slate-200 dark:border-slate-700"
+                    }`}
                   />
+                  {formErrors.firstName && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.firstName}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Last Name</label>
@@ -79,8 +106,13 @@ const Profile = () => {
                     value={formData.lastName}
                     onChange={handleChange}
                     disabled={!isEditing}
-                    className="w-full border border-slate-200 dark:border-slate-700 rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70"
+                    className={`w-full border rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70 ${
+                      formErrors.lastName ? "border-red-500 focus:ring-red-500" : "border-slate-200 dark:border-slate-700"
+                    }`}
                   />
+                  {formErrors.lastName && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.lastName}</p>
+                  )}
                 </div>
               </div>
 
@@ -92,8 +124,13 @@ const Profile = () => {
                   value={formData.email}
                   onChange={handleChange}
                   disabled={!isEditing}
-                  className="w-full border border-slate-200 dark:border-slate-700 rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70"
+                  className={`w-full border rounded-md px-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-900 disabled:opacity-70 ${
+                    formErrors.email ? "border-red-500 focus:ring-red-500" : "border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {formErrors.email && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">

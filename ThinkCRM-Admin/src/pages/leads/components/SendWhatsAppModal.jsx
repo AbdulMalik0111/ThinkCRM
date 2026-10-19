@@ -3,6 +3,7 @@ import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { toast } from "react-toastify";
 import { useAddLeadNoteMutation } from "@/store/api/leads/leadsApiSlice";
+import { validatePhone, validateText } from "@/utils/validation";
 
 const WA_TEMPLATES = [
   {
@@ -34,6 +35,7 @@ const WA_TEMPLATES = [
 
 const SendWhatsAppModal = ({ isOpen, onClose, lead }) => {
   const [message, setMessage] = useState("");
+  const [messageError, setMessageError] = useState("");
   const [addLeadNote] = useAddLeadNoteMutation();
 
   useEffect(() => {
@@ -43,6 +45,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, lead }) => {
       setMessage(
         `Hi ${name}, this is a follow-up on your ${projectType} inquiry with ThinkCRM. Please let me know if you would like to schedule a site visit or need any more information.\n\nThanks,\nThinkCRM Team`
       );
+      setMessageError("");
     }
   }, [lead]);
 
@@ -53,19 +56,33 @@ const SendWhatsAppModal = ({ isOpen, onClose, lead }) => {
       .replace(/{{name}}/g, name)
       .replace(/{{projectType}}/g, projectType);
     setMessage(formatted);
+    setMessageError("");
   };
 
   const handleSendWhatsApp = async () => {
     if (!lead?.phone) {
-      toast.error("Lead does not have a valid phone number");
-      return;
-    }
-    if (!message.trim()) {
-      toast.error("Message cannot be empty");
+      toast.error("Lead does not have a phone number");
       return;
     }
 
-    // Clean phone number (strip non-digits)
+    const phoneValidation = validatePhone(lead.phone);
+    if (!phoneValidation.isValid) {
+      toast.error(phoneValidation.error || "Lead has an invalid phone number");
+      return;
+    }
+
+    const msgValidation = validateText(message, {
+      required: true,
+      minLength: 2,
+      maxLength: 1000,
+      label: "WhatsApp message",
+    });
+    if (!msgValidation.isValid) {
+      setMessageError(msgValidation.error);
+      return;
+    }
+
+    // Normalized phone without + or special symbols for WhatsApp deep link
     let cleanPhone = lead.phone.replace(/[^0-9]/g, "");
     if (cleanPhone.length === 10) {
       cleanPhone = `91${cleanPhone}`;
@@ -78,7 +95,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, lead }) => {
     try {
       await addLeadNote({
         id: lead._id,
-        content: `WhatsApp message initiated: "${message.slice(0, 100)}..."`,
+        content: `WhatsApp message initiated: "${message.trim()}"`,
       }).unwrap();
     } catch (e) {
       // Non-blocking
@@ -157,11 +174,21 @@ const SendWhatsAppModal = ({ isOpen, onClose, lead }) => {
           </div>
           <textarea
             value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, 1000))}
+            onChange={(e) => {
+              setMessage(e.target.value.slice(0, 1000));
+              if (messageError) setMessageError("");
+            }}
             rows={6}
             placeholder="Type your WhatsApp message or pick a template above..."
-            className="w-full p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none focus:border-emerald-500 transition leading-relaxed"
+            className={`w-full p-3.5 border rounded-xl bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-sm focus:outline-none transition leading-relaxed ${
+              messageError
+                ? "border-rose-400 focus:border-rose-500"
+                : "border-slate-200 dark:border-slate-700 focus:border-emerald-500"
+            }`}
           />
+          {messageError && (
+            <p className="text-xs text-rose-500 mt-1 font-medium">{messageError}</p>
+          )}
         </div>
 
         {/* Footer Actions */}

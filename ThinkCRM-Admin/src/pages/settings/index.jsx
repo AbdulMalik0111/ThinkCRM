@@ -1,8 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Textinput from "@/components/ui/Textinput";
 import Textarea from "@/components/ui/Textarea";
+import PhoneInputWithCountry from "@/components/ui/PhoneInputWithCountry";
+import { validateEmail, validatePhone, focusFirstError } from "@/utils/validation";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useGetSystemSettingsQuery, useUpdateSystemSettingsMutation } from "@/store/api/management/managementApiSlice";
@@ -11,18 +13,48 @@ import Loading from "@/components/Loading";
 const Settings = () => {
   const { data: settingsResponse, isLoading, error } = useGetSystemSettingsQuery();
   const [updateSettings, { isLoading: isUpdating }] = useUpdateSystemSettingsMutation();
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [customErrors, setCustomErrors] = useState({});
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
   useEffect(() => {
     if (settingsResponse?.data?.settings) {
       reset(settingsResponse.data.settings);
+      setCompanyPhone(settingsResponse.data.settings.companyPhone || "");
     }
   }, [settingsResponse, reset]);
 
   const onSubmit = async (data) => {
+    const newErrors = {};
+
+    if (data.companyEmail) {
+      const emailCheck = validateEmail(data.companyEmail, false);
+      if (!emailCheck.isValid) newErrors.companyEmail = emailCheck.error;
+    }
+
+    if (companyPhone) {
+      const phoneCheck = validatePhone(companyPhone, false);
+      if (!phoneCheck.isValid) newErrors.companyPhone = phoneCheck.error;
+    }
+
+    if (data?.emailSettings?.senderEmail) {
+      const senderCheck = validateEmail(data.emailSettings.senderEmail, false);
+      if (!senderCheck.isValid) newErrors.senderEmail = senderCheck.error;
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setCustomErrors(newErrors);
+      focusFirstError(newErrors);
+      return;
+    }
+    setCustomErrors({});
+
     try {
-      await updateSettings(data).unwrap();
+      await updateSettings({
+        ...data,
+        companyPhone: companyPhone ? companyPhone.trim() : null,
+      }).unwrap();
       toast.success("Settings updated successfully");
     } catch (err) {
       toast.error(err?.data?.message || "Failed to update settings");
@@ -65,22 +97,30 @@ const Settings = () => {
               placeholder="ThinkCRM"
               error={errors.companyName}
             />
-            <Textinput
-              name="companyEmail"
-              label="Company Email"
-              type="email"
-              register={register}
-              placeholder="contact@example.com"
-              error={errors.companyEmail}
-            />
-            <Textinput
-              name="companyPhone"
-              label="Company Phone"
-              type="text"
-              register={register}
-              placeholder="+1234567890"
-              error={errors.companyPhone}
-            />
+            <div>
+              <Textinput
+                name="companyEmail"
+                label="Company Email"
+                type="email"
+                register={register}
+                placeholder="contact@example.com"
+                error={customErrors.companyEmail ? { message: customErrors.companyEmail } : errors.companyEmail}
+              />
+            </div>
+            <div>
+              <PhoneInputWithCountry
+                label="Company Phone"
+                value={companyPhone}
+                onChange={(val) => {
+                  setCompanyPhone(val);
+                  if (customErrors.companyPhone) {
+                    setCustomErrors((prev) => ({ ...prev, companyPhone: null }));
+                  }
+                }}
+                error={customErrors.companyPhone}
+                required={false}
+              />
+            </div>
             <div className="md:col-span-2">
               <Textarea
                 name="companyAddress"
@@ -106,13 +146,16 @@ const Settings = () => {
               register={register}
               placeholder="ThinkCRM System"
             />
-            <Textinput
-              name="emailSettings.senderEmail"
-              label="Default Reply-To Email"
-              type="email"
-              register={register}
-              placeholder="no-reply@example.com"
-            />
+            <div>
+              <Textinput
+                name="emailSettings.senderEmail"
+                label="Default Reply-To Email"
+                type="email"
+                register={register}
+                placeholder="no-reply@example.com"
+                error={customErrors.senderEmail ? { message: customErrors.senderEmail } : null}
+              />
+            </div>
           </div>
         </Card>
 

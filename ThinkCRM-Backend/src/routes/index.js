@@ -20,6 +20,7 @@ router.get('/health', (req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/staff', userRoutes);
+router.use('/users', userRoutes);
 router.use('/leads', leadRoutes);
 router.use('/follow-ups', followupRoutes);
 router.use('/notifications', notificationRoutes);

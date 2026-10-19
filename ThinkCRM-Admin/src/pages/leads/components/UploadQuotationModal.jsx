@@ -4,6 +4,7 @@ import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useCreateQuotationMutation } from "@/store/api/interactions/interactionsApiSlice";
+import { validateNumber, focusFirstError } from "@/utils/validation";
 
 const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
   const [createQuotation, { isLoading }] = useCreateQuotationMutation();
@@ -41,14 +42,23 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.amount || isNaN(formData.amount) || Number(formData.amount) <= 0) {
-      newErrors.amount = "Please enter a valid amount";
+    const amountVal = validateNumber(formData.amount, {
+      required: true,
+      min: 1,
+      label: "Quotation Amount",
+    });
+    if (!amountVal.isValid) {
+      newErrors.amount = amountVal.error;
     }
     if (!formData.file) {
       newErrors.file = "Please select a quotation document (PDF or image)";
     }
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors);
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e) => {

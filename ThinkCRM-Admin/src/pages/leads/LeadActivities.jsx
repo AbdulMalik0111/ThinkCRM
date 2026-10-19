@@ -185,6 +185,43 @@ const formatDescription = (desc) => {
   );
 };
 
+const getActivityText = (activity) => {
+  if (!activity) return "";
+  // Prioritize full content from metadata if available
+  if (activity.metadata?.content && (activity.type === "note_added" || activity.type === "customer_note_added")) {
+    return `Note added: "${activity.metadata.content}"`;
+  }
+  if (activity.metadata?.message && (activity.type === "customer_whatsapp_sent" || activity.type === "lead_whatsapp_sent" || activity.type === "whatsapp_sent")) {
+    return activity.description || `WhatsApp message initiated: "${activity.metadata.message}"`;
+  }
+  return activity.description || "";
+};
+
+const TimelineText = ({ text }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+
+  const isLong = text.length > 360;
+  const displayText = isLong && !expanded ? `${text.slice(0, 340)}...` : text;
+
+  return (
+    <div>
+      <p className="text-[13px] text-slate-600 dark:text-slate-300 font-normal leading-relaxed whitespace-pre-wrap break-words">
+        {displayText}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 mt-1 inline-flex items-center gap-1 hover:underline cursor-pointer"
+        >
+          {expanded ? "Show less" : "Read full text →"}
+        </button>
+      )}
+    </div>
+  );
+};
+
 const getPerformer = (performedBy) => {
   if (!performedBy) return { name: "Think Admin", initials: "TA", avatar: null };
   const name = `${performedBy.firstName || ""} ${performedBy.lastName || ""}`.trim() || performedBy.name || "Think Admin";
@@ -355,9 +392,7 @@ const LeadActivities = ({ leadId }) => {
                   </div>
 
                   {/* Card Description */}
-                  <p className="text-[13px] text-slate-600 dark:text-slate-300 font-normal leading-relaxed">
-                    {formatDescription(activity.description)}
-                  </p>
+                  <TimelineText text={formatDescription(getActivityText(activity))} />
 
                   {/* Card Footer: Performer meta & exact timestamp */}
                   <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">

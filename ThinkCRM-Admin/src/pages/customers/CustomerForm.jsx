@@ -9,6 +9,8 @@ import {
   useGetCustomerByIdQuery,
 } from "@/store/api/customers/customersApiSlice";
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
+import PhoneInputWithCountry from "@/components/ui/PhoneInputWithCountry";
+import { validatePhone, validateEmail, validateText, validateNumber, focusFirstError } from "@/utils/validation";
 
 const TAB_ITEMS = [
   { id: "basic", label: "Basic Information", icon: "heroicons-outline:user" },
@@ -87,6 +89,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
 
   const [newTagInput, setNewTagInput] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
+  const [errors, setErrors] = useState({});
 
   // Sync initial data or loaded customer
   useEffect(() => {
@@ -145,6 +148,9 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       }
       return updated;
     });
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
+    }
   };
 
   // Avatar upload
@@ -194,20 +200,50 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.fullName.trim()) {
-      toast.error("Full Name is required");
-      setActiveTab("basic");
-      return;
+    const newErrors = {};
+
+    const nameRes = validateText(formData.fullName, { required: true, fieldName: "Full Name", min: 2, max: 100 });
+    if (!nameRes.isValid) newErrors.fullName = nameRes.error;
+
+    const phoneRes = validatePhone(formData.phone, { required: true });
+    if (!phoneRes.isValid) newErrors.phone = phoneRes.error;
+
+    if (formData.alternatePhone) {
+      const altRes = validatePhone(formData.alternatePhone, { required: false });
+      if (!altRes.isValid) newErrors.alternatePhone = altRes.error;
     }
-    if (!formData.phone.trim()) {
-      toast.error("Primary Phone is required");
-      setActiveTab("basic");
+
+    if (formData.email) {
+      const emailRes = validateEmail(formData.email, { required: false });
+      if (!emailRes.isValid) newErrors.email = emailRes.error;
+    }
+
+    if (formData.totalValue) {
+      const valRes = validateNumber(formData.totalValue, { required: false, min: 0, fieldName: "Budget / Total Value" });
+      if (!valRes.isValid) newErrors.totalValue = valRes.error;
+    }
+
+    if (formData.expectedStartDate && formData.expectedCompletionDate) {
+      if (new Date(formData.expectedCompletionDate) < new Date(formData.expectedStartDate)) {
+        newErrors.expectedCompletionDate = "Completion date cannot be before start date";
+      }
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      if (newErrors.fullName || newErrors.phone || newErrors.alternatePhone || newErrors.email) {
+        setActiveTab("basic");
+      } else if (newErrors.totalValue || newErrors.expectedCompletionDate) {
+        setActiveTab("project");
+      }
+      focusFirstError(newErrors, ["fullName", "phone", "email", "totalValue"]);
       return;
     }
 
     const payload = {
       fullName: formData.fullName.trim(),
-      phone: formData.phone.trim(),
+      phone: phoneRes.formatted || formData.phone.trim(),
       email: formData.email.trim() || undefined,
       alternatePhone: formData.alternatePhone.trim() || undefined,
       source: formData.source,
@@ -391,23 +427,23 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                       value={formData.fullName}
                       onChange={handleChange}
                       placeholder="e.g. Rahul Sharma"
-                      className="form-control text-sm"
+                      className={`form-control text-sm ${errors.fullName ? "border-rose-400 focus:border-rose-500" : ""}`}
                       required
                     />
+                    {errors.fullName && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.fullName}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                      Phone <span className="text-danger-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="+91 9876543210"
-                      className="form-control text-sm"
+                    <PhoneInputWithCountry
+                      label="Primary Phone"
                       required
+                      value={formData.phone}
+                      onChange={(val) => {
+                        setFormData((prev) => ({ ...prev, phone: val }));
+                        if (errors.phone) setErrors((prev) => ({ ...prev, phone: null }));
+                      }}
+                      error={errors.phone}
+                      name="phone"
                     />
                   </div>
 
@@ -421,21 +457,21 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="rahul@example.com"
-                      className="form-control text-sm"
+                      className={`form-control text-sm ${errors.email ? "border-rose-400 focus:border-rose-500" : ""}`}
                     />
+                    {errors.email && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.email}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
-                      Alternate Phone
-                    </label>
-                    <input
-                      type="text"
-                      name="alternatePhone"
+                    <PhoneInputWithCountry
+                      label="Alternate Phone"
                       value={formData.alternatePhone}
-                      onChange={handleChange}
-                      placeholder="+91 9876543211"
-                      className="form-control text-sm"
+                      onChange={(val) => {
+                        setFormData((prev) => ({ ...prev, alternatePhone: val }));
+                        if (errors.alternatePhone) setErrors((prev) => ({ ...prev, alternatePhone: null }));
+                      }}
+                      error={errors.alternatePhone}
+                      name="alternatePhone"
                     />
                   </div>
 
@@ -625,8 +661,10 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                       value={formData.totalValue}
                       onChange={handleChange}
                       placeholder="500000"
-                      className="form-control text-sm"
+                      min="0"
+                      className={`form-control text-sm ${errors.totalValue ? "border-rose-400 focus:border-rose-500" : ""}`}
                     />
+                    {errors.totalValue && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.totalValue}</p>}
                   </div>
 
                   <div>

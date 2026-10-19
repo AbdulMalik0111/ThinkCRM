@@ -64,3 +64,38 @@ export const deleteUser = async (req, res, next) => {
     next(error);
   }
 };
+
+export const resetPassword = async (req, res, next) => {
+  try {
+    const result = await userService.resetPassword(req.params.id, req.body?.password || req.body?.tempPassword);
+    res.status(200).json({
+      success: true,
+      message: 'Staff password reset successfully',
+      data: {
+        tempPassword: result.tempPassword,
+        user: {
+          _id: result.user._id,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          email: result.user.email,
+          role: result.user.role,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getStaffActivity = async (req, res, next) => {
+  try {
+    const activity = await userService.getStaffActivity(req.params.id, req.query);
+    res.status(200).json({
+      success: true,
+      message: 'Staff activity fetched successfully',
+      data: { activity },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

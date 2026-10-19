@@ -1,4 +1,5 @@
 import * as customerService from '../services/customer.service.js';
+import * as quotationService from '../services/quotation.service.js';
 
 export const createCustomer = async (req, res, next) => {
   try {
@@ -82,6 +83,24 @@ export const addCustomerNote = async (req, res, next) => {
   }
 };
 
+export const updateCustomerNote = async (req, res, next) => {
+  try {
+    const notes = await customerService.updateCustomerNote(
+      req.params.id,
+      req.params.noteId,
+      req.body,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: 'Note updated successfully',
+      data: { notes },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteCustomerNote = async (req, res, next) => {
   try {
     const notes = await customerService.deleteCustomerNote(req.params.id, req.params.noteId, req.user._id);
@@ -151,6 +170,66 @@ export const createCustomerFollowUp = async (req, res, next) => {
   }
 };
 
+export const updateCustomerFollowUp = async (req, res, next) => {
+  try {
+    const followUp = await customerService.updateCustomerFollowUp(
+      req.params.id,
+      req.params.followUpId,
+      req.body,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: 'Follow-up updated successfully',
+      data: { followUp },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCustomerFollowUp = async (req, res, next) => {
+  try {
+    const result = await customerService.deleteCustomerFollowUp(
+      req.params.id,
+      req.params.followUpId,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logCustomerCall = async (req, res, next) => {
+  try {
+    const activity = await customerService.logCustomerCall(req.params.id, req.body, req.user._id);
+    res.status(201).json({
+      success: true,
+      message: 'Call logged successfully',
+      data: { activity },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logCustomerWhatsApp = async (req, res, next) => {
+  try {
+    const activity = await customerService.logCustomerWhatsApp(req.params.id, req.body, req.user._id);
+    res.status(201).json({
+      success: true,
+      message: 'WhatsApp interaction recorded',
+      data: { activity },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const sendCustomerEmail = async (req, res, next) => {
   try {
     const result = await customerService.sendCustomerEmail(req.params.id, req.body, req.user._id);
@@ -164,18 +243,82 @@ export const sendCustomerEmail = async (req, res, next) => {
   }
 };
 
-export const updateCustomerNote = async (req, res, next) => {
+export const createCustomerQuotation = async (req, res, next) => {
   try {
-    const notes = await customerService.updateCustomerNote(
+    const quotation = await quotationService.createCustomerQuotation(
       req.params.id,
-      req.params.noteId,
       req.body,
+      req.file,
+      req.user._id
+    );
+    res.status(201).json({
+      success: true,
+      message: 'Quotation uploaded successfully',
+      data: { quotation },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const sendCustomerQuotation = async (req, res, next) => {
+  try {
+    const quotation = await quotationService.sendQuotation(
+      req.params.id,
+      req.params.quotationId,
       req.user._id
     );
     res.status(200).json({
       success: true,
-      message: 'Note updated successfully',
-      data: { notes },
+      message: 'Quotation sent to customer successfully',
+      data: { quotation },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCustomerQuotation = async (req, res, next) => {
+  try {
+    const result = await quotationService.deleteQuotation(
+      req.params.id,
+      req.params.quotationId,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getDuplicateCustomers = async (req, res, next) => {
+  try {
+    const duplicates = await customerService.getDuplicateCustomers();
+    res.status(200).json({
+      success: true,
+      message: 'Duplicate check completed',
+      data: { duplicates },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resolveDuplicateCustomers = async (req, res, next) => {
+  try {
+    const { primaryCustomerId, duplicateCustomerIds } = req.body;
+    const result = await customerService.resolveDuplicateCustomers(
+      primaryCustomerId,
+      duplicateCustomerIds,
+      req.user._id
+    );
+    res.status(200).json({
+      success: true,
+      message: `Successfully merged ${result.mergedCount} customer record(s)`,
+      data: result,
     });
   } catch (error) {
     next(error);

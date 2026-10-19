@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
 import { toast } from "react-toastify";
 import { useAddCustomerProjectMutation } from "@/store/api/customers/customersApiSlice";
 import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
+import { validateText, validateNumber, focusFirstError } from "@/utils/validation";
 import dayjs from "dayjs";
 
 const AddProjectModal = ({ isOpen, onClose, customerId }) => {
@@ -15,18 +17,67 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
   const [completionDate, setCompletionDate] = useState("");
   const [description, setDescription] = useState("");
   const [assignedStaff, setAssignedStaff] = useState("");
+  const [errors, setErrors] = useState({});
 
   const { data: staffData } = useGetStaffQuery({ limit: 100 });
   const staffList = staffData?.data?.users || staffData?.data?.staff || [];
 
   const [addCustomerProject, { isLoading }] = useAddCustomerProjectMutation();
 
+  const handleFieldChange = (setter, field) => (e) => {
+    setter(e.target.value);
+    if (errors[field]) {
+      setErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[field];
+        return updated;
+      });
+    }
+  };
+
+  const validate = () => {
+    const newErrors = {};
+
+    const nameVal = validateText(projectName, {
+      required: true,
+      minLength: 2,
+      maxLength: 150,
+      label: "Project Name",
+    });
+    if (!nameVal.isValid) newErrors.projectName = nameVal.error;
+
+    if (!projectType || !projectType.trim()) {
+      newErrors.projectType = "Please select a project type";
+    }
+
+    if (budget !== "" && budget !== null && budget !== undefined) {
+      const budgetVal = validateNumber(budget, {
+        required: false,
+        min: 0,
+        label: "Budget",
+      });
+      if (!budgetVal.isValid) newErrors.budget = budgetVal.error;
+    }
+
+    if (startDate && completionDate && dayjs(completionDate).isBefore(dayjs(startDate))) {
+      newErrors.completionDate = "Target completion date cannot be before start date";
+    }
+
+    if (description && description.length > 3000) {
+      newErrors.description = "Description cannot exceed 3000 characters";
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstError(newErrors);
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!projectName.trim() || !projectType.trim()) {
-      toast.error("Project name and type are required");
-      return;
-    }
+    if (!validate()) return;
 
     try {
       await addCustomerProject({
@@ -34,7 +85,7 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
         projectData: {
           projectName: projectName.trim(),
           projectType: projectType.trim(),
-          budget: Number(budget) || 0,
+          budget: budget ? Number(budget) : 0,
           status,
           startDate: startDate ? new Date(startDate) : new Date(),
           completionDate: completionDate ? new Date(completionDate) : undefined,
@@ -44,6 +95,7 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
       }).unwrap();
 
       toast.success("Project added successfully!");
+      setErrors({});
       onClose();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to add project");
@@ -64,13 +116,20 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               Project Name <span className="text-danger-500">*</span>
             </label>
             <input
+              id="projectName"
               type="text"
               value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              onChange={handleFieldChange(setProjectName, "projectName")}
               placeholder="e.g. Master Bedroom Wardrobe & Vanity"
-              className="w-full h-11 px-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
-              required
+              className={`w-full h-11 px-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
+                errors.projectName
+                  ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                  : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+              }`}
             />
+            {errors.projectName && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.projectName}</p>
+            )}
           </div>
 
           <div>
@@ -78,10 +137,14 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               Project Type <span className="text-danger-500">*</span>
             </label>
             <select
+              id="projectType"
               value={projectType}
-              onChange={(e) => setProjectType(e.target.value)}
-              className="w-full h-11 px-3.5 pr-10 text-sm font-semibold border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition cursor-pointer"
-              required
+              onChange={handleFieldChange(setProjectType, "projectType")}
+              className={`w-full h-11 px-3.5 pr-10 text-sm font-semibold border rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 transition cursor-pointer ${
+                errors.projectType
+                  ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                  : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+              }`}
             >
               <option value="Modular Kitchen">Modular Kitchen</option>
               <option value="Wardrobe">Wardrobe</option>
@@ -91,6 +154,9 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               <option value="Renovation">Renovation</option>
               <option value="Other">Other</option>
             </select>
+            {errors.projectType && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.projectType}</p>
+            )}
           </div>
 
           <div>
@@ -98,12 +164,22 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               Budget (₹)
             </label>
             <input
+              id="budget"
               type="number"
+              min="0"
+              step="any"
               value={budget}
-              onChange={(e) => setBudget(e.target.value)}
+              onChange={handleFieldChange(setBudget, "budget")}
               placeholder="e.g. 350000"
-              className="w-full h-11 px-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+              className={`w-full h-11 px-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
+                errors.budget
+                  ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                  : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+              }`}
             />
+            {errors.budget && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.budget}</p>
+            )}
           </div>
 
           <div>
@@ -157,11 +233,19 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               Target Completion
             </label>
             <input
+              id="completionDate"
               type="date"
               value={completionDate}
-              onChange={(e) => setCompletionDate(e.target.value)}
-              className="w-full h-11 px-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+              onChange={handleFieldChange(setCompletionDate, "completionDate")}
+              className={`w-full h-11 px-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
+                errors.completionDate
+                  ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                  : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+              }`}
             />
+            {errors.completionDate && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.completionDate}</p>
+            )}
           </div>
 
           <div className="sm:col-span-2">
@@ -169,12 +253,20 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
               Description / Scope
             </label>
             <textarea
+              id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={handleFieldChange(setDescription, "description")}
               rows={3}
               placeholder="Provide brief scope details, finishes, and requirements..."
-              className="w-full min-h-[96px] p-3.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition resize-y"
+              className={`w-full min-h-[96px] p-3.5 text-sm font-medium border rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 transition resize-y ${
+                errors.description
+                  ? "border-rose-400 focus:ring-rose-500/20 focus:border-rose-500"
+                  : "border-slate-300 dark:border-slate-600 focus:ring-primary-500/20 focus:border-primary-500"
+              }`}
             />
+            {errors.description && (
+              <p className="text-xs text-rose-500 mt-1 font-medium">{errors.description}</p>
+            )}
           </div>
         </div>
 
@@ -189,7 +281,7 @@ const AddProjectModal = ({ isOpen, onClose, customerId }) => {
           </button>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 cursor-pointer"
             disabled={isLoading}
           >
             {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}

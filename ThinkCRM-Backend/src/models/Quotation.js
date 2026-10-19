@@ -10,8 +10,14 @@ const quotationSchema = new mongoose.Schema(
     leadId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Lead',
-      required: true,
+      required: false,
       index: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Customer',
+      index: true,
+      default: null,
     },
     customerName: {
       type: String,

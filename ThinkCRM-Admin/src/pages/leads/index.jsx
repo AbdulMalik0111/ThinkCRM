@@ -20,10 +20,13 @@ import SendWhatsAppModal from "./components/SendWhatsAppModal";
 import SendEmailModal from "./components/SendEmailModal";
 import AddMeasurementModal from "./components/AddMeasurementModal";
 import UploadQuotationModal from "./components/UploadQuotationModal";
+import ImportLeadModal from "./components/ImportLeadModal";
 import { LeadStatusBadge, LeadSourceBadge } from "./components/LeadStatusBadge";
+import store from "@/store";
 
 // API Hooks
 import {
+  leadsApi,
   useGetLeadsQuery,
   useGetLeadStatsQuery,
   useUpdateLeadMutation,
@@ -291,6 +294,8 @@ const Leads = () => {
 
   // Modals State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [followUpLead, setFollowUpLead] = useState(null);
   const [convertingLead, setConvertingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
@@ -438,48 +443,116 @@ const Leads = () => {
     }
   };
 
-  const handleExportSelected = () => {
-    if (selectedLeads.length === 0) return;
-    const headers = [
-      "ID",
-      "Customer Name",
-      "Phone",
-      "Email",
-      "Project Type",
-      "Status",
-      "Measurement",
-      "Quotation",
-      "Source",
-      "Assigned To",
-      "Last Follow-up",
-      "Next Follow-up",
-    ];
-    const rows = selectedLeads.map((l) => [
-      l.leadId || l._id,
-      `"${l.fullName || ""}"`,
-      `"${l.phone || ""}"`,
-      `"${l.email || ""}"`,
-      `"${l.projectType || ""}"`,
-      l.status || "",
-      l.measurementStatus || "not_done",
-      l.quotationStatus || "pending",
-      l.leadSource || "",
-      `"${l.assignedTo?.firstName || ""} ${l.assignedTo?.lastName || ""}"`.trim(),
-      l.lastFollowUp?.scheduledAt ? dayjs(l.lastFollowUp.scheduledAt).format("YYYY-MM-DD") : "",
-      l.nextFollowUp?.scheduledAt ? dayjs(l.nextFollowUp.scheduledAt).format("YYYY-MM-DD HH:mm") : "",
-    ]);
+  // Full dataset or selected CSV Export handler
+  const handleExportLeads = async () => {
+    try {
+      setIsExporting(true);
+      let leadsToExport = [];
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `ThinkCRM_Leads_Export_${dayjs().format("YYYYMMDD_HHmmss")}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Leads exported to CSV");
+      if (selectedLeadIds.size > 0) {
+        // Export selected rows from current leads
+        leadsToExport = leads.filter((l) => selectedLeadIds.has(l._id));
+      } else {
+        // Fetch all matching records from backend respecting current filters
+        const exportParams = {
+          page: 1,
+          limit: 10000,
+          ...(searchTerm && { search: searchTerm }),
+          ...(sourceFilter !== "all" && { source: sourceFilter }),
+          ...(statusFilter !== "all" && { status: statusFilter }),
+          ...(staffFilter !== "all" && { assignedTo: staffFilter }),
+          ...(dateRange[0] && { startDate: dateRange[0].toISOString() }),
+          ...(dateRange[1] && { endDate: dateRange[1].toISOString() }),
+        };
+
+        const result = await store
+          .dispatch(
+            leadsApi.endpoints.getLeads.initiate(exportParams, { forceRefetch: true })
+          )
+          .unwrap();
+
+        leadsToExport = result?.data?.leads || [];
+      }
+
+      if (leadsToExport.length === 0) {
+        toast.info("No lead records available to export with current filters.");
+        return;
+      }
+
+      const headers = [
+        "Lead ID",
+        "Customer Name",
+        "Phone",
+        "Email",
+        "Project Type",
+        "Status",
+        "Measurement Status",
+        "Quotation Status",
+        "Lead Source",
+        "Priority",
+        "Budget",
+        "City",
+        "Address",
+        "Assigned Staff",
+        "Last Follow-up",
+        "Next Follow-up",
+        "Created Date",
+      ];
+
+      const escapeCSV = (val) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = leadsToExport.map((l) => [
+        escapeCSV(l.leadId || l._id),
+        escapeCSV(l.fullName || ""),
+        escapeCSV(l.phone || ""),
+        escapeCSV(l.email || ""),
+        escapeCSV(l.projectType || ""),
+        escapeCSV(l.status || "new"),
+        escapeCSV(l.measurementStatus || "not_done"),
+        escapeCSV(l.quotationStatus || "pending"),
+        escapeCSV(l.leadSource || ""),
+        escapeCSV(l.priority || "medium"),
+        escapeCSV(l.budget ? `₹${Number(l.budget).toLocaleString("en-IN")}` : l.budgetRange || ""),
+        escapeCSV(l.city || ""),
+        escapeCSV(l.address || ""),
+        escapeCSV(
+          l.assignedTo
+            ? `${l.assignedTo.firstName || ""} ${l.assignedTo.lastName || ""}`.trim() || l.assignedTo.email || ""
+            : "Unassigned"
+        ),
+        escapeCSV(
+          l.lastFollowUp?.scheduledAt
+            ? dayjs(l.lastFollowUp.scheduledAt).format("YYYY-MM-DD")
+            : ""
+        ),
+        escapeCSV(
+          l.nextFollowUp?.scheduledAt
+            ? dayjs(l.nextFollowUp.scheduledAt).format("YYYY-MM-DD HH:mm")
+            : ""
+        ),
+        escapeCSV(dayjs(l.createdAt).format("YYYY-MM-DD")),
+      ]);
+
+      const csvContent =
+        "data:text/csv;charset=utf-8,\uFEFF" +
+        [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `thinkcrm-leads-${dayjs().format("YYYY-MM-DD")}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${leadsToExport.length} lead${leadsToExport.length > 1 ? "s" : ""} to CSV`);
+    } catch (err) {
+      toast.error(err?.message || "Failed to export leads");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // DataGrid Column Definitions matching the rest of ThinkCRM
@@ -971,8 +1044,33 @@ const Leads = () => {
           </p>
         </div>
 
-        {/* Top Right Action Button */}
-        <div>
+        {/* Top Right Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Import Leads Button */}
+          <button
+            type="button"
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[13.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
+          >
+            <Icon icon="heroicons-outline:arrow-up-tray" className="text-base text-slate-500" />
+            <span>Import Leads</span>
+          </button>
+
+          {/* Export Leads Button */}
+          <button
+            type="button"
+            onClick={handleExportLeads}
+            disabled={isExporting}
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[13.5px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition disabled:opacity-60 cursor-pointer"
+          >
+            <Icon
+              icon={isExporting ? "heroicons-outline:arrow-path" : "heroicons-outline:arrow-down-tray"}
+              className={`text-base text-slate-500 ${isExporting ? "animate-spin" : ""}`}
+            />
+            <span>{isExporting ? "Exporting..." : "Export Leads"}</span>
+          </button>
+
+          {/* Add Lead Button */}
           <button
             type="button"
             onClick={() => setIsAddModalOpen(true)}
@@ -1219,11 +1317,15 @@ const Leads = () => {
               {/* Export Selected */}
               <button
                 type="button"
-                onClick={handleExportSelected}
-                className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[12.5px] font-semibold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                onClick={handleExportLeads}
+                disabled={isExporting}
+                className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 hover:border-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[12.5px] font-semibold text-slate-700 dark:text-slate-200 transition cursor-pointer disabled:opacity-60"
               >
-                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm text-slate-500" />
-                <span>Export</span>
+                <Icon
+                  icon={isExporting ? "heroicons-outline:arrow-path" : "heroicons-outline:arrow-down-tray"}
+                  className={`text-sm text-slate-500 ${isExporting ? "animate-spin" : ""}`}
+                />
+                <span>{isExporting ? "Exporting..." : "Export"}</span>
               </button>
 
               {/* Bulk Delete */}
@@ -1347,6 +1449,16 @@ const Leads = () => {
         isOpen={Boolean(quotationLead)}
         lead={quotationLead}
         onClose={() => setQuotationLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
+      />
+
+      {/* 9. Import Leads via CSV Modal */}
+      <ImportLeadModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {
           refetchLeads();
           refetchStats();

@@ -13,6 +13,10 @@ import {
   useUpdateCustomerNoteMutation,
   useDeleteCustomerNoteMutation,
   useDeleteCustomerDocumentMutation,
+  useUpdateCustomerFollowUpMutation,
+  useDeleteCustomerFollowUpMutation,
+  useSendCustomerQuotationMutation,
+  useDeleteCustomerQuotationMutation,
 } from "@/store/api/customers/customersApiSlice";
 
 // Modals
@@ -21,6 +25,9 @@ import SendWhatsAppModal from "./SendWhatsAppModal";
 import ScheduleFollowUpModal from "./ScheduleFollowUpModal";
 import AddProjectModal from "./AddProjectModal";
 import UploadDocumentModal from "./UploadDocumentModal";
+import UploadCustomerQuotationModal from "./UploadCustomerQuotationModal";
+import LogCallModal from "./LogCallModal";
+import CustomerActivities from "./CustomerActivities";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import Modal from "@/components/ui/Modal";
 
@@ -83,6 +90,8 @@ const CustomerView = () => {
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isDocumentModalOpen, setIsDocumentModalOpen] = useState(false);
+  const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
+  const [isLogCallModalOpen, setIsLogCallModalOpen] = useState(false);
 
   // Customer Deletion State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -106,6 +115,14 @@ const CustomerView = () => {
     isLoading: false,
   });
 
+  // Quotation deletion state
+  const [deleteQuoteConfirm, setDeleteQuoteConfirm] = useState({
+    isOpen: false,
+    quoteId: null,
+    quoteNumber: "",
+    isLoading: false,
+  });
+
   // RTK Query
   const { data, isLoading, isError, refetch } = useGetCustomerByIdQuery(id);
   const [deleteCustomer] = useDeleteCustomerMutation();
@@ -113,6 +130,10 @@ const CustomerView = () => {
   const [updateCustomerNote, { isLoading: isUpdatingNote }] = useUpdateCustomerNoteMutation();
   const [deleteCustomerNote] = useDeleteCustomerNoteMutation();
   const [deleteCustomerDocument] = useDeleteCustomerDocumentMutation();
+  const [updateCustomerFollowUp] = useUpdateCustomerFollowUpMutation();
+  const [deleteCustomerFollowUp] = useDeleteCustomerFollowUpMutation();
+  const [sendCustomerQuotation, { isLoading: isSendingQuotation }] = useSendCustomerQuotationMutation();
+  const [deleteCustomerQuotation] = useDeleteCustomerQuotationMutation();
 
   const handleConfirmDeleteCustomer = async () => {
     try {
@@ -124,6 +145,58 @@ const CustomerView = () => {
     } catch (err) {
       toast.error(err?.data?.message || "Failed to delete customer");
       setIsDeletingCustomer(false);
+    }
+  };
+
+  const handleSendQuotation = async (quotationId) => {
+    try {
+      await sendCustomerQuotation(quotationId).unwrap();
+      toast.success("Quotation sent to customer email successfully!");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to send quotation");
+    }
+  };
+
+  const handleConfirmDeleteQuotation = async () => {
+    if (!deleteQuoteConfirm.quoteId) return;
+    try {
+      setDeleteQuoteConfirm((prev) => ({ ...prev, isLoading: true }));
+      await deleteCustomerQuotation(deleteQuoteConfirm.quoteId).unwrap();
+      toast.success("Quotation deleted successfully");
+      setDeleteQuoteConfirm({ isOpen: false, quoteId: null, quoteNumber: "", isLoading: false });
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to delete quotation");
+      setDeleteQuoteConfirm((prev) => ({ ...prev, isLoading: false }));
+    }
+  };
+
+  const handleCompleteFollowUp = async (followUpId) => {
+    try {
+      await updateCustomerFollowUp({
+        customerId: id,
+        followUpId,
+        data: { status: "completed", outcome: "interested" },
+      }).unwrap();
+      toast.success("Follow-up marked as completed");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update follow-up");
+    }
+  };
+
+  const handleCancelFollowUp = async (followUpId) => {
+    try {
+      await updateCustomerFollowUp({
+        customerId: id,
+        followUpId,
+        data: { status: "cancelled", notes: "Cancelled by staff" },
+      }).unwrap();
+      toast.success("Follow-up cancelled");
+      refetch();
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to cancel follow-up");
     }
   };
 
@@ -200,7 +273,16 @@ const CustomerView = () => {
     );
   }
 
-  const { customer, quotations = [], followUps = [], activities = [] } = data.data;
+  const {
+    customer,
+    leads = [],
+    projects = customer?.projects || [],
+    quotations = [],
+    followUps = [],
+    documents = customer?.documents || [],
+    notes = customer?.notes || [],
+    activities = [],
+  } = data.data;
 
   // Helpers
   const formatCurrency = (amt) => {
@@ -247,7 +329,6 @@ const CustomerView = () => {
   };
 
   // Projects calculations
-  const projects = customer.projects || [];
   const activeProjectsCount = projects.filter((p) => p.status === "active" || p.status === "in_progress").length;
   const completedProjectsCount = projects.filter((p) => p.status === "completed").length;
   const totalCustomerValue = customer.totalValue || projects.reduce((acc, p) => acc + (p.budget || 0), 0);
@@ -392,6 +473,23 @@ const CustomerView = () => {
                     {({ active }) => (
                       <button
                         type="button"
+                        onClick={() => setIsLogCallModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300"
+                            : "text-slate-700 dark:text-slate-200 hover:text-cyan-600"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:phone-arrow-up-right" className="text-base text-cyan-600 dark:text-cyan-400" />
+                        <span>Log Call Interaction</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
                         onClick={() => setIsWhatsAppModalOpen(true)}
                         className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
                           active
@@ -418,6 +516,40 @@ const CustomerView = () => {
                       >
                         <Icon icon="heroicons-outline:envelope" className="text-base text-primary-600 dark:text-primary-400" />
                         <span>Send Email</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsQuotationModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"
+                            : "text-slate-700 dark:text-slate-200 hover:text-amber-600"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:document-arrow-up" className="text-base text-amber-600 dark:text-amber-400" />
+                        <span>Upload Quotation</span>
+                      </button>
+                    )}
+                  </MenuItem>
+
+                  <MenuItem>
+                    {({ active }) => (
+                      <button
+                        type="button"
+                        onClick={() => setIsFollowUpModalOpen(true)}
+                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-xl transition ${
+                          active
+                            ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                            : "text-slate-700 dark:text-slate-200 hover:text-blue-600"
+                        }`}
+                      >
+                        <Icon icon="heroicons-outline:calendar" className="text-base text-blue-600 dark:text-blue-400" />
+                        <span>Schedule Follow-up</span>
                       </button>
                     )}
                   </MenuItem>
@@ -553,11 +685,11 @@ const CustomerView = () => {
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
                 Quick Actions
               </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 <button
                   type="button"
                   onClick={() => setIsProjectModalOpen(true)}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
                   <Icon icon="heroicons-outline:briefcase" className="text-primary-500 text-base" />
                   <span>Add Project</span>
@@ -565,27 +697,109 @@ const CustomerView = () => {
                 <button
                   type="button"
                   onClick={() => setIsFollowUpModalOpen(true)}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
                   <Icon icon="heroicons-outline:calendar" className="text-blue-500 text-base" />
-                  <span>Schedule Follow-up</span>
+                  <span>Follow-up</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsDocumentModalOpen(true)}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
+                  onClick={() => setIsQuotationModalOpen(true)}
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-emerald-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
-                  <Icon icon="heroicons-outline:arrow-up-tray" className="text-emerald-500 text-base" />
-                  <span>Upload Document</span>
+                  <Icon icon="heroicons-outline:document-arrow-up" className="text-emerald-500 text-base" />
+                  <span>Quotation</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLogCallModalOpen(true)}
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-cyan-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-cyan-600 transition bg-slate-50/50 dark:bg-slate-900/40"
+                >
+                  <Icon icon="heroicons-outline:phone-arrow-up-right" className="text-cyan-500 text-base" />
+                  <span>Log Call</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("notes")}
-                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-primary-600 transition bg-slate-50/50 dark:bg-slate-900/40"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-purple-400 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-purple-600 transition bg-slate-50/50 dark:bg-slate-900/40"
                 >
                   <Icon icon="heroicons-outline:pencil-square" className="text-purple-500 text-base" />
                   <span>Add Note</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Connected Leads Card - Direct access to all leads under this unique customer */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                    <Icon icon="heroicons-outline:user-group" className="text-base" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      Connected Leads & Inquiries ({leads.length})
+                    </h4>
+                  </div>
+                </div>
+                <span className="text-[11px] font-medium text-slate-400">
+                  Unique verified customer profile
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {leads.map((ld) => {
+                  const assignedName = ld.assignedTo
+                    ? `${ld.assignedTo.firstName || ""} ${ld.assignedTo.lastName || ""}`.trim() ||
+                      ld.assignedTo.name ||
+                      "Staff"
+                    : "Unassigned";
+
+                  return (
+                    <div
+                      key={ld._id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 hover:border-primary-300 dark:hover:border-primary-700 transition gap-3"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                            {ld.leadId || "LD-NEW"}
+                          </span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                            {ld.projectType || "General Requirement"}
+                          </span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
+                            {ld.status ? ld.status.replace("_", " ") : "New"}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                          <span>
+                            Budget: <strong className="text-slate-800 dark:text-slate-200">{formatCurrency(ld.budget || 0)}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>Created: {dayjs(ld.createdAt).format("MMM D, YYYY")}</span>
+                          <span>•</span>
+                          <span>Assigned: {assignedName}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/leads/${ld._id}`)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-semibold text-primary-600 dark:text-primary-400 transition self-start sm:self-auto flex-shrink-0 cursor-pointer"
+                      >
+                        <span>Open Lead</span>
+                        <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-sm" />
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {leads.length === 0 && (
+                  <div className="text-center py-6 text-slate-400 text-xs">
+                    No leads linked to this customer record.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -708,12 +922,12 @@ const CustomerView = () => {
             {/* Project Summary Card - Real Metrics Only */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700">
-                Project Summary
+                Relationship Summary
               </h4>
-              <div className="space-y-3.5 text-xs">
+              <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-medium">Total Projects</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{projects.length}</span>
+                  <span className="text-slate-500 font-medium">Connected Leads</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{leads.length}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Active Projects</span>
@@ -722,6 +936,16 @@ const CustomerView = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Completed Projects</span>
                   <span className="font-bold text-slate-800 dark:text-slate-200">{completedProjectsCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Quotations</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{quotations.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Pending Follow-ups</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    {followUps.filter((f) => f.status === "pending" || !f.status).length}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
                   <span className="text-slate-500 font-semibold">Total Pipeline Value</span>
@@ -790,7 +1014,7 @@ const CustomerView = () => {
                               {dayjs(act.createdAt).format("MMM D, YYYY")}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2 mt-0.5">
+                          <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap break-words mt-0.5">
                             {act.description}
                           </p>
                           <span className="text-[10px] text-slate-400 block mt-1">
@@ -887,9 +1111,15 @@ const CustomerView = () => {
       {/* 3. COMMUNICATIONS TAB */}
       {activeTab === "communications" && (
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Communication History</h4>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                text="Log Call"
+                icon="heroicons-outline:phone-arrow-up-right"
+                className="btn-outline-dark btn-sm text-xs"
+                onClick={() => setIsLogCallModalOpen(true)}
+              />
               <Button
                 text="Send WhatsApp"
                 icon="whatsapp"
@@ -912,6 +1142,11 @@ const CustomerView = () => {
                   "customer_email_sent",
                   "customer_whatsapp_sent",
                   "customer_call_logged",
+                  "lead_email_sent",
+                  "lead_whatsapp_sent",
+                  "call_logged",
+                  "email_sent",
+                  "whatsapp_sent",
                   "follow_up_created",
                   "follow_up_completed",
                 ].includes(a.type)
@@ -936,7 +1171,7 @@ const CustomerView = () => {
                         <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
                           {meta.title}
                         </h6>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 whitespace-pre-wrap break-words">
                           {act.description}
                         </p>
                         <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-2">
@@ -946,8 +1181,8 @@ const CustomerView = () => {
                         </div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase">
-                      Recorded
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 uppercase flex-shrink-0">
+                      Verified Event
                     </span>
                   </div>
                 );
@@ -958,31 +1193,48 @@ const CustomerView = () => {
                 "customer_email_sent",
                 "customer_whatsapp_sent",
                 "customer_call_logged",
+                "lead_email_sent",
+                "lead_whatsapp_sent",
+                "call_logged",
+                "email_sent",
+                "whatsapp_sent",
                 "follow_up_created",
                 "follow_up_completed",
               ].includes(a.type)
             ).length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
-                No outbound communications recorded yet. Send an email or WhatsApp to initiate contact.
+                No outbound communications recorded yet. Send an email, initiate WhatsApp, or log a call interaction.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 4. QUOTATIONS TAB */}
+      {/* 4. QUOTATIONS TAB - Display and Manage All Quotations Across Leads & Customer */}
       {activeTab === "quotations" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Associated Quotations</h4>
+            <div>
+              <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer & Lead Quotations</h4>
+              <p className="text-xs text-slate-500">
+                All proposals linked to this customer and their connected requirements
+              </p>
+            </div>
+            <Button
+              text="Upload Quotation"
+              icon="heroicons-outline:document-arrow-up"
+              className="btn-primary btn-sm text-xs font-semibold"
+              onClick={() => setIsQuotationModalOpen(true)}
+            />
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs font-inter">
                 <thead className="bg-slate-50 dark:bg-slate-700/50 text-slate-500 uppercase font-semibold">
                   <tr>
                     <th className="px-5 py-3.5">Quotation #</th>
+                    <th className="px-5 py-3.5">Associated Requirement</th>
                     <th className="px-5 py-3.5">Amount</th>
                     <th className="px-5 py-3.5">Status</th>
                     <th className="px-5 py-3.5">Date</th>
@@ -990,40 +1242,90 @@ const CustomerView = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {quotations.map((q) => (
-                    <tr key={q._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                      <td className="px-5 py-3.5 font-bold text-slate-800 dark:text-white">
-                        {q.quotationNumber || `QT-${q._id?.slice(-6).toUpperCase()}`}
-                      </td>
-                      <td className="px-5 py-3.5 font-semibold text-primary-600">
-                        {formatCurrency(q.totalAmount || q.subtotal)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                          {q.status || "Draft"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-500">
-                        {dayjs(q.createdAt).format("MMM D, YYYY")}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        {q.pdfUrl && (
-                          <a
-                            href={q.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary-600 hover:underline font-semibold"
+                  {quotations.map((q) => {
+                    const leadInfo = q.leadId;
+                    const reqLabel = leadInfo
+                      ? `${leadInfo.projectType || "Project"} (${leadInfo.leadId || "Lead"})`
+                      : "Customer Proposal";
+
+                    return (
+                      <tr key={q._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                        <td className="px-5 py-3.5 font-bold text-slate-800 dark:text-white">
+                          {q.quotationNumber || `QT-${q._id?.slice(-6).toUpperCase()}`}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                            <Icon icon="heroicons-outline:link" className="text-xs" />
+                            <span>{reqLabel}</span>
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 font-bold text-primary-600 text-sm">
+                          {formatCurrency(q.totalAmount || q.subtotal || q.amount)}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded border capitalize ${
+                              q.status === "sent"
+                                ? "bg-teal-50 text-teal-700 border-teal-200"
+                                : q.status === "approved" || q.status === "accepted"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
                           >
-                            Download PDF
-                          </a>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                            {q.status || "Draft"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-500">
+                          {dayjs(q.createdAt).format("MMM D, YYYY")}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {q.pdfUrl && (
+                              <a
+                                href={q.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 font-semibold px-2 py-1 rounded hover:bg-primary-50 dark:hover:bg-primary-950/40 transition"
+                                title="Download PDF"
+                              >
+                                <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                                <span>PDF</span>
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleSendQuotation(q._id)}
+                              disabled={isSendingQuotation}
+                              className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition disabled:opacity-50"
+                              title="Send Quotation to Client via Email"
+                            >
+                              <Icon icon="heroicons-outline:paper-airplane" className="text-sm" />
+                              <span>{q.status === "sent" ? "Resend" : "Send"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDeleteQuoteConfirm({
+                                  isOpen: true,
+                                  quoteId: q._id,
+                                  quoteNumber: q.quotationNumber || "this quotation",
+                                  isLoading: false,
+                                })
+                              }
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                              title="Delete Quotation"
+                            >
+                              <Icon icon="heroicons-outline:trash" className="text-sm" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {quotations.length === 0 && (
                     <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-400">
-                        No quotations created for this customer yet.
+                      <td colSpan="6" className="p-8 text-center text-slate-400">
+                        No quotations created for this customer or their connected leads yet. Click &ldquo;Upload Quotation&rdquo; to add one.
                       </td>
                     </tr>
                   )}
@@ -1034,7 +1336,7 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 5. FOLLOW-UPS TAB */}
+      {/* 5. FOLLOW-UPS TAB - Schedule and Complete Follow-ups Directly */}
       {activeTab === "followups" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
@@ -1042,143 +1344,221 @@ const CustomerView = () => {
             <Button
               text="Schedule Follow-up"
               icon="heroicons-outline:calendar"
-              className="btn-primary btn-sm text-xs"
+              className="btn-primary btn-sm text-xs font-semibold"
               onClick={() => setIsFollowUpModalOpen(true)}
             />
           </div>
 
-          <div className="space-y-3">
-            {followUps.map((f) => (
-              <div
-                key={f._id}
-                className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Icon icon="heroicons-outline:calendar" className="text-lg" />
-                  </div>
-                  <div>
-                    <h6 className="text-xs font-bold text-slate-900 dark:text-white capitalize">
-                      {f.type} Follow-up
-                    </h6>
-                    <p className="text-xs text-slate-500 mt-0.5">{f.notes || "No additional notes provided"}</p>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
-                      <span>Scheduled: {dayjs(f.scheduledAt).format("DD MMM YYYY, hh:mm A")}</span>
-                      <span>•</span>
-                      <span>
-                        Assigned to:{" "}
-                        {f.assignedTo
-                          ? `${f.assignedTo.firstName || ""} ${f.assignedTo.lastName || ""}`.trim() || f.assignedTo.name
-                          : "Staff"}
-                      </span>
+          <div className="space-y-3 font-inter">
+            {followUps.map((f) => {
+              const isCompleted = f.status === "completed";
+              const isCancelled = f.status === "cancelled";
+              const isPending = !isCompleted && !isCancelled;
+              const leadTag = f.leadProjectType || (f.leadId ? `${f.leadId.projectType || "Lead"} (${f.leadId.leadId || ""})` : null);
+
+              return (
+                <div
+                  key={f._id}
+                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition"
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div
+                      className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isCompleted
+                          ? "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400"
+                          : isCancelled
+                          ? "bg-rose-50 text-rose-500 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400"
+                          : "bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-400"
+                      }`}
+                    >
+                      <Icon
+                        icon={
+                          isCompleted
+                            ? "heroicons-outline:check-circle"
+                            : isCancelled
+                            ? "heroicons-outline:x-circle"
+                            : "heroicons-outline:calendar"
+                        }
+                        className="text-lg"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h6 className="text-xs font-bold text-slate-900 dark:text-white capitalize">
+                          {f.type} Follow-up
+                        </h6>
+                        {leadTag && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300">
+                            {leadTag}
+                          </span>
+                        )}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                            isCompleted
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : isCancelled
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {f.status || "Pending"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        {f.notes || "No additional notes provided"}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 mt-1.5">
+                        <span>Scheduled: {dayjs(f.scheduledAt).format("DD MMM YYYY, hh:mm A")}</span>
+                        <span>•</span>
+                        <span>
+                          Assigned to:{" "}
+                          {f.assignedTo
+                            ? `${f.assignedTo.firstName || ""} ${f.assignedTo.lastName || ""}`.trim() || f.assignedTo.name
+                            : "Staff"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded capitalize ${
-                      f.status === "completed"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                        : "bg-amber-50 text-amber-700 border border-amber-200"
-                    }`}
-                  >
-                    {f.status}
-                  </span>
+                  {/* Actions for pending follow-ups */}
+                  {isPending && (
+                    <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleCompleteFollowUp(f._id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold transition"
+                      >
+                        <Icon icon="heroicons-outline:check" className="text-sm" />
+                        <span>Mark Completed</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelFollowUp(f._id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-700 hover:bg-rose-50 hover:text-rose-600 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 text-xs font-semibold transition"
+                      >
+                        <Icon icon="heroicons-outline:x-mark" className="text-sm" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {followUps.length === 0 && (
               <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 text-xs">
-                No follow-ups currently scheduled for this customer.
+                No follow-ups currently scheduled for this customer or linked requirements. Click &ldquo;Schedule Follow-up&rdquo; to add one.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 6. FILES & DOCUMENTS TAB */}
+      {/* 6. FILES & DOCUMENTS TAB - Unified Customer and Lead Documents */}
       {activeTab === "files" && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer Files & Documents</h4>
+            <div>
+              <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer Files & Documents</h4>
+              <p className="text-xs text-slate-500">
+                Unified storage for documents across customer profiles and connected lead requirements
+              </p>
+            </div>
             <Button
               text="Upload File"
               icon="heroicons-outline:arrow-up-tray"
-              className="btn-primary btn-sm text-xs"
+              className="btn-primary btn-sm text-xs font-semibold"
               onClick={() => setIsDocumentModalOpen(true)}
             />
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700">
-            {customer.documents?.map((doc) => (
-              <div key={doc._id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
-                <div className="flex items-center gap-3.5">
-                  <div className="h-10 w-10 rounded-lg bg-red-50 text-red-500 border border-red-200 flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">
-                    {doc.name?.split(".").pop() || "PDF"}
-                  </div>
-                  <div>
-                    <h6 className="text-xs font-bold text-slate-900 dark:text-white">{doc.name}</h6>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                      <span>{(doc.size ? `${(doc.size / (1024 * 1024)).toFixed(1)} MB` : "File")}</span>
-                      <span>•</span>
-                      <span>{dayjs(doc.uploadedAt || customer.updatedAt).format("MMM D, YYYY")}</span>
-                      <span>•</span>
-                      <span className="font-medium text-slate-500">{doc.category || "General"}</span>
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 font-inter">
+            {documents.map((doc) => {
+              const isLeadDoc = doc.sourceType === "lead";
+
+              return (
+                <div key={doc._id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-lg bg-red-50 text-red-500 border border-red-200 flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">
+                      {doc.name?.split(".").pop() || "PDF"}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h6 className="text-xs font-bold text-slate-900 dark:text-white">{doc.name}</h6>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            isLeadDoc
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                              : "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800"
+                          }`}
+                        >
+                          {isLeadDoc
+                            ? `Lead: ${doc.leadProjectType || doc.leadNumber || "Lead"}`
+                            : "Customer Document"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
+                        <span>{doc.size ? `${(doc.size / (1024 * 1024)).toFixed(1)} MB` : "File"}</span>
+                        <span>•</span>
+                        <span>{dayjs(doc.uploadedAt || customer.updatedAt).format("MMM D, YYYY")}</span>
+                        <span>•</span>
+                        <span className="font-medium text-slate-500">{doc.category || "General"}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-primary-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition"
-                    title="View Document"
-                  >
-                    <Icon icon="heroicons-outline:eye" className="text-sm" />
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadFile(doc.url, doc.name)}
-                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-300 dark:hover:bg-slate-700 transition"
-                    title="Download File"
-                  >
-                    <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDeleteDocConfirm({
-                        isOpen: true,
-                        docId: doc._id,
-                        docName: doc.name,
-                        isLoading: false,
-                      })
-                    }
-                    className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-danger-600 hover:bg-red-50 transition"
-                    title="Delete File"
-                  >
-                    <Icon icon="heroicons-outline:trash" className="text-sm" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-primary-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                      title="View Document"
+                    >
+                      <Icon icon="heroicons-outline:eye" className="text-sm" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadFile(doc.url, doc.name)}
+                      className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                      title="Download File"
+                    >
+                      <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                    </button>
+                    {!isLeadDoc && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteDocConfirm({
+                            isOpen: true,
+                            docId: doc._id,
+                            docName: doc.name,
+                            isLoading: false,
+                          })
+                        }
+                        className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 hover:text-danger-600 hover:bg-red-50 transition"
+                        title="Delete File"
+                      >
+                        <Icon icon="heroicons-outline:trash" className="text-sm" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
-            {(!customer.documents || customer.documents.length === 0) && (
+            {documents.length === 0 && (
               <div className="p-8 text-center text-slate-400 text-xs">
-                No documents uploaded yet. Upload service contracts, quotations, or design drawings.
+                No documents uploaded yet. Upload contracts, blueprints, or design specifications.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 7. NOTES TAB - Full Functional CRUD with Edit, Add & Delete Confirmation */}
+      {/* 7. NOTES TAB - Full Functional CRUD with Unified Customer & Lead Notes */}
       {activeTab === "notes" && (
-        <div className="space-y-6">
+        <div className="space-y-6 font-inter">
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">Add Customer Note</h4>
             <form onSubmit={handleAddNote} className="space-y-3">
@@ -1203,12 +1583,13 @@ const CustomerView = () => {
           </div>
 
           <div className="space-y-3">
-            {customer.notes?.map((n) => {
+            {notes.map((n) => {
               const author = n.createdBy
                 ? `${n.createdBy.firstName || ""} ${n.createdBy.lastName || ""}`.trim() ||
                   n.createdBy.name ||
                   "Staff"
                 : "Staff";
+              const isLeadNote = n.sourceType === "lead";
 
               return (
                 <div
@@ -1216,6 +1597,17 @@ const CustomerView = () => {
                   className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-start justify-between gap-4"
                 >
                   <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          isLeadNote
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                            : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                        }`}
+                      >
+                        {isLeadNote ? `Lead Note: ${n.leadNumber || "Lead"}` : "Customer Note"}
+                      </span>
+                    </div>
                     <p className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-medium">
                       {n.content}
                     </p>
@@ -1232,103 +1624,55 @@ const CustomerView = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingNote(n);
-                        setEditNoteContent(n.content);
-                      }}
-                      className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                      title="Edit Note"
-                    >
-                      <Icon icon="heroicons-outline:pencil" className="text-sm" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDeleteNoteConfirm({
-                          isOpen: true,
-                          noteId: n._id,
-                          isLoading: false,
-                        })
-                      }
-                      className="text-slate-400 hover:text-danger-500 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                      title="Delete Note"
-                    >
-                      <Icon icon="heroicons-outline:trash" className="text-sm" />
-                    </button>
-                  </div>
+                  {!isLeadNote && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingNote(n);
+                          setEditNoteContent(n.content);
+                        }}
+                        className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                        title="Edit Note"
+                      >
+                        <Icon icon="heroicons-outline:pencil" className="text-sm" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDeleteNoteConfirm({
+                            isOpen: true,
+                            noteId: n._id,
+                            isLoading: false,
+                          })
+                        }
+                        className="text-slate-400 hover:text-danger-500 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+                        title="Delete Note"
+                      >
+                        <Icon icon="heroicons-outline:trash" className="text-sm" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
 
-            {(!customer.notes || customer.notes.length === 0) && (
+            {notes.length === 0 && (
               <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 text-xs">
-                No notes logged for this customer yet.
+                No notes logged for this customer or connected leads yet.
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 8. ACTIVITY TIMELINE TAB - Real Backend Events Only */}
+      {/* 8. ACTIVITY TIMELINE TAB - Exact LeadActivities Timeline Component & Design */}
       {activeTab === "activity" && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-          <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-100 dark:border-slate-700">
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Complete Activity Timeline</h4>
-            <Button
-              text="Add Note"
-              icon="heroicons-outline:plus"
-              className="btn-primary btn-sm text-xs"
-              onClick={() => setActiveTab("notes")}
-            />
-          </div>
-
-          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">
-            {activities.map((act) => {
-              const meta = getActivityMeta(act.type);
-              const actor = act.performedBy
-                ? `${act.performedBy.firstName || ""} ${act.performedBy.lastName || ""}`.trim() ||
-                  act.performedBy.name ||
-                  "System"
-                : "System";
-
-              return (
-                <div key={act._id} className="relative flex items-start gap-4">
-                  <span className="absolute -left-6 mt-1 h-5 w-5 rounded-full border-2 border-white dark:border-slate-800 bg-primary-500 flex items-center justify-center text-[10px] text-white">
-                    •
-                  </span>
-                  <div className="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon icon={meta.icon} className="text-sm text-primary-600" />
-                        <h6 className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                          {meta.title}
-                        </h6>
-                      </div>
-                      <span className="text-[10px] text-slate-400">
-                        {dayjs(act.createdAt).format("MMM D, YYYY, hh:mm A")}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-700 dark:text-slate-200 mt-1.5 font-medium">
-                      {act.description}
-                    </p>
-                    <span className="text-[10px] text-slate-400 block mt-2">
-                      Performed by: {actor}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {activities.length === 0 && (
-              <div className="text-center py-8 text-slate-400 text-xs">
-                No activity records logged for this customer.
-              </div>
-            )}
-          </div>
-        </div>
+        <CustomerActivities
+          activities={activities}
+          onAddNote={() => setActiveTab("notes")}
+          onRefresh={() => refetch()}
+        />
       )}
 
       {/* Support Modals */}
@@ -1346,6 +1690,7 @@ const CustomerView = () => {
         isOpen={isFollowUpModalOpen}
         onClose={() => setIsFollowUpModalOpen(false)}
         customer={customer}
+        leads={leads}
       />
       <AddProjectModal
         isOpen={isProjectModalOpen}
@@ -1357,7 +1702,20 @@ const CustomerView = () => {
         onClose={() => setIsDocumentModalOpen(false)}
         customerId={customer._id}
       />
-
+      <UploadCustomerQuotationModal
+        isOpen={isQuotationModalOpen}
+        onClose={() => setIsQuotationModalOpen(false)}
+        customer={customer}
+        leads={leads}
+        onSuccess={() => refetch()}
+      />
+      <LogCallModal
+        isOpen={isLogCallModalOpen}
+        onClose={() => setIsLogCallModalOpen(false)}
+        customer={customer}
+        leads={leads}
+        onSuccess={() => refetch()}
+      />
 
       {/* Edit Note Modal */}
       {editingNote && (
@@ -1381,20 +1739,22 @@ const CustomerView = () => {
               />
             </div>
             <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-700">
-              <Button
+              <button
                 type="button"
-                text="Cancel"
-                className="btn-outline-dark text-xs px-4 py-2"
                 onClick={() => setEditingNote(null)}
                 disabled={isUpdatingNote}
-              />
-              <Button
+                className="px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition font-inter"
+              >
+                Cancel
+              </button>
+              <button
                 type="submit"
-                text={isUpdatingNote ? "Saving..." : "Save Changes"}
-                className="btn-primary text-xs px-4 py-2 font-semibold"
-                isLoading={isUpdatingNote}
                 disabled={isUpdatingNote || !editNoteContent.trim()}
-              />
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition font-inter disabled:opacity-50"
+              >
+                {isUpdatingNote && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+                <span>{isUpdatingNote ? "Saving..." : "Save Changes"}</span>
+              </button>
             </div>
           </form>
         </Modal>
@@ -1433,6 +1793,18 @@ const CustomerView = () => {
         message="This document will be permanently deleted from the customer's records."
         isLoading={deleteDocConfirm.isLoading}
         confirmText="Delete Document"
+      />
+
+      {/* Delete Quotation Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteQuoteConfirm.isOpen}
+        onClose={() => setDeleteQuoteConfirm({ isOpen: false, quoteId: null, quoteNumber: "", isLoading: false })}
+        onConfirm={handleConfirmDeleteQuotation}
+        title="Delete Quotation"
+        entityName={deleteQuoteConfirm.quoteNumber || "this quotation"}
+        message="This quotation document and proposal will be permanently removed from CRM records."
+        isLoading={deleteQuoteConfirm.isLoading}
+        confirmText="Delete Quotation"
       />
     </div>
   );

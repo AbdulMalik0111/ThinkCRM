@@ -30,7 +30,6 @@ import SendEmailModal from "./SendEmailModal";
 import SendWhatsAppModal from "./SendWhatsAppModal";
 import ScheduleFollowUpModal from "./ScheduleFollowUpModal";
 import UploadDocumentModal from "./UploadDocumentModal";
-import ImportCustomerModal from "./ImportCustomerModal";
 
 const statusBadgeStyles = {
   active: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
@@ -58,9 +57,8 @@ const Customers = () => {
   const [status, setStatus] = useState("all");
   const [assignedStaff, setAssignedStaff] = useState("all");
 
-  // Export & Import states
+  // Export state
   const [isExporting, setIsExporting] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -178,7 +176,7 @@ const Customers = () => {
       {
         headerName: "Customer",
         field: "fullName",
-        minWidth: 220,
+        minWidth: 200,
         flex: 1.5,
         pinned: "left",
         cellRenderer: (params) => {
@@ -186,7 +184,7 @@ const Customers = () => {
           if (!c) return null;
           const initial = c.fullName?.charAt(0)?.toUpperCase() || "C";
           const avatarColor = getAvatarColor(c.fullName || "Customer");
-          const company = c.company || c.companyName || (c.projectType ? `${c.projectType} Project` : "Project");
+          const code = c.customerId || (c.projectType ? `${c.projectType}` : "Customer");
 
           return (
             <div className="flex items-center gap-2.5 py-1 font-inter">
@@ -210,7 +208,7 @@ const Customers = () => {
                   {c.fullName}
                 </button>
                 <span className="text-[11.5px] text-slate-400 font-medium block truncate">
-                  {company}
+                  {code}
                 </span>
               </div>
             </div>
@@ -220,51 +218,115 @@ const Customers = () => {
       {
         headerName: "Phone",
         field: "phone",
-        minWidth: 150,
+        minWidth: 140,
         flex: 1,
         cellRenderer: (params) => (
-          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
+          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13px] whitespace-nowrap">
             {params.value || "—"}
           </span>
         ),
       },
       {
-        headerName: "Project Type",
-        field: "projectType",
-        minWidth: 140,
-        flex: 1,
-        valueGetter: (params) => {
-          const c = params.data;
-          return c?.projectType || c?.projects?.[0]?.projectType || "Modular Kitchen";
-        },
+        headerName: "Email",
+        field: "email",
+        minWidth: 180,
+        flex: 1.2,
         cellRenderer: (params) => (
-          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px]">
-            {params.value}
+          <span className="font-inter text-slate-600 dark:text-slate-300 text-[13px] truncate block" title={params.value}>
+            {params.value || "—"}
           </span>
         ),
       },
       {
+        headerName: "Leads",
+        field: "leadsCount",
+        minWidth: 90,
+        flex: 0.8,
+        valueGetter: (params) => {
+          const c = params.data;
+          return c?.leadsCount ?? c?.leads?.length ?? (c?.sourceLeadId ? 1 : 0);
+        },
+        cellRenderer: (params) => {
+          const count = params.value || 0;
+          return (
+            <div className="flex items-center h-full">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                count > 1
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                  : "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
+              }`}>
+                <Icon icon="heroicons-outline:user-group" className="text-xs" />
+                <span>{count}</span>
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        headerName: "Projects",
+        field: "projectsCount",
+        minWidth: 95,
+        flex: 0.8,
+        valueGetter: (params) => {
+          const c = params.data;
+          return c?.projectsCount ?? c?.projects?.length ?? 0;
+        },
+        cellRenderer: (params) => {
+          const count = params.value || 0;
+          return (
+            <div className="flex items-center h-full">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                <Icon icon="heroicons-outline:briefcase" className="text-xs" />
+                <span>{count}</span>
+              </span>
+            </div>
+          );
+        },
+      },
+      {
         headerName: "Status",
         field: "status",
-        minWidth: 140,
-        flex: 1,
+        minWidth: 120,
+        flex: 0.9,
         cellClass: "flex items-center",
         cellRenderer: (params) => {
           return renderStatusPill(params.value || "active");
         },
       },
       {
-        field: "totalValue",
-        headerName: "Total Value",
+        headerName: "Assigned Staff",
+        field: "assignedStaff",
+        minWidth: 140,
+        flex: 1,
+        valueGetter: (params) => {
+          const c = params.data;
+          const staff = c?.assignedStaff || c?.assignedTo;
+          if (!staff) return "Unassigned";
+          return `${staff.firstName || ""} ${staff.lastName || ""}`.trim() || staff.name || "Staff";
+        },
+        cellRenderer: (params) => {
+          const isUnassigned = params.value === "Unassigned";
+          return (
+            <span className={`font-inter text-xs font-semibold truncate block ${
+              isUnassigned ? "text-slate-400 italic" : "text-slate-700 dark:text-slate-200"
+            }`}>
+              {params.value}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: "Last Activity",
+        field: "lastActivity",
         minWidth: 130,
         flex: 1,
         valueGetter: (params) => {
           const c = params.data;
-          return Number(c?.totalValue ?? c?.projects?.[0]?.budget ?? 0);
+          return c?.lastActivity || c?.updatedAt;
         },
         cellRenderer: (params) => (
-          <span className="font-inter font-bold text-slate-900 dark:text-white text-[14px]">
-            {formatCurrency(params.value)}
+          <span className="font-inter text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            {params.value ? dayjs(params.value).format("DD MMM YYYY") : "—"}
           </span>
         ),
       },
@@ -432,16 +494,6 @@ const Customers = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Import Button */}
-          <button
-            type="button"
-            onClick={() => setIsImportModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-          >
-            <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm text-slate-500" />
-            <span>Import</span>
-          </button>
-
           {/* Export Button with Loading State */}
           <button
             type="button"
@@ -639,14 +691,7 @@ const Customers = () => {
       )}
 
 
-      {/* 3. CSV Import Modal */}
-      <ImportCustomerModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={() => refetch()}
-      />
-
-      {/* 4. Send Email Modal */}
+      {/* 3. Send Email Modal */}
       <SendEmailModal
         isOpen={Boolean(emailCustomer)}
         onClose={() => setEmailCustomer(null)}
