@@ -6,6 +6,7 @@ const Card = ({
   title,
   subtitle,
   headerSlot,
+  headerslot,
   className = " ",
   bodyClass = "p-6",
   noBorder,
@@ -14,6 +15,7 @@ const Card = ({
   ...props
 }) => {
   const [skin] = useSkin();
+  const slot = headerSlot || headerslot;
 
   return (
     <div
@@ -21,13 +23,13 @@ const Card = ({
       className={`
         card rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ${className}`}
     >
-      {(title || subtitle) && (
+      {(title || subtitle || slot) && (
         <header className={`card-header ${(noBorder || noborder) ? "no-border" : ""}`}>
           <div>
             {title && <div className={`card-title ${titleClass}`}>{title}</div>}
             {subtitle && <div className="card-subtitle">{subtitle}</div>}
           </div>
-          {headerSlot && <div className="card-header-slot">{headerSlot}</div>}
+          {slot && <div className="card-header-slot">{slot}</div>}
         </header>
       )}
       <main className={`card-body ${bodyClass}`}>{children}</main>

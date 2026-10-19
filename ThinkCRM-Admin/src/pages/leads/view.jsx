@@ -709,13 +709,29 @@ const LeadView = () => {
                 Files, quotations, and documents attached to this lead
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsUploadQuotationOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
+            >
+              <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
+              <span>Upload Document</span>
+            </button>
           </div>
 
           {leadFiles.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <Icon icon="heroicons-outline:folder-open" className="mx-auto text-4xl mb-3 text-slate-300 dark:text-slate-600" />
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No documents uploaded yet</p>
-              <p className="text-xs text-slate-400 mt-1">Quotations and project files will appear here once attached.</p>
+              <p className="text-xs text-slate-400 mt-1 mb-4">Quotations and project files will appear here once attached.</p>
+              <button
+                type="button"
+                onClick={() => setIsUploadQuotationOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
+              >
+                <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
+                <span>Upload Document</span>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

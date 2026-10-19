@@ -18,6 +18,18 @@ export const interactionsApi = apiSlice.injectEndpoints({
         { type: "Lead", id: leadId },
       ],
     }),
+    updateMeasurement: builder.mutation({
+      query: ({ id, leadId, data }) => ({
+        url: `measurements/${id}`,
+        method: "PATCH",
+        body: data,
+      }),
+      invalidatesTags: (result, error, { leadId }) => [
+        { type: "Measurement", id: `List-${leadId}` },
+        { type: "Lead", id: `Activity-${leadId}` },
+        { type: "Lead", id: leadId },
+      ],
+    }),
     getLeadQuotations: builder.query({
       query: (leadId) => `leads/${leadId}/quotations`,
       providesTags: (result, error, leadId) => [{ type: "Quotation", id: `List-${leadId}` }],
@@ -51,6 +63,7 @@ export const interactionsApi = apiSlice.injectEndpoints({
 export const {
   useGetLeadMeasurementsQuery,
   useCreateMeasurementMutation,
+  useUpdateMeasurementMutation,
   useGetLeadQuotationsQuery,
   useCreateQuotationMutation,
   useSendQuotationMutation,

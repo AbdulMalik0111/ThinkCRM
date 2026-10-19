@@ -38,6 +38,10 @@ body, html, .no-scrollbar {
   font-size: 14px !important;
   line-height: 1.45 !important;
 }
+[class*="text-[9px]"]{
+    font-size: 12px !important;
+  line-height: 1.3 !important;
+}
 
 /* Table cells, inputs, selects, textareas, labels, and buttons >= 14px */
 .table-td,

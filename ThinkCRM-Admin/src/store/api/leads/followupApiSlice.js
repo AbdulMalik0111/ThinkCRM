@@ -38,6 +38,19 @@ export const followupApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["FollowUp", "Lead", "Dashboard"],
     }),
+    deleteAllLeadFollowUps: builder.mutation({
+      query: (leadId) => ({
+        url: `leads/${leadId}/follow-ups`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, leadId) => [
+        { type: "FollowUp", id: `List-${leadId}` },
+        { type: "Lead", id: `Activity-${leadId}` },
+        "FollowUp",
+        "Lead",
+        "Dashboard",
+      ],
+    }),
     getAllFollowUps: builder.query({
       query: () => "follow-ups",
       providesTags: ["FollowUp"],
@@ -51,4 +64,5 @@ export const {
   useCreateFollowUpMutation,
   useUpdateFollowUpMutation,
   useDeleteFollowUpMutation,
+  useDeleteAllLeadFollowUpsMutation,
 } = followupApi;

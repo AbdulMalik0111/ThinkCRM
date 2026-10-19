@@ -30,7 +30,7 @@ const ExecutiveKpiCard = ({
     >
       {/* Top row: Title (13px) and Trend Tag */}
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
           {title}
         </span>
 

@@ -72,10 +72,20 @@ export const updateFollowUp = async (followUpId, data, updatedBy) => {
 };
 
 export const getLeadFollowUps = async (leadId) => {
-  return await FollowUp.find({ leadId })
-    .sort({ scheduledAt: -1 })
+  const followUps = await FollowUp.find({ leadId })
     .populate('assignedTo', 'firstName lastName avatar email')
     .populate('createdBy', 'firstName lastName avatar email');
+
+  return followUps.sort((a, b) => {
+    const isPendingA = a.status === 'pending';
+    const isPendingB = b.status === 'pending';
+    if (isPendingA && !isPendingB) return -1;
+    if (!isPendingA && isPendingB) return 1;
+    if (isPendingA && isPendingB) {
+      return new Date(a.scheduledAt) - new Date(b.scheduledAt);
+    }
+    return new Date(b.scheduledAt) - new Date(a.scheduledAt);
+  });
 };
 
 export const getAllFollowUps = async () => {
@@ -113,6 +123,31 @@ export const deleteFollowUp = async (followUpId, deletedBy) => {
       metadata: { followUpId },
     });
   }
+
+  return true;
+};
+
+export const deleteAllLeadFollowUps = async (leadId, deletedBy) => {
+  const lead = await Lead.findById(leadId);
+  if (!lead) {
+    throw new AppError('Lead not found', 404);
+  }
+
+  const followUps = await FollowUp.find({ leadId });
+  if (followUps.length === 0) return true;
+
+  await FollowUp.deleteMany({ leadId });
+
+  await Lead.findByIdAndUpdate(leadId, {
+    nextFollowUpAt: null,
+  });
+
+  await logActivity({
+    leadId,
+    type: 'status_changed',
+    description: `All follow-ups (${followUps.length}) were deleted`,
+    performedBy: deletedBy,
+  });
 
   return true;
 };

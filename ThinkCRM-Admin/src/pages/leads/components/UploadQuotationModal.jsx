@@ -126,8 +126,11 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
         <div className="p-6 space-y-4">
           {/* File Upload Box */}
           <div>
-            <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-              Quotation Document (PDF / Image) <span className="text-rose-500">*</span>
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:document-arrow-up" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>
+                Quotation Document (PDF / Image) <span className="text-rose-500">*</span>
+              </span>
             </label>
             <input
               type="file"
@@ -152,7 +155,7 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
                 <button
                   type="button"
                   onClick={() => setFormData((prev) => ({ ...prev, file: null }))}
-                  className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                  className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
                   title="Remove file"
                 >
                   <Icon icon="heroicons-outline:trash" className="text-base" />
@@ -167,7 +170,7 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
                     : "border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900"
                 }`}
               >
-                <Icon icon="heroicons-outline:cloud-arrow-up" className="text-3xl text-slate-400 mx-auto mb-1.5" />
+                <Icon icon="heroicons-outline:cloud-arrow-up" className="text-3xl text-emerald-600 dark:text-emerald-400 mx-auto mb-1.5" />
                 <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Click to select quotation file
                 </p>
@@ -180,18 +183,23 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Amount */}
             <div>
-              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-                Total Amount (₹) <span className="text-rose-500">*</span>
+              <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+                <Icon icon="heroicons-outline:currency-rupee" className="text-sm text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  Total Amount (₹) <span className="text-rose-500">*</span>
+                </span>
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-bold text-sm pointer-events-none select-none">
+                  ₹
+                </span>
                 <input
                   type="number"
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
                   placeholder="e.g., 250000"
-                  className={`w-full pl-7 pr-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter ${
+                  className={`w-full pl-8 pr-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                     errors.amount ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
                   }`}
                 />
@@ -201,50 +209,65 @@ const UploadQuotationModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
             {/* Quotation Number */}
             <div>
-              <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-                Quotation #
+              <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+                <Icon icon="heroicons-outline:hashtag" className="text-sm text-emerald-600 dark:text-emerald-400" />
+                <span>Quotation #</span>
               </label>
-              <input
-                type="text"
-                name="quotationNumber"
-                value={formData.quotationNumber}
-                onChange={handleChange}
-                placeholder="QT-00123"
-                className="w-full px-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter"
-              />
+              <div className="relative">
+                <Icon
+                  icon="heroicons-outline:hashtag"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+                />
+                <input
+                  type="text"
+                  name="quotationNumber"
+                  value={formData.quotationNumber}
+                  onChange={handleChange}
+                  placeholder="QT-00123"
+                  className="w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter"
+                />
+              </div>
             </div>
           </div>
 
           {/* Valid Until Date */}
           <div>
-            <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-              Valid Until
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:calendar-days" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>Valid Until</span>
             </label>
-            <Flatpickr
-              value={formData.validUntil ? dayjs(formData.validUntil).toDate() : ""}
-              onChange={([d]) => {
-                if (d) {
-                  setFormData((prev) => ({
-                    ...prev,
-                    validUntil: dayjs(d).format("YYYY-MM-DD"),
-                  }));
-                } else {
-                  setFormData((prev) => ({ ...prev, validUntil: "" }));
-                }
-              }}
-              options={{
-                dateFormat: "d M Y",
-                minDate: dayjs().toDate(),
-              }}
-              className="w-full px-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter"
-              placeholder="Select expiry date"
-            />
+            <div className="relative">
+              <Icon
+                icon="heroicons-outline:calendar-days"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+              />
+              <Flatpickr
+                value={formData.validUntil ? dayjs(formData.validUntil).toDate() : ""}
+                onChange={([d]) => {
+                  if (d) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      validUntil: dayjs(d).format("YYYY-MM-DD"),
+                    }));
+                  } else {
+                    setFormData((prev) => ({ ...prev, validUntil: "" }));
+                  }
+                }}
+                options={{
+                  dateFormat: "d M Y",
+                  minDate: dayjs().toDate(),
+                }}
+                className="w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter cursor-pointer"
+                placeholder="Select expiry date"
+              />
+            </div>
           </div>
 
           {/* Message / Notes */}
           <div>
-            <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
-              Proposal Notes / Summary
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:pencil-square" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>Proposal Notes / Summary</span>
             </label>
             <textarea
               rows={2}

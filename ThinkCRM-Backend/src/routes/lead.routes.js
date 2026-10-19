@@ -60,6 +60,10 @@ router
     requirePermission('leads.update'),
     validate(createFollowUpSchema),
     followupController.createFollowUp
+  )
+  .delete(
+    requirePermission('leads.update'),
+    followupController.deleteAllLeadFollowUps
   );
 
 router

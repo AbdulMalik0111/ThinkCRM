@@ -90,30 +90,36 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
               <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
                 Measurement Date <span className="text-rose-500">*</span>
               </label>
-              <Flatpickr
-                value={formData.date ? dayjs(formData.date).toDate() : ""}
-                onChange={([d]) => {
-                  if (d) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      date: dayjs(d).format("YYYY-MM-DD"),
-                    }));
-                  } else {
-                    setFormData((prev) => ({
-                      ...prev,
-                      date: "",
-                    }));
-                  }
-                }}
-                options={{
-                  dateFormat: "d M Y",
-                  minDate: dayjs().startOf("day").toDate(),
-                }}
-                className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter ${
-                  errors.date ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
-                }`}
-                placeholder="Select date"
-              />
+              <div className="relative">
+                <Icon
+                  icon="heroicons-outline:calendar-days"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+                />
+                <Flatpickr
+                  value={formData.date ? dayjs(formData.date).toDate() : ""}
+                  onChange={([d]) => {
+                    if (d) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        date: dayjs(d).format("YYYY-MM-DD"),
+                      }));
+                    } else {
+                      setFormData((prev) => ({
+                        ...prev,
+                        date: "",
+                      }));
+                    }
+                  }}
+                  options={{
+                    dateFormat: "d M Y",
+                    minDate: dayjs().startOf("day").toDate(),
+                  }}
+                  className={`w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter cursor-pointer ${
+                    errors.date ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
+                  }`}
+                  placeholder="Select date"
+                />
+              </div>
               {errors.date && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.date}</p>}
             </div>
 
@@ -122,15 +128,21 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
               <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
                 Time <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="time"
-                name="time"
-                value={formData.time}
-                onChange={handleChange}
-                className={`w-full px-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter ${
-                  errors.time ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
-                }`}
-              />
+              <div className="relative">
+                <Icon
+                  icon="heroicons-outline:clock"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+                />
+                <input
+                  type="time"
+                  name="time"
+                  value={formData.time}
+                  onChange={handleChange}
+                  className={`w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none font-inter cursor-pointer ${
+                    errors.time ? "border-rose-400" : "border-slate-200 dark:border-slate-700"
+                  }`}
+                />
+              </div>
               {errors.time && <p className="text-xs text-rose-500 mt-1 font-inter">{errors.time}</p>}
             </div>
           </div>

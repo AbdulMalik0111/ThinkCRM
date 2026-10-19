@@ -65,3 +65,16 @@ export const deleteFollowUp = async (req, res, next) => {
   }
 };
 
+export const deleteAllLeadFollowUps = async (req, res, next) => {
+  try {
+    await followupService.deleteAllLeadFollowUps(req.params.id, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'All follow-ups deleted successfully',
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -72,6 +72,8 @@ const Leads = () => {
   const [followUpLead, setFollowUpLead] = useState(null);
   const [convertingLead, setConvertingLead] = useState(null);
   const [deletingLead, setDeletingLead] = useState(null);
+  const [whatsAppLead, setWhatsAppLead] = useState(null);
+  const [emailLead, setEmailLead] = useState(null);
 
   // Bulk Action State
   const [bulkAssignStaffId, setBulkAssignStaffId] = useState("");
@@ -286,24 +288,58 @@ const Leads = () => {
       {
         headerName: "Phone",
         field: "phone",
-        minWidth: 155,
+        minWidth: 165,
         flex: 1,
-        cellRenderer: (params) => (
-          <span className="font-inter font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
-            {params.value || "—"}
-          </span>
-        ),
+        cellRenderer: (params) => {
+          const phone = params.value;
+          if (!phone) return <span className="text-slate-400">—</span>;
+          return (
+            <div className="flex items-center gap-1.5 font-inter">
+              <span className="font-semibold text-slate-800 dark:text-slate-100 text-[13.5px] whitespace-nowrap">
+                {phone}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWhatsAppLead(params.data);
+                }}
+                className="text-[#25D366] hover:text-[#1eb855] p-0.5 rounded transition cursor-pointer"
+                title="Send WhatsApp Message"
+              >
+                <Icon icon="whatsapp" className="text-sm" />
+              </button>
+            </div>
+          );
+        },
       },
       {
         headerName: "Email",
         field: "email",
-        minWidth: 190,
+        minWidth: 195,
         flex: 1.2,
-        cellRenderer: (params) => (
-          <span className="text-slate-700 dark:text-slate-300 font-inter font-medium truncate text-[13.5px]">
-            {params.value || "—"}
-          </span>
-        ),
+        cellRenderer: (params) => {
+          const email = params.value;
+          if (!email) return <span className="text-slate-400">—</span>;
+          return (
+            <div className="flex items-center gap-1.5 font-inter truncate">
+              <span className="text-slate-700 dark:text-slate-300 font-medium truncate text-[13.5px]">
+                {email}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEmailLead(params.data);
+                }}
+                className="text-indigo-500 hover:text-indigo-600 p-0.5 rounded transition cursor-pointer flex-shrink-0"
+                title="Send Email"
+              >
+                <Icon icon="heroicons-outline:envelope" className="text-sm" />
+              </button>
+            </div>
+          );
+        },
       },
       {
         headerName: "Source",
@@ -460,7 +496,7 @@ const Leads = () => {
                     label: "WhatsApp Chat",
                     icon: "whatsapp",
                     onClick: () => {
-                      window.open(`https://wa.me/${cleanPhone}`, "_blank", "noreferrer");
+                      setWhatsAppLead(lead);
                     },
                   },
                 ]
@@ -471,7 +507,7 @@ const Leads = () => {
                     label: "Send Email",
                     icon: "heroicons-outline:envelope",
                     onClick: () => {
-                      window.location.href = `mailto:${lead.email}`;
+                      setEmailLead(lead);
                     },
                   },
                 ]
@@ -582,7 +618,7 @@ const Leads = () => {
             className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 p-4 flex items-center justify-between"
           >
             <div className="space-y-1">
-              <span className="text-[12.5px] font-medium text-slate-500 dark:text-slate-400 block">
+              <span className="text-[12.5px] font-bold text-slate-700 dark:text-slate-200 block uppercase tracking-wider">
                 {card.title}
               </span>
               <div className="flex items-baseline gap-2">
@@ -911,6 +947,20 @@ const Leads = () => {
           refetchLeads();
           refetchStats();
         }}
+      />
+
+      {/* 5. Send WhatsApp Modal */}
+      <SendWhatsAppModal
+        isOpen={Boolean(whatsAppLead)}
+        lead={whatsAppLead}
+        onClose={() => setWhatsAppLead(null)}
+      />
+
+      {/* 6. Send Email Modal */}
+      <SendEmailModal
+        isOpen={Boolean(emailLead)}
+        lead={emailLead}
+        onClose={() => setEmailLead(null)}
       />
     </div>
   );

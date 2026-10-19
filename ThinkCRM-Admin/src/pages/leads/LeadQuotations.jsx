@@ -7,6 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Textinput from "@/components/ui/Textinput";
 import Textarea from "@/components/ui/Textarea";
 import Loading from "@/components/Loading";
+import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useGetLeadQuotationsQuery, useCreateQuotationMutation, useSendQuotationMutation } from "@/store/api/interactions/interactionsApiSlice";
@@ -19,8 +20,9 @@ const LeadQuotations = ({ leadId }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
+    quotationNumber: `QT-${Date.now().toString().slice(-6)}`,
     totalAmount: "",
-    validUntil: "",
+    validUntil: dayjs().add(30, "day").format("YYYY-MM-DD"),
     notes: "",
     file: null,
   });
@@ -30,7 +32,13 @@ const LeadQuotations = ({ leadId }) => {
   const quotations = data?.data?.quotations || [];
 
   const handleOpenModal = () => {
-    setFormData({ totalAmount: "", validUntil: "", notes: "", file: null });
+    setFormData({
+      quotationNumber: `QT-${Date.now().toString().slice(-6)}`,
+      totalAmount: "",
+      validUntil: dayjs().add(30, "day").format("YYYY-MM-DD"),
+      notes: "",
+      file: null,
+    });
     setIsModalOpen(true);
   };
 
@@ -48,7 +56,7 @@ const LeadQuotations = ({ leadId }) => {
     }
     
     try {
-      const quotationNumber = `QT-${Date.now().toString().slice(-6)}`;
+      const quotationNumber = formData.quotationNumber || `QT-${Date.now().toString().slice(-6)}`;
       const amountVal = Number(formData.totalAmount) || 0;
       
       const dataPayload = new FormData();
@@ -99,9 +107,33 @@ const LeadQuotations = ({ leadId }) => {
   };
 
   return (
-    <Card title="Quotations" headerslot={<Button text="Upload New" icon="heroicons:arrow-up-tray" className="btn-primary btn-sm" onClick={handleOpenModal} />}>
+    <Card
+      title="Quotations"
+      headerSlot={
+        <button
+          type="button"
+          onClick={handleOpenModal}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
+        >
+          <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
+          <span>Upload Quotation</span>
+        </button>
+      }
+    >
       {quotations.length === 0 ? (
-        <div className="text-center py-5 text-slate-500">No quotations uploaded.</div>
+        <div className="text-center py-10 text-slate-500">
+          <Icon icon="heroicons-outline:document-text" className="mx-auto text-4xl mb-2 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No quotations uploaded yet</p>
+          <p className="text-xs text-slate-400 mt-1 mb-4">Upload a proposal or price estimate PDF to share with the customer.</p>
+          <button
+            type="button"
+            onClick={handleOpenModal}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold shadow-none transition cursor-pointer"
+          >
+            <Icon icon="heroicons-outline:arrow-up-tray" className="text-sm" />
+            <span>Upload Quotation</span>
+          </button>
+        </div>
       ) : (
         <div className="space-y-4">
           {quotations.map((q) => (
@@ -134,62 +166,177 @@ const LeadQuotations = ({ leadId }) => {
         </div>
       )}
 
-      <Modal activeModal={isModalOpen} onClose={() => setIsModalOpen(false)} title="Upload Quotation" footerContent={
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
-            onClick={() => setIsModalOpen(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
-            onClick={handleSubmit}
-            disabled={isCreating}
-          >
-            {isCreating && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
-            <span>Upload</span>
-          </button>
-        </div>
-      }>
-        <form className="space-y-4">
+      <Modal
+        activeModal={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Upload Quotation"
+        footerContent={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition font-inter"
+              onClick={() => setIsModalOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 font-inter"
+              onClick={handleSubmit}
+              disabled={isCreating}
+            >
+              {isCreating && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
+              <span>Upload Quotation</span>
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4 pt-1 font-inter">
+          {/* File Upload Box */}
           <div>
-            <label className="form-label">Quotation File (PDF/Image) *</label>
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:document-arrow-up" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>
+                Quotation Document (PDF / Image) <span className="text-rose-500">*</span>
+              </span>
+            </label>
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
-              className="form-control py-2 border border-slate-200 dark:border-slate-700 w-full rounded"
-              accept=".pdf,.png,.jpg,.jpeg"
-              required
+              accept=".pdf,image/*,.doc,.docx"
+              className="hidden"
             />
+            {formData.file ? (
+              <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50/40 dark:bg-emerald-950/20">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Icon icon="heroicons-outline:document-arrow-up" className="text-xl text-emerald-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
+                      {formData.file.name}
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      {(formData.file.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, file: null }))}
+                  className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                  title="Remove file"
+                >
+                  <Icon icon="heroicons-outline:trash" className="text-base" />
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900"
+              >
+                <Icon icon="heroicons-outline:cloud-arrow-up" className="text-3xl text-emerald-600 dark:text-emerald-400 mx-auto mb-1.5" />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Click to select quotation file
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Supports PDF, PNG, JPG (Max 15MB)</p>
+              </div>
+            )}
           </div>
-          <Textinput
-            label="Total Amount (₹) *"
-            type="number"
-            value={formData.totalAmount}
-            onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-            placeholder="e.g. 150000"
-            required
-          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Total Amount */}
+            <div>
+              <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+                <Icon icon="heroicons-outline:currency-rupee" className="text-sm text-emerald-600 dark:text-emerald-400" />
+                <span>
+                  Total Amount (₹) <span className="text-rose-500">*</span>
+                </span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 font-bold text-sm pointer-events-none select-none">
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  value={formData.totalAmount}
+                  onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
+                  placeholder="e.g., 250000"
+                  className="w-full pl-8 pr-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Quotation Number */}
+            <div>
+              <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+                <Icon icon="heroicons-outline:hashtag" className="text-sm text-emerald-600 dark:text-emerald-400" />
+                <span>Quotation #</span>
+              </label>
+              <div className="relative">
+                <Icon
+                  icon="heroicons-outline:hashtag"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+                />
+                <input
+                  type="text"
+                  value={formData.quotationNumber}
+                  onChange={(e) => setFormData({ ...formData, quotationNumber: e.target.value })}
+                  placeholder="QT-00123"
+                  className="w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Valid Until Date using Flatpickr */}
           <div>
-            <label className="form-label">Valid Until</label>
-            <input
-              type="date"
-              className="form-control py-2"
-              value={formData.validUntil}
-              onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:calendar-days" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>Valid Until</span>
+            </label>
+            <div className="relative">
+              <Icon
+                icon="heroicons-outline:calendar-days"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none z-10"
+              />
+              <Flatpickr
+                value={formData.validUntil ? dayjs(formData.validUntil).toDate() : ""}
+                onChange={([d]) => {
+                  if (d) {
+                    setFormData((prev) => ({
+                      ...prev,
+                      validUntil: dayjs(d).format("YYYY-MM-DD"),
+                    }));
+                  } else {
+                    setFormData((prev) => ({ ...prev, validUntil: "" }));
+                  }
+                }}
+                options={{
+                  dateFormat: "d M Y",
+                  minDate: dayjs().toDate(),
+                }}
+                className="w-full pl-9 pr-3 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter cursor-pointer"
+                placeholder="Select expiry date"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
+              <Icon icon="heroicons-outline:pencil-square" className="text-sm text-emerald-600 dark:text-emerald-400" />
+              <span>Proposal Notes / Summary</span>
+            </label>
+            <textarea
+              rows={2}
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Quotation including 18% GST and 5-year hardware warranty..."
+              className="w-full px-3.5 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-inter"
             />
           </div>
-          <Textarea
-            label="Notes"
-            placeholder="Any additional remarks..."
-            value={formData.notes}
-            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          />
-        </form>
+        </div>
       </Modal>
     </Card>
   );
