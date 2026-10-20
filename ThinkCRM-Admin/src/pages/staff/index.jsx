@@ -10,6 +10,7 @@ import Badge from "@/components/ui/Badge";
 import Tooltip from "@/components/ui/Tooltip";
 import AdminListToolbar from "@/components/shared/AdminListToolbar";
 import Loading from "@/components/Loading";
+import ErrorState from "@/components/shared/ErrorState";
 import { toast } from "react-toastify";
 import {
   useGetStaffQuery,
@@ -324,7 +325,21 @@ const Staff = () => {
   );
 
   if (isLoading) return <Loading />;
-  if (error) return <ErrorState message="Error loading staff members" />;
+  if (error) {
+    return (
+      <div className="space-y-5">
+        <div className="flex justify-between items-center">
+          <h4 className="text-xl font-semibold text-slate-900 dark:text-white">Staff Management</h4>
+          <Button text="Add Staff" onClick={() => navigate('/staff/new')} className="btn-primary" icon="heroicons-outline:plus" />
+        </div>
+        <ErrorState
+          title="Error Loading Staff Directory"
+          message={error?.data?.message || error?.error || "Unable to reach the server. Please check your connection and try again."}
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

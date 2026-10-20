@@ -19,6 +19,7 @@ const LeadQuotations = ({ leadId, lead }) => {
   const [sendQuotation, { isLoading: isSending }] = useSendQuotationMutation();
   const [deleteQuotation, { isLoading: isDeleting }] = useDeleteQuotationMutation();
 
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmSendQuotation, setConfirmSendQuotation] = useState(null);
   const [confirmDeleteQuotation, setConfirmDeleteQuotation] = useState(null);
@@ -122,6 +123,51 @@ const LeadQuotations = ({ leadId, lead }) => {
     window.open(fullUrl, "_blank", "noopener,noreferrer");
   };
 
+  const handleDownloadFile = async (rawUrl, fileName, fileId = null) => {
+    if (downloadingFileId) return; // Prevent duplicate clicks
+    const fullUrl = getFullFileUrl(rawUrl);
+    if (!fullUrl) {
+      toast.warning("File download link is unavailable");
+      return;
+    }
+    const key = fileId || rawUrl || fileName;
+    try {
+      setDownloadingFileId(key);
+      toast.info("Preparing download, please wait...", { autoClose: 2000 });
+      const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName || "quotation.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Download started!");
+    } catch (err) {
+      console.warn("Direct blob download failed, falling back to direct link:", err);
+      try {
+        let dlUrl = fullUrl;
+        if (fullUrl.includes("/upload/")) {
+          dlUrl = fullUrl.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(fileName || "quotation")}/`);
+        }
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = fileName || "quotation.pdf";
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (fallbackErr) {
+        toast.error("Failed to download file. Please try viewing it directly.");
+      }
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
+
   const handleConfirmSend = async () => {
     if (!confirmSendQuotation) return;
     try {
@@ -190,12 +236,16 @@ const LeadQuotations = ({ leadId, lead }) => {
       ) : (
         <div className="space-y-3.5 font-inter">
           {quotations.map((q) => {
-            const fileUrl = q.uploadedFile?.url || q.fileUrl || q.url;
+            const fileUrl = q.uploadedFile?.url || q.pdfUrl || q.fileUrl || q.url;
             const amountVal =
               q.amount !== undefined ? q.amount : (q.totalAmount !== undefined ? q.totalAmount : 0);
             const fileName = q.uploadedFile?.fileName;
-            const isSent = q.status === "sent";
-            const isDraft = q.status === "draft" || !q.status;
+            const isSent =
+              q.status === "sent" ||
+              !!q.sentAt ||
+              lead?.quotationStatus === "sent" ||
+              lead?.status === "quotation_sent";
+            const isDraft = !isSent && (q.status === "draft" || !q.status);
 
             return (
               <div
@@ -279,6 +329,32 @@ const LeadQuotations = ({ leadId, lead }) => {
                   >
                     <Icon icon="heroicons-outline:eye" className="text-base text-slate-500" />
                     <span>View File</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={Boolean(downloadingFileId) || !fileUrl}
+                    onClick={() => handleDownloadFile(fileUrl, `${q.quotationNumber || "quotation"}.pdf`, q._id)}
+                    className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border text-xs font-semibold shadow-sm transition font-inter ${
+                      downloadingFileId === q._id
+                        ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 cursor-wait shadow-sm"
+                        : downloadingFileId || !fileUrl
+                        ? "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-400 opacity-60 cursor-not-allowed"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:text-emerald-600 cursor-pointer"
+                    }`}
+                    title={downloadingFileId === q._id ? "Downloading quotation..." : "Download Quotation PDF"}
+                  >
+                    {downloadingFileId === q._id ? (
+                      <>
+                        <Icon icon="heroicons:arrow-path" className="animate-spin text-sm text-emerald-600" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                        <span>Download</span>
+                      </>
+                    )}
                   </button>
 
                   {isDraft && (

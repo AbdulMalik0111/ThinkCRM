@@ -6,8 +6,45 @@ import { Customer } from '../models/Customer.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary, getCloudinaryDownloadUrl } from '../utils/cloudinary.js';
 import { sendEmail } from '../integrations/email/email.service.js';
+
+/**
+ * Transforms quotation object so uploadedFile.url, pdfUrl, and fileUrl
+ * use Cloudinary's authenticated private download URL, completely avoiding
+ * CDN "401 deny or ACL failure" on PDFs.
+ */
+export const formatQuotationFileUrl = (quotation) => {
+  if (!quotation) return quotation;
+  const qObj = typeof quotation.toObject === 'function' ? quotation.toObject() : { ...quotation };
+
+  if (qObj.uploadedFile) {
+    let storageKey = qObj.uploadedFile.storageKey;
+    if (!storageKey && qObj.uploadedFile.url && qObj.uploadedFile.url.includes('res.cloudinary.com')) {
+      const match = qObj.uploadedFile.url.match(/(?:image|raw)\/upload\/(?:v\d+\/)?([^.]+)/);
+      if (match) storageKey = match[1];
+    }
+
+    if (storageKey) {
+      const format =
+        qObj.uploadedFile.mimeType?.includes('pdf') || qObj.uploadedFile.fileName?.endsWith('.pdf')
+          ? 'pdf'
+          : (qObj.uploadedFile.fileName?.split('.').pop() || 'pdf');
+      const authenticatedUrl = getCloudinaryDownloadUrl(storageKey, format, 'image');
+      qObj.uploadedFile = {
+        ...qObj.uploadedFile,
+        url: authenticatedUrl,
+        rawUrl: qObj.uploadedFile.url,
+      };
+      qObj.pdfUrl = authenticatedUrl;
+      qObj.fileUrl = authenticatedUrl;
+    } else {
+      qObj.pdfUrl = qObj.uploadedFile.url;
+      qObj.fileUrl = qObj.uploadedFile.url;
+    }
+  }
+  return qObj;
+};
 
 export const createQuotation = async (leadId, data, file, createdBy) => {
   const lead = await Lead.findById(leadId);
@@ -21,9 +58,15 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
       const uploadResult = await uploadToCloudinary(file.buffer, 'thinkcrm/quotations', {
         resource_type: 'auto',
       });
+      const format =
+        file.mimetype?.includes('pdf') || file.originalname?.endsWith('.pdf')
+          ? 'pdf'
+          : (uploadResult.format || 'pdf');
+      const downloadUrl = getCloudinaryDownloadUrl(uploadResult.public_id, format, 'image');
+
       uploadedFile = {
         fileName: file.originalname,
-        url: uploadResult.secure_url,
+        url: downloadUrl || uploadResult.secure_url,
         mimeType: file.mimetype || uploadResult.format || 'application/pdf',
         storageKey: uploadResult.public_id,
       };
@@ -67,7 +110,7 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
     metadata: { quotationId: quotation._id },
   });
 
-  return quotation;
+  return formatQuotationFileUrl(quotation);
 };
 
 export const createCustomerQuotation = async (customerId, data, file, createdBy) => {
@@ -82,9 +125,15 @@ export const createCustomerQuotation = async (customerId, data, file, createdBy)
       const uploadResult = await uploadToCloudinary(file.buffer, 'thinkcrm/quotations', {
         resource_type: 'auto',
       });
+      const format =
+        file.mimetype?.includes('pdf') || file.originalname?.endsWith('.pdf')
+          ? 'pdf'
+          : (uploadResult.format || 'pdf');
+      const downloadUrl = getCloudinaryDownloadUrl(uploadResult.public_id, format, 'image');
+
       uploadedFile = {
         fileName: file.originalname,
-        url: uploadResult.secure_url,
+        url: downloadUrl || uploadResult.secure_url,
         mimeType: file.mimetype || uploadResult.format || 'application/pdf',
         storageKey: uploadResult.public_id,
       };
@@ -138,7 +187,7 @@ export const createCustomerQuotation = async (customerId, data, file, createdBy)
     metadata: { quotationId: quotation._id },
   });
 
-  return quotation;
+  return formatQuotationFileUrl(quotation);
 };
 
 export const sendQuotation = async (leadOrCustomerId, quotationId, sentBy) => {
@@ -180,16 +229,20 @@ export const sendQuotation = async (leadOrCustomerId, quotationId, sentBy) => {
     <p>ThinkCRM Team</p>
   `;
 
+  const attachmentPath = quotation.uploadedFile?.storageKey
+    ? getCloudinaryDownloadUrl(quotation.uploadedFile.storageKey, 'pdf', 'image')
+    : quotation.uploadedFile?.url;
+
   try {
     await sendEmail({
       to: quotation.customerEmail,
       subject: `Your Quotation — ${quotation.quotationNumber}`,
       html,
-      attachments: quotation.uploadedFile?.url
+      attachments: attachmentPath
         ? [
             {
-              filename: quotation.uploadedFile.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
-              path: quotation.uploadedFile.url,
+              filename: quotation.uploadedFile?.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
+              path: attachmentPath,
             },
           ]
         : [],
@@ -237,11 +290,14 @@ export const sendQuotation = async (leadOrCustomerId, quotationId, sentBy) => {
     });
   }
 
-  return quotation;
+  return formatQuotationFileUrl(quotation);
 };
 
 export const getLeadQuotations = async (leadId) => {
-  return await Quotation.find({ leadId }).sort({ createdAt: -1 }).populate('createdBy sentBy', 'firstName lastName');
+  const quotations = await Quotation.find({ leadId })
+    .sort({ createdAt: -1 })
+    .populate('createdBy sentBy', 'firstName lastName');
+  return quotations.map(formatQuotationFileUrl);
 };
 
 export const getCustomerQuotations = async (customerId) => {
@@ -260,10 +316,11 @@ export const getCustomerQuotations = async (customerId) => {
   if (leadIds.length > 0) queryOr.push({ leadId: { $in: leadIds } });
   if (customer.email) queryOr.push({ customerEmail: customer.email });
 
-  return await Quotation.find({ $or: queryOr })
+  const quotations = await Quotation.find({ $or: queryOr })
     .sort({ createdAt: -1 })
     .populate('createdBy sentBy', 'firstName lastName avatar')
     .populate('leadId', 'leadId fullName projectType status');
+  return quotations.map(formatQuotationFileUrl);
 };
 
 export const deleteQuotation = async (leadOrCustomerId, quotationId, deletedBy) => {

@@ -101,6 +101,10 @@ const CustomerView = () => {
     isLoading: false,
   });
 
+  // Download & Send loading tracking
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
+  const [sendingQuotationId, setSendingQuotationId] = useState(null);
+
   // RTK Query
   const { data, isLoading, isError, refetch } = useGetCustomerByIdQuery(id);
   const [deleteCustomer] = useDeleteCustomerMutation();
@@ -109,7 +113,7 @@ const CustomerView = () => {
   const [deleteCustomerNote] = useDeleteCustomerNoteMutation();
   const [updateCustomerFollowUp] = useUpdateCustomerFollowUpMutation();
   const [deleteCustomerFollowUp] = useDeleteCustomerFollowUpMutation();
-  const [sendCustomerQuotation, { isLoading: isSendingQuotation }] = useSendCustomerQuotationMutation();
+  const [sendCustomerQuotation] = useSendCustomerQuotationMutation();
 
   const handleConfirmDeleteCustomer = async () => {
     try {
@@ -125,12 +129,16 @@ const CustomerView = () => {
   };
 
   const handleSendQuotation = async (quotationId) => {
+    if (sendingQuotationId) return;
     try {
+      setSendingQuotationId(quotationId);
       await sendCustomerQuotation(quotationId).unwrap();
       toast.success("Quotation sent to customer email successfully!");
       refetch();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to send quotation");
+    } finally {
+      setSendingQuotationId(null);
     }
   };
 
@@ -249,30 +257,136 @@ const CustomerView = () => {
     }
   };
 
-  const handleDownloadFile = async (url, fileName) => {
+  const formatFileSize = (bytes) => {
+    if (!bytes || isNaN(bytes)) return "File";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i] || "MB"}`;
+  };
+
+  const getDocumentIconMeta = (doc) => {
+    const name = (doc.name || "").toLowerCase();
+    const type = (doc.category || doc.type || doc.fileType || "").toLowerCase();
+    const url = (doc.url || "").toLowerCase();
+
+    // Extension detection (guaranteed max 4 chars)
+    let ext = "DOC";
+    if (name.includes(".")) {
+      const parts = name.split(".");
+      const candidate = parts[parts.length - 1].trim().toUpperCase();
+      if (candidate.length <= 4) ext = candidate;
+    } else if (url.includes(".")) {
+      const cleanUrl = url.split("?")[0];
+      const candidate = cleanUrl.split(".").pop().trim().toUpperCase();
+      if (candidate.length <= 4) ext = candidate;
+    }
+
+    if (name.endsWith(".pdf") || type.includes("pdf") || url.includes(".pdf")) {
+      return {
+        ext: "PDF",
+        icon: "heroicons-outline:document-text",
+        iconBg: "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800",
+        badgeBg: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+      };
+    }
+    if (
+      name.endsWith(".png") ||
+      name.endsWith(".jpg") ||
+      name.endsWith(".jpeg") ||
+      name.endsWith(".webp") ||
+      type.includes("photo") ||
+      type.includes("image")
+    ) {
+      return {
+        ext: ext !== "DOC" ? ext : "IMG",
+        icon: "heroicons-outline:photo",
+        iconBg: "bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-950/40 dark:text-purple-400 dark:border-purple-800",
+        badgeBg: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
+      };
+    }
+    if (type.includes("plan") || type.includes("drawing") || type.includes("floor") || type.includes("site") || type.includes("cad")) {
+      return {
+        ext: ext !== "DOC" ? ext : "CAD",
+        icon: "heroicons-outline:square-3-stack-3d",
+        iconBg: "bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-800",
+        badgeBg: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
+      };
+    }
+    if (name.endsWith(".xls") || name.endsWith(".xlsx") || name.endsWith(".csv") || type.includes("sheet")) {
+      return {
+        ext: ext !== "DOC" ? ext : "XLS",
+        icon: "heroicons-outline:table-cells",
+        iconBg: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800",
+        badgeBg: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+      };
+    }
+    return {
+      ext: ext.slice(0, 4),
+      icon: "heroicons-outline:document",
+      iconBg: "bg-sky-50 text-sky-600 border-sky-200 dark:bg-sky-950/40 dark:text-sky-400 dark:border-sky-800",
+      badgeBg: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+    };
+  };
+
+  const getFullFileUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+    const backendOrigin = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1")
+      .replace(/\/api\/v1\/?$/, "");
+    return `${backendOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
+  };
+
+  const handleDownloadFile = async (rawUrl, fileName, fileId = null) => {
+    if (downloadingFileId) {
+      return; // Already downloading a file, ignore duplicate clicks
+    }
+    const url = getFullFileUrl(rawUrl);
+    if (!url) {
+      toast.warning("File download link is unavailable");
+      return;
+    }
+
+    const key = fileId || rawUrl || fileName;
     try {
+      setDownloadingFileId(key);
+      toast.info("Preparing download, please wait...", { autoClose: 2000 });
+
       const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Download request failed with status ${response.status}`);
+      }
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = fileName || "document";
+      a.download = fileName || "document.pdf";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(blobUrl);
+      toast.success("Download started!");
     } catch (err) {
-      let dlUrl = url;
-      if (url && url.includes("/upload/")) {
-        dlUrl = url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(fileName || "document")}/`);
+      console.warn("Direct blob download failed, falling back to direct link:", err);
+      try {
+        let dlUrl = url;
+        if (url && url.includes("/upload/")) {
+          dlUrl = url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(fileName || "document")}/`);
+        }
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = fileName || "document.pdf";
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (fallbackErr) {
+        toast.error("Failed to download file. Please try viewing it directly.");
       }
-      const a = document.createElement("a");
-      a.href = dlUrl;
-      a.download = fileName || "document";
-      a.target = "_blank";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    } finally {
+      setDownloadingFileId(null);
     }
   };
 
@@ -1153,11 +1267,28 @@ const CustomerView = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {quotations.map((q) => {
-                    const leadInfo = q.leadId;
-                    const reqLabel = leadInfo
-                      ? `${leadInfo.projectType || "Project"} (${leadInfo.leadId || "Lead"})`
+                    const leadObj =
+                      q.leadInfo ||
+                      (typeof q.leadId === "object" ? q.leadId : null) ||
+                      leads.find((l) => l._id?.toString() === (q.leadId?._id || q.leadId)?.toString());
+                    const leadRawId = leadObj?._id || (typeof q.leadId === "string" ? q.leadId : null);
+                    const reqLabel = leadObj
+                      ? `${leadObj.projectType || "Project"} (${leadObj.leadId || "Lead"})`
                       : "Customer Proposal";
-                    const leadRawId = leadInfo?._id || leadInfo;
+
+                    const isSent =
+                      q.status === "sent" ||
+                      !!q.sentAt ||
+                      leadObj?.quotationStatus === "sent" ||
+                      leadObj?.status === "quotation_sent";
+                    const isApproved = q.status === "approved" || q.status === "accepted";
+                    const isDraft = !isSent && !isApproved;
+
+                    const fileUrl = q.pdfUrl || q.uploadedFile?.url || q.url;
+                    const fullFileUrl = getFullFileUrl(fileUrl);
+                    const dlKey = q._id || q.quotationNumber;
+                    const isDownloadingThis = downloadingFileId === dlKey;
+                    const isSendingThis = sendingQuotationId === q._id;
 
                     return (
                       <tr key={q._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
@@ -1187,44 +1318,95 @@ const CustomerView = () => {
                           {formatCurrency(q.totalAmount || q.subtotal || q.amount)}
                         </td>
                         <td className="px-5 py-3.5">
-                          <span
-                            className={`text-[11px] font-semibold px-2 py-0.5 rounded border capitalize ${
-                              q.status === "sent"
-                                ? "bg-teal-50 text-teal-700 border-teal-200"
-                                : q.status === "approved" || q.status === "accepted"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : "bg-blue-50 text-blue-700 border-blue-200"
-                            }`}
-                          >
-                            {q.status || "Draft"}
-                          </span>
+                          {isSent ? (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                <Icon icon="heroicons-outline:check-circle" className="text-sm text-emerald-600 dark:text-emerald-400" />
+                                <span>Sent</span>
+                              </span>
+                              {q.sentAt && (
+                                <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-inter">
+                                  {dayjs(q.sentAt).format("D MMM YYYY, h:mm A")}
+                                </span>
+                              )}
+                            </div>
+                          ) : isApproved ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800">
+                              <Icon icon="heroicons-outline:badge-check" className="text-sm text-teal-600 dark:text-teal-400" />
+                              <span>Approved</span>
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-start gap-0.5">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                                <Icon icon="heroicons-outline:clock" className="text-xs text-amber-500" />
+                                <span>Draft</span>
+                              </span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-5 py-3.5 text-slate-500">
                           {dayjs(q.createdAt).format("MMM D, YYYY")}
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {q.pdfUrl ? (
+                            {fullFileUrl ? (
                               <>
                                 <a
-                                  href={q.pdfUrl}
+                                  href={fullFileUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 font-semibold px-2.5 py-1 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition"
-                                  title="View Quotation PDF"
+                                  className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 font-semibold px-2.5 py-1.5 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition text-xs"
+                                  title="View Quotation PDF in a new tab"
                                 >
                                   <Icon icon="heroicons-outline:eye" className="text-sm" />
                                   <span>View PDF</span>
                                 </a>
                                 <button
                                   type="button"
-                                  onClick={() => handleDownloadFile(q.pdfUrl, `${q.quotationNumber || "quotation"}.pdf`)}
-                                  className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-emerald-600 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer"
-                                  title="Download Quotation PDF"
+                                  disabled={Boolean(downloadingFileId)}
+                                  onClick={() => handleDownloadFile(fileUrl, `${q.quotationNumber || "quotation"}.pdf`, dlKey)}
+                                  className={`inline-flex items-center gap-1.5 font-semibold px-2.5 py-1.5 rounded-lg border text-xs transition ${
+                                    isDownloadingThis
+                                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 cursor-wait shadow-sm"
+                                      : downloadingFileId
+                                      ? "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
+                                      : "text-slate-600 dark:text-slate-300 hover:text-emerald-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                                  }`}
+                                  title={isDownloadingThis ? "Downloading quotation PDF..." : "Download Quotation PDF"}
                                 >
-                                  <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
-                                  <span>Download</span>
+                                  {isDownloadingThis ? (
+                                    <>
+                                      <Icon icon="heroicons:arrow-path" className="animate-spin text-sm text-emerald-600" />
+                                      <span>Downloading...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                                      <span>Download</span>
+                                    </>
+                                  )}
                                 </button>
+                                {isDraft && (
+                                  <button
+                                    type="button"
+                                    disabled={isSendingThis}
+                                    onClick={() => handleSendQuotation(q._id)}
+                                    className="inline-flex items-center gap-1.5 text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed font-semibold px-3 py-1.5 rounded-lg shadow-sm transition text-xs cursor-pointer font-inter shadow-emerald-500/10"
+                                    title="Send quotation document to customer email"
+                                  >
+                                    {isSendingThis ? (
+                                      <>
+                                        <Icon icon="heroicons:arrow-path" className="animate-spin text-sm" />
+                                        <span>Sending...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Icon icon="heroicons-outline:paper-airplane" className="text-sm" />
+                                        <span>Send</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
                               </>
                             ) : (
                               <span className="text-slate-400 text-xs italic">No file attached</span>
@@ -1366,72 +1548,131 @@ const CustomerView = () => {
         </div>
       )}
 
-      {/* 6. FILES & DOCUMENTS TAB - View-only Unified Customer and Lead Documents */}
+      {/* 6. FILES & DOCUMENTS TAB - Redesigned Modern Unified Customer & Lead Documents */}
       {activeTab === "files" && (
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer Files & Documents</h4>
-              <p className="text-xs text-slate-500">
-                View documents across connected lead requirements and customer records. Files are uploaded and managed on the Lead Details page.
+              <div className="flex items-center gap-2">
+                <h4 className="text-base font-bold text-slate-800 dark:text-slate-100">Customer Files & Documents</h4>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-50 text-primary-700 border border-primary-200 dark:bg-primary-950/40 dark:text-primary-300 dark:border-primary-800">
+                  {documents.length} {documents.length === 1 ? "File" : "Files"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Unified repository of drawings, proposals, and uploaded files across connected leads and customer records.
               </p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700 font-inter">
+          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-slate-700/60 font-inter shadow-xs overflow-hidden">
             {documents.map((doc) => {
               const isLeadDoc = doc.sourceType === "lead";
+              const iconMeta = getDocumentIconMeta(doc);
+              const fileSize = formatFileSize(doc.size);
+              const uploadedDate = doc.uploadedAt || customer.updatedAt;
 
               return (
-                <div key={doc._id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition">
-                  <div className="flex items-center gap-3.5">
-                    <div className="h-10 w-10 rounded-lg bg-red-50 text-red-500 border border-red-200 flex items-center justify-center flex-shrink-0 font-bold text-xs uppercase">
-                      {doc.name?.split(".").pop() || "PDF"}
+                <div
+                  key={doc._id}
+                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition group"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    {/* Modern File Badge with neat extension tag */}
+                    <div className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 border relative ${iconMeta.iconBg} shadow-2xs`}>
+                      <Icon icon={iconMeta.icon} className="text-xl" />
+                      <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 border border-inherit shadow-2xs">
+                        {iconMeta.ext}
+                      </span>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h6 className="text-xs font-bold text-slate-900 dark:text-white">{doc.name}</h6>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isLeadDoc
-                              ? "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
-                              : "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800"
-                          }`}
-                        >
-                          {isLeadDoc
-                            ? `Lead: ${doc.leadProjectType || doc.leadNumber || "Lead"}`
-                            : "Customer Document"}
-                        </span>
+
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h6 className="text-[13.5px] font-bold text-slate-900 dark:text-white truncate" title={doc.name}>
+                          {doc.name}
+                        </h6>
+
+                        {/* Source Tag */}
+                        {isLeadDoc ? (
+                          doc.leadId ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/leads/${doc.leadId}?tab=files`)}
+                              className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
+                              title="View file on connected Lead page"
+                            >
+                              <Icon icon="heroicons-outline:link" className="text-xs" />
+                              <span>Lead: {doc.leadProjectType || doc.leadNumber || "Lead"}</span>
+                              <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-[10px]" />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">
+                              Lead File
+                            </span>
+                          )
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800">
+                            Customer Document
+                          </span>
+                        )}
+
+                        {/* Category / Type Tag */}
+                        {(doc.category || doc.type) && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 capitalize">
+                            {doc.category || doc.type}
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
-                        <span>{doc.size ? `${(doc.size / (1024 * 1024)).toFixed(1)} MB` : "File"}</span>
+
+                      <div className="flex items-center gap-2 text-[11.5px] text-slate-400 font-medium">
+                        <span>{fileSize}</span>
                         <span>•</span>
-                        <span>{dayjs(doc.uploadedAt || customer.updatedAt).format("MMM D, YYYY")}</span>
-                        <span>•</span>
-                        <span className="font-medium text-slate-500">{doc.category || "General"}</span>
+                        <span>{dayjs(uploadedDate).format("D MMM YYYY")}</span>
+                        {doc.sourceLabel && (
+                          <>
+                            <span>•</span>
+                            <span className="text-slate-500 dark:text-slate-400">{doc.sourceLabel}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     <a
-                      href={doc.url}
+                      href={getFullFileUrl(doc.url)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 font-semibold px-2.5 py-1 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition text-xs"
-                      title="View Document"
+                      className="inline-flex items-center gap-1.5 text-primary-600 hover:text-primary-700 font-semibold px-3 py-1.5 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 hover:bg-primary-100 transition text-xs shadow-2xs"
+                      title="View Document in a new tab"
                     >
                       <Icon icon="heroicons-outline:eye" className="text-sm" />
                       <span>View</span>
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleDownloadFile(doc.url, doc.name)}
-                      className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 hover:text-emerald-600 font-semibold px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition text-xs cursor-pointer"
-                      title="Download File"
+                      disabled={Boolean(downloadingFileId)}
+                      onClick={() => handleDownloadFile(doc.url, doc.name, doc._id || doc.url || doc.name)}
+                      className={`inline-flex items-center gap-1.5 font-semibold px-3 py-1.5 rounded-lg border transition text-xs shadow-2xs ${
+                        downloadingFileId === (doc._id || doc.url || doc.name)
+                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 cursor-wait shadow-sm"
+                          : downloadingFileId
+                          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
+                          : "text-slate-600 dark:text-slate-300 hover:text-emerald-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                      }`}
+                      title={downloadingFileId === (doc._id || doc.url || doc.name) ? "Downloading file..." : "Download File"}
                     >
-                      <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
-                      <span>Download</span>
+                      {downloadingFileId === (doc._id || doc.url || doc.name) ? (
+                        <>
+                          <Icon icon="heroicons:arrow-path" className="animate-spin text-sm text-emerald-600" />
+                          <span>Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                          <span>Download</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

@@ -6,9 +6,10 @@ import { Activity } from '../models/Activity.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity, getCustomerActivities } from './activity.service.js';
 import { sendEmail } from '../integrations/email/email.service.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary, formatDocumentFileUrl } from '../utils/cloudinary.js';
 import { normalizePhone, normalizeEmail, nameSimilarity } from '../utils/normalize.js';
 import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
+import { formatQuotationFileUrl } from './quotation.service.js';
 
 /**
  * Converts a lead to a customer, or links it to an existing verified customer (Deduplication).
@@ -455,7 +456,7 @@ export const getCustomerById = async (customerId) => {
   // Deduplicate quotations by _id and attach lead info
   const quotationsMap = new Map();
   for (const q of rawQuotations) {
-    const qObj = q.toObject();
+    const qObj = formatQuotationFileUrl(q);
     if (!quotationsMap.has(qObj._id.toString())) {
       const relatedLead = leads.find((l) => l._id.toString() === q.leadId?.toString());
       if (relatedLead) {
@@ -463,7 +464,15 @@ export const getCustomerById = async (customerId) => {
           leadId: relatedLead.leadId,
           leadName: relatedLead.fullName,
           projectType: relatedLead.projectType,
+          quotationStatus: relatedLead.quotationStatus,
+          status: relatedLead.status,
         };
+      }
+      if (
+        (qObj.status === 'draft' || !qObj.status) &&
+        (qObj.sentAt || relatedLead?.quotationStatus === 'sent' || relatedLead?.status === 'quotation_sent')
+      ) {
+        qObj.status = 'sent';
       }
       quotationsMap.set(qObj._id.toString(), qObj);
     }
@@ -500,7 +509,7 @@ export const getCustomerById = async (customerId) => {
   const unifiedDocsMap = new Map();
   if (customer.documents && customer.documents.length > 0) {
     for (const d of customer.documents) {
-      const docObj = d.toObject ? d.toObject() : d;
+      const docObj = formatDocumentFileUrl(d.toObject ? d.toObject() : d);
       const key = docObj.publicId || docObj.url;
       if (key && !unifiedDocsMap.has(key)) {
         unifiedDocsMap.set(key, {
@@ -515,7 +524,7 @@ export const getCustomerById = async (customerId) => {
   for (const leadItem of leads) {
     if (leadItem.documents && leadItem.documents.length > 0) {
       for (const d of leadItem.documents) {
-        const docObj = d.toObject ? d.toObject() : d;
+        const docObj = formatDocumentFileUrl(d.toObject ? d.toObject() : d);
         const key = docObj.publicId || docObj.url;
         if (key && !unifiedDocsMap.has(key)) {
           unifiedDocsMap.set(key, {
@@ -524,6 +533,7 @@ export const getCustomerById = async (customerId) => {
             sourceLabel: `Lead: ${leadItem.projectType || leadItem.fullName}`,
             leadId: leadItem._id,
             leadNumber: leadItem.leadId,
+            leadProjectType: leadItem.projectType,
           });
         }
       }

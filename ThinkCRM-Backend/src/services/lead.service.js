@@ -10,7 +10,7 @@ import { Quotation } from '../models/Quotation.js';
 import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { convertLeadToCustomer as convertService } from './customer.service.js';
-import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { uploadToCloudinary, deleteFromCloudinary, formatDocumentFileUrl } from '../utils/cloudinary.js';
 import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
 
@@ -320,7 +320,9 @@ export const getLeadById = async (leadId) => {
   if (!lead) {
     throw new AppError('Lead not found', 404);
   }
-  return lead;
+  const leadObj = lead.toObject();
+  leadObj.documents = (leadObj.documents || []).map(formatDocumentFileUrl);
+  return leadObj;
 };
 
 export const updateLead = async (leadId, updateData, updatedBy) => {
@@ -648,7 +650,7 @@ export const addLeadDocument = async (leadId, docData, file, userId) => {
     performedBy: userId,
   });
 
-  return lead.documents;
+  return lead.documents.map(formatDocumentFileUrl);
 };
 
 export const deleteLeadDocument = async (leadId, docId, userId) => {

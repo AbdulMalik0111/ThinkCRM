@@ -11,6 +11,7 @@ import reportRoutes from './report.routes.js';
 import settingRoutes from './setting.routes.js';
 import uploadRoutes from './upload.routes.js';
 import searchRoutes from './search.routes.js';
+import quotationRoutes from './quotation.routes.js';
 
 const router = express.Router();
 
@@ -31,5 +32,6 @@ router.use('/reports', reportRoutes);
 router.use('/settings', settingRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/search', searchRoutes);
+router.use('/quotations', quotationRoutes);
 
 export default router;

@@ -1,12 +1,23 @@
+import 'dotenv/config';
 import { v2 as cloudinary } from 'cloudinary';
 import { AppError } from './AppError.js';
 import streamifier from 'streamifier';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+export const ensureCloudinaryConfigured = () => {
+  const currentConfig = cloudinary.config();
+  if (!currentConfig.api_key || !currentConfig.cloud_name || !currentConfig.api_secret) {
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+      secure: true,
+    });
+  }
+  return cloudinary;
+};
+
+// Initial config attempt
+ensureCloudinaryConfigured();
 
 export { cloudinary };
 
@@ -20,6 +31,7 @@ export { cloudinary };
  * @returns {Promise<object>} Cloudinary upload result
  */
 export const uploadToCloudinary = (fileSource, folder = 'thinkcrm/documents', customOptions = {}) => {
+  ensureCloudinaryConfigured();
   const options = {
     folder: folder || 'thinkcrm/documents',
     resource_type: 'auto',
@@ -59,6 +71,7 @@ export const uploadToCloudinary = (fileSource, folder = 'thinkcrm/documents', cu
 export const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   try {
     if (!publicId) return;
+    ensureCloudinaryConfigured();
     const res = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     if (res?.result === 'not found' && resourceType === 'image') {
       await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
@@ -73,9 +86,55 @@ export const deleteFromCloudinary = async (publicId, resourceType = 'image') => 
  * This works even if public CDN delivery for PDF/ZIP is not yet enabled in the dashboard.
  */
 export const getCloudinaryDownloadUrl = (publicId, format = 'pdf', resourceType = 'image') => {
+  ensureCloudinaryConfigured();
   return cloudinary.utils.private_download_url(publicId, format, {
     resource_type: resourceType,
     type: 'upload',
   });
+};
+
+/**
+ * Transforms document object so url and fileUrl use Cloudinary's
+ * authenticated private download URL, completely avoiding CDN 401 ACL failure.
+ */
+export const formatDocumentFileUrl = (doc) => {
+  if (!doc) return doc;
+  const dObj = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+
+  let storageKey = dObj.publicId || dObj.storageKey;
+  if (!storageKey && dObj.url && dObj.url.includes('res.cloudinary.com')) {
+    const match = dObj.url.match(/(?:image|raw)\/upload\/(?:v\d+\/)?([^.]+)/);
+    if (match) storageKey = match[1];
+  }
+
+  if (storageKey) {
+    let format = 'pdf';
+    const nameLower = (dObj.name || '').toLowerCase();
+    const urlLower = (dObj.url || '').toLowerCase();
+    const fileTypeLower = (dObj.fileType || dObj.type || '').toLowerCase();
+
+    if (fileTypeLower.includes('pdf') || nameLower.endsWith('.pdf') || urlLower.endsWith('.pdf')) {
+      format = 'pdf';
+    } else if (fileTypeLower.includes('png') || nameLower.endsWith('.png') || urlLower.endsWith('.png')) {
+      format = 'png';
+    } else if (fileTypeLower.includes('jpg') || fileTypeLower.includes('jpeg') || nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg') || urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
+      format = 'jpg';
+    } else if (nameLower.includes('.')) {
+      format = nameLower.split('.').pop();
+    } else if (urlLower.includes('.')) {
+      format = urlLower.split('?')[0].split('.').pop();
+    }
+
+    try {
+      const authenticatedUrl = getCloudinaryDownloadUrl(storageKey, format, 'image');
+      dObj.url = authenticatedUrl;
+      dObj.fileUrl = authenticatedUrl;
+      dObj.rawUrl = doc.url || dObj.url;
+    } catch (e) {
+      console.warn('Failed to sign Cloudinary download URL for document:', e.message);
+    }
+  }
+
+  return dObj;
 };
 

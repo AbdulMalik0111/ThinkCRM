@@ -130,33 +130,45 @@ export const managementApi = apiSlice.injectEndpoints({
       invalidatesTags: ["Staff"],
     }),
     suspendStaff: builder.mutation({
-      query: (id) => ({
-        url: `staff/${id}`,
-        method: "PATCH",
-        body: { status: 'suspended', isActive: false },
-      }),
+      query: (arg) => {
+        const staffId = typeof arg === 'object' && arg !== null ? (arg.id || arg._id) : arg;
+        return {
+          url: `staff/${staffId}`,
+          method: "PATCH",
+          body: { status: 'suspended', isActive: false },
+        };
+      },
       invalidatesTags: ["Staff"],
     }),
     reactivateStaff: builder.mutation({
-      query: (id) => ({
-        url: `staff/${id}`,
-        method: "PATCH",
-        body: { status: 'active', isActive: true },
-      }),
+      query: (arg) => {
+        const staffId = typeof arg === 'object' && arg !== null ? (arg.id || arg._id) : arg;
+        return {
+          url: `staff/${staffId}`,
+          method: "PATCH",
+          body: { status: 'active', isActive: true },
+        };
+      },
       invalidatesTags: ["Staff"],
     }),
     resetStaffPassword: builder.mutation({
-      query: (id) => ({
-        url: `staff/${id}/reset-password`,
-        method: "POST",
-      }),
+      query: (arg) => {
+        const staffId = typeof arg === 'object' && arg !== null ? (arg.id || arg._id) : arg;
+        return {
+          url: `staff/${staffId}/reset-password`,
+          method: "POST",
+        };
+      },
       invalidatesTags: ["Staff"],
     }),
     deleteStaff: builder.mutation({
-      query: (id) => ({
-        url: `staff/${id}`,
-        method: "DELETE",
-      }),
+      query: (arg) => {
+        const staffId = typeof arg === 'object' && arg !== null ? (arg.id || arg._id) : arg;
+        return {
+          url: `staff/${staffId}`,
+          method: "DELETE",
+        };
+      },
       invalidatesTags: ["Staff"],
     }),
     getPermissionsRegistry: builder.query({

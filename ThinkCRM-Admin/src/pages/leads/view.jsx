@@ -66,6 +66,7 @@ const LeadView = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isEmailOpen, setIsEmailOpen] = useState(false);
+  const [downloadingFileId, setDownloadingFileId] = useState(null);
 
   const [deleteLeadDocument, { isLoading: isDeletingDoc }] = useDeleteLeadDocumentMutation();
 
@@ -121,31 +122,48 @@ const LeadView = () => {
   const getDocumentIconMeta = (doc) => {
     const name = (doc.name || "").toLowerCase();
     const type = (doc.type || "").toLowerCase();
-    if (name.endsWith(".pdf") || type.includes("pdf")) {
+    const url = (doc.url || "").toLowerCase();
+
+    let ext = "DOC";
+    if (name.includes(".")) {
+      const parts = name.split(".");
+      const candidate = parts[parts.length - 1].trim().toUpperCase();
+      if (candidate.length <= 4) ext = candidate;
+    } else if (url.includes(".")) {
+      const cleanUrl = url.split("?")[0];
+      const candidate = cleanUrl.split(".").pop().trim().toUpperCase();
+      if (candidate.length <= 4) ext = candidate;
+    }
+
+    if (name.endsWith(".pdf") || type.includes("pdf") || url.includes(".pdf")) {
       return {
+        ext: "PDF",
         icon: "heroicons-outline:document-text",
         badgeColor: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
-        iconColor: "text-rose-600 bg-rose-50 dark:bg-rose-900/30",
+        iconColor: "text-rose-600 bg-rose-50 dark:bg-rose-900/30 border-rose-200 dark:border-rose-800",
       };
     }
     if (name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".webp") || type.includes("photo") || type.includes("image")) {
       return {
+        ext: ext !== "DOC" ? ext : "IMG",
         icon: "heroicons-outline:photo",
-        badgeColor: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
-        iconColor: "text-sky-600 bg-sky-50 dark:bg-sky-900/30",
+        badgeColor: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800",
+        iconColor: "text-purple-600 bg-purple-50 dark:bg-purple-900/30 border-purple-200 dark:border-purple-800",
       };
     }
-    if (type.includes("plan") || type.includes("drawing")) {
+    if (type.includes("plan") || type.includes("drawing") || type.includes("floor") || type.includes("cad")) {
       return {
+        ext: ext !== "DOC" ? ext : "CAD",
         icon: "heroicons-outline:square-3-stack-3d",
         badgeColor: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
-        iconColor: "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30",
+        iconColor: "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800",
       };
     }
     return {
+      ext: ext.slice(0, 4),
       icon: "heroicons-outline:document",
       badgeColor: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
-      iconColor: "text-slate-600 bg-slate-100 dark:bg-slate-800",
+      iconColor: "text-slate-600 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700",
     };
   };
 
@@ -157,6 +175,51 @@ const LeadView = () => {
     const backendOrigin = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1")
       .replace(/\/api\/v1\/?$/, "");
     return `${backendOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
+  };
+
+  const handleDownloadFile = async (rawUrl, fileName, fileId = null) => {
+    if (downloadingFileId) return; // Prevent duplicate clicks
+    const url = getFullFileUrl(rawUrl);
+    if (!url) {
+      toast.warning("File download link is unavailable");
+      return;
+    }
+    const key = fileId || rawUrl || fileName;
+    try {
+      setDownloadingFileId(key);
+      toast.info("Preparing download, please wait...", { autoClose: 2000 });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName || "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success("Download started!");
+    } catch (err) {
+      console.warn("Direct blob download failed, falling back to direct link:", err);
+      try {
+        let dlUrl = url;
+        if (url && url.includes("/upload/")) {
+          dlUrl = url.replace("/upload/", `/upload/fl_attachment:${encodeURIComponent(fileName || "document")}/`);
+        }
+        const a = document.createElement("a");
+        a.href = dlUrl;
+        a.download = fileName || "document.pdf";
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (fallbackErr) {
+        toast.error("Failed to download file. Please try viewing it directly.");
+      }
+    } finally {
+      setDownloadingFileId(null);
+    }
   };
 
   return (
@@ -838,15 +901,20 @@ const LeadView = () => {
                 const fileUrl = getFullFileUrl(doc.url || doc.fileUrl);
                 const fileSize = formatFileSize(doc.size);
                 const uploadedDate = doc.uploadedAt || doc.createdAt;
+                const dlKey = doc._id || doc.url || doc.name;
+                const isDownloadingThis = downloadingFileId === dlKey;
 
                 return (
                   <div
                     key={doc._id || idx}
-                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col justify-between gap-3 shadow-none group"
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-600 transition flex flex-col justify-between gap-3 shadow-2xs group"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconMeta.iconColor}`}>
+                      <div className={`h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 border relative ${iconMeta.iconColor} shadow-2xs`}>
                         <Icon icon={iconMeta.icon} className="text-xl" />
+                        <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded text-[8.5px] font-black uppercase tracking-wider bg-white dark:bg-slate-900 border border-inherit shadow-2xs">
+                          {iconMeta.ext}
+                        </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -873,25 +941,54 @@ const LeadView = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 mt-1">
-                      {fileUrl ? (
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-bold text-primary-600 hover:text-primary-700 transition"
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/60 mt-1 gap-2">
+                      <div className="flex items-center gap-2">
+                        {fileUrl ? (
+                          <a
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/40 text-primary-600 hover:text-primary-700 hover:bg-primary-100 transition shadow-2xs"
+                            title="View Document in a new tab"
+                          >
+                            <Icon icon="heroicons-outline:eye" className="text-sm" />
+                            <span>View</span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400">File unavailable</span>
+                        )}
+
+                        <button
+                          type="button"
+                          disabled={Boolean(downloadingFileId) || !fileUrl}
+                          onClick={() => handleDownloadFile(fileUrl, doc.name || "document.pdf", dlKey)}
+                          className={`inline-flex items-center gap-1 font-semibold px-2.5 py-1.5 rounded-lg border transition text-xs shadow-2xs ${
+                            isDownloadingThis
+                              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 cursor-wait shadow-sm"
+                              : downloadingFileId || !fileUrl
+                              ? "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
+                              : "text-slate-600 dark:text-slate-300 hover:text-emerald-600 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+                          }`}
+                          title={isDownloadingThis ? "Downloading file..." : "Download File"}
                         >
-                          <Icon icon="heroicons-outline:arrow-top-right-on-square" className="text-sm" />
-                          <span>View File</span>
-                        </a>
-                      ) : (
-                        <span className="text-xs text-slate-400">File unavailable</span>
-                      )}
+                          {isDownloadingThis ? (
+                            <>
+                              <Icon icon="heroicons:arrow-path" className="animate-spin text-sm text-emerald-600" />
+                              <span>Downloading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icon icon="heroicons-outline:arrow-down-tray" className="text-sm" />
+                              <span>Download</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
                       <button
                         type="button"
                         onClick={() => setDeleteDocState(doc)}
-                        className="h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                        className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent hover:border-rose-200 dark:hover:border-rose-800 transition cursor-pointer"
                         title="Delete Document"
                       >
                         <Icon icon="heroicons-outline:trash" className="text-sm" />

@@ -38,7 +38,7 @@ export const getAllUsers = async (query = {}) => {
   }
 
   // exclude deleted staff
-  filter.deletedAt = { $exists: false };
+  filter.deletedAt = null;
 
   const users = await User.find(filter)
     .select('-passwordHash -refreshToken')
@@ -47,7 +47,7 @@ export const getAllUsers = async (query = {}) => {
     .limit(parseInt(limit));
     
   const total = await User.countDocuments(filter);
-  const totalPages = Math.ceil(total / parseInt(limit));
+  const totalPages = Math.ceil(total / parseInt(limit)) || 1;
 
   return {
     users,
@@ -58,29 +58,38 @@ export const getAllUsers = async (query = {}) => {
 };
 
 export const getUserById = async (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError('Invalid staff ID', 400);
+  }
   const user = await User.findById(userId).select('-passwordHash -refreshToken');
   if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError('Staff member not found', 404);
   }
   return user;
 };
 
 export const updateUser = async (userId, updateData) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError('Invalid staff ID', 400);
+  }
   const user = await User.findByIdAndUpdate(userId, updateData, {
     new: true,
     runValidators: true,
   }).select('-passwordHash -refreshToken');
 
   if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError('Staff member not found', 404);
   }
   return user;
 };
 
 export const deleteUser = async (userId) => {
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new AppError('Invalid staff ID', 400);
+  }
   const user = await User.findById(userId);
   if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError('Staff member not found', 404);
   }
   
   user.deletedAt = Date.now();
