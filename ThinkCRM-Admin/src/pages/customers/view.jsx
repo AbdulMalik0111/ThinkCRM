@@ -334,7 +334,7 @@ const CustomerView = () => {
     if (url.startsWith("http://") || url.startsWith("https://")) {
       return url;
     }
-    const backendOrigin = (import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1")
+    const backendOrigin = (import.meta.env.VITE_API_BASE_URL || "https://thinkcrm.onrender.com/api/v1")
       .replace(/\/api\/v1\/?$/, "");
     return `${backendOrigin}${url.startsWith("/") ? "" : "/"}${url}`;
   };

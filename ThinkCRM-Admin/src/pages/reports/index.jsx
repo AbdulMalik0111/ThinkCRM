@@ -506,7 +506,7 @@ const Reports = () => {
           ...queryParams,
           format: "csv",
         }).toString();
-        const exportUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1"}/reports/export?${queryStr}`;
+        const exportUrl = `${import.meta.env.VITE_API_BASE_URL || "https://thinkcrm.onrender.com/api/v1"}/reports/export?${queryStr}`;
         
         const token = localStorage.getItem("token") || "";
         const response = await fetch(exportUrl, {
@@ -528,7 +528,7 @@ const Reports = () => {
           ...queryParams,
           format: "excel",
         }).toString();
-        const exportUrl = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5050/api/v1"}/reports/export?${queryStr}`;
+        const exportUrl = `${import.meta.env.VITE_API_BASE_URL || "https://thinkcrm.onrender.com/api/v1"}/reports/export?${queryStr}`;
         
         const token = localStorage.getItem("token") || "";
         const response = await fetch(exportUrl, {

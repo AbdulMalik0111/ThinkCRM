@@ -10,8 +10,16 @@ const options = {
     },
     servers: [
       {
+        url: 'https://thinkcrm.onrender.com/api/v1',
+        description: 'Production Server (Render)',
+      },
+      {
         url: '/api/v1',
-        description: 'Development server',
+        description: 'Current Origin',
+      },
+      {
+        url: 'http://localhost:5050/api/v1',
+        description: 'Localhost Development',
       },
     ],
     components: {
