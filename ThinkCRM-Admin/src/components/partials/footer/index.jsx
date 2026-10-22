@@ -24,7 +24,7 @@ const Footer = ({ className = "custom-class" }) => {
           <div className="md:ltr:text-right md:rtl:text-end text-center text-sm">
             Hand-crafted & Made by{" "}
             <span className="text-primary-500 font-semibold">
-              Mritunjay Singh
+              THINKTIVE IT SOLUTION
             </span>
           </div>
         </div>

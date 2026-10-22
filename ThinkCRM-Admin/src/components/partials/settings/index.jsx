@@ -9,7 +9,6 @@ import RtlSwicth from "./Tools/Rtl";
 import Skin from "./Tools/Skin";
 import Theme from "./Tools/Theme";
 import ContentWidth from "./Tools/ContentWidth";
-import Menulayout from "./Tools/Menulayout";
 import MenuClose from "./Tools/MenuClose";
 import MenuHidden from "./Tools/MenuHidden";
 import NavbarType from "./Tools/NavbarType";
