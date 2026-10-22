@@ -48,10 +48,12 @@ export const verifySmtpConnection = async () => {
 };
 
 /**
- * Universal branded HTML email template featuring logo.webp
+ * Universal branded HTML email template featuring ThinkTive logo
  */
 export const wrapWithEmailTemplate = (contentHtml) => {
-  const logoUrl = process.env.LOGO_URL || 'https://crm.thinktive.us/logo.webp';
+  const logoUrl =
+    process.env.LOGO_URL ||
+    'https://res.cloudinary.com/l2v98o7i/image/upload/v1792699749/thinkcrm/branding/thinktive_email_logo.png';
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -64,12 +66,18 @@ export const wrapWithEmailTemplate = (contentHtml) => {
     <tr>
       <td align="center">
         <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;" cellspacing="0" cellpadding="0" border="0">
-          <!-- Header with logo.webp -->
+          <!-- Header with ThinkTive Logo -->
           <tr>
-            <td style="background-color: #0f172a; padding: 22px 32px; text-align: left;">
-              <a href="https://crm.thinktive.us" target="_blank" style="text-decoration: none; display: inline-block;">
-                <img src="${logoUrl}" alt="ThinkTive IT Solution" style="height: 38px; max-width: 200px; display: block; border: 0;" />
-              </a>
+            <td style="background-color: #0f172a; padding: 20px 32px; text-align: left;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse: collapse;">
+                <tr>
+                  <td style="vertical-align: middle;">
+                    <a href="https://crm.thinktive.us" target="_blank" style="text-decoration: none; display: inline-block;">
+                      <img src="${logoUrl}" alt="ThinkTive. IT Solution" width="220" height="49" style="height: 42px; width: auto; max-width: 220px; display: block; border: 0; outline: none; text-decoration: none;" />
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           <!-- Body Content -->
@@ -111,9 +119,9 @@ export const sendEmail = async ({
       (process.env.MAILTRAP_TOKEN ? 'hello@demomailtrap.co' : 'noreply@thinkcrm.com');
     const fromName = process.env.EMAIL_FROM_NAME || 'ThinkTive CRM';
 
-    // Wrap in branded email template with logo if not already wrapped
+    // Wrap in branded email template with logo if not already a full document
     const finalHtml = html
-      ? (html.includes('logo.webp') || html.includes('ThinkTive') ? html : wrapWithEmailTemplate(html))
+      ? (html.includes('<!DOCTYPE') || html.includes('<html') ? html : wrapWithEmailTemplate(html))
       : (text ? wrapWithEmailTemplate(`<p>${text.replace(/\n/g, '<br>')}</p>`) : undefined);
 
     // Sanitize attachments for Nodemailer (supports Buffers, base64, URLs, and file paths)
