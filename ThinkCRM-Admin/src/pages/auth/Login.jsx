@@ -114,7 +114,7 @@ const Login = () => {
             <img 
               src="/logo.webp" 
               alt="ThinkTive" 
-              className="h-10 max-w-[200px] w-auto object-contain different" 
+              className="h-10 max-w-[200px] w-auto object-contain" 
             />
           </div>
           
