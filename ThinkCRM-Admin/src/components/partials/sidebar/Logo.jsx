@@ -35,7 +35,7 @@ const SidebarLogo = ({ menuHover }) => {
               <img
                 src="/logo.webp"
                 alt="ThinkTive"
-                className="h-8 max-w-[170px] w-auto object-contain transition-all duration-150"
+                className="h-10 max-w-[200px] w-auto object-contain transition-all duration-150"
               />
             </div>
           ) : (
