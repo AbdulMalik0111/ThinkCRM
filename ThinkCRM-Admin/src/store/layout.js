@@ -22,7 +22,7 @@ const initialSidebarCollapsed = () => safeParse("sidebarCollapsed", themeConfig.
 const initialSemiDarkMode = () => safeParse("semiDarkMode", themeConfig.layout.semiDarkMode);
 const initialRtl = () => safeParse("direction", themeConfig.layout.isRTL);
 const initialSkin = () => safeParse("skin", themeConfig.layout.skin);
-const initialType = () => safeParse("type", themeConfig.layout.type);
+const initialType = () => "vertical";
 const initialMonochrome = () => safeParse("monochrome", themeConfig.layout.isMonochrome);
 const initialState = {
   isRTL: initialRtl(),
