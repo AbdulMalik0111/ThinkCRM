@@ -237,7 +237,7 @@ app.get('/', (req, res) => {
         <div class="card">
           <div class="header">
             <div class="brand">
-              <div class="logo">T</div>
+              <img src="/logo.webp" alt="ThinkTive" style="height: 38px; width: auto; max-width: 160px; object-fit: contain; margin-right: 8px;" />
               <div>
                 <div class="title">ThinkCRM API</div>
                 <div class="subtitle">Cloud Production Server</div>
