@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Customer } from '../models/Customer.js';
 import { Lead } from '../models/Lead.js';
 import { Quotation } from '../models/Quotation.js';
@@ -236,16 +237,26 @@ export const createCustomer = async (data, createdBy) => {
 
   // Initial projects handling
   const projects = Array.isArray(data.projects) ? data.projects : [];
-  if (projects.length === 0 && data.projectName && data.projectType) {
+  if (projects.length === 0 && (data.projectName || data.projectType || data.totalValue)) {
     projects.push({
-      projectName: data.projectName,
-      projectType: data.projectType,
+      projectName: data.projectName || `${data.projectType || 'Interior'} Project`,
+      projectType: data.projectType || 'Modular Kitchen',
       description: data.projectDescription || '',
-      budget: Number(data.budget) || 0,
+      budget: Number(data.totalValue || data.budget) || 0,
       status: data.projectStatus || 'active',
       startDate: data.startDate || new Date(),
       completionDate: data.completionDate || null,
       assignedStaff: data.assignedStaff || null,
+    });
+  }
+
+  // Initial notes handling
+  const notes = Array.isArray(data.notes) ? [...data.notes] : [];
+  if (data.generalNotes && typeof data.generalNotes === 'string' && data.generalNotes.trim()) {
+    notes.push({
+      content: data.generalNotes.trim(),
+      createdBy: createdBy || null,
+      createdAt: new Date(),
     });
   }
 
@@ -254,6 +265,7 @@ export const createCustomer = async (data, createdBy) => {
   const customer = await Customer.create({
     ...data,
     projects,
+    notes,
     totalValue,
   });
 
@@ -268,61 +280,85 @@ export const createCustomer = async (data, createdBy) => {
   return customer;
 };
 
-export const getCustomers = async (query = {}) => {
-  const filter = { deletedAt: null };
+export const getCustomers = async (query = {}, user = null) => {
+  const andConditions = [{ deletedAt: null }];
+
+  // Staff role scoping: non-owners and non-admins only see customers assigned to them
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  let userObjId = null;
+  if (user && !isOwnerOrAdmin && user._id) {
+    userObjId = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+    andConditions.push({
+      $or: [
+        { assignedStaff: userObjId },
+        { 'projects.assignedStaff': userObjId },
+      ],
+    });
+  }
 
   // Search across multiple fields
   if (query.search) {
     const s = query.search.trim();
-    filter.$or = [
-      { fullName: { $regex: s, $options: 'i' } },
-      { email: { $regex: s, $options: 'i' } },
-      { phone: { $regex: s, $options: 'i' } },
-      { alternatePhone: { $regex: s, $options: 'i' } },
-      { customerId: { $regex: s, $options: 'i' } },
-      { location: { $regex: s, $options: 'i' } },
-      { city: { $regex: s, $options: 'i' } },
-      { companyName: { $regex: s, $options: 'i' } },
-      { projectType: { $regex: s, $options: 'i' } },
-      { tags: { $regex: s, $options: 'i' } },
-    ];
+    andConditions.push({
+      $or: [
+        { fullName: { $regex: s, $options: 'i' } },
+        { email: { $regex: s, $options: 'i' } },
+        { phone: { $regex: s, $options: 'i' } },
+        { alternatePhone: { $regex: s, $options: 'i' } },
+        { customerId: { $regex: s, $options: 'i' } },
+        { location: { $regex: s, $options: 'i' } },
+        { city: { $regex: s, $options: 'i' } },
+        { companyName: { $regex: s, $options: 'i' } },
+        { projectType: { $regex: s, $options: 'i' } },
+        { tags: { $regex: s, $options: 'i' } },
+      ],
+    });
   }
 
   // Field-level filters
   if (query.status && query.status !== 'all') {
-    filter.status = query.status;
+    andConditions.push({ status: query.status });
   }
   if (query.projectType && query.projectType !== 'all') {
-    filter.$or = [
-      { projectType: { $regex: query.projectType, $options: 'i' } },
-      { 'projects.projectType': { $regex: query.projectType, $options: 'i' } },
-    ];
+    andConditions.push({
+      $or: [
+        { projectType: { $regex: query.projectType, $options: 'i' } },
+        { 'projects.projectType': { $regex: query.projectType, $options: 'i' } },
+      ],
+    });
   }
   if (query.city && query.city !== 'all') {
-    filter.$or = [
-      { city: { $regex: query.city, $options: 'i' } },
-      { location: { $regex: query.city, $options: 'i' } },
-    ];
+    andConditions.push({
+      $or: [
+        { city: { $regex: query.city, $options: 'i' } },
+        { location: { $regex: query.city, $options: 'i' } },
+      ],
+    });
   }
   if (query.assignedStaff && query.assignedStaff !== 'all') {
-    filter.assignedStaff = query.assignedStaff;
+    andConditions.push({ assignedStaff: query.assignedStaff });
   }
   if (query.tag && query.tag !== 'all') {
-    filter.tags = query.tag;
+    andConditions.push({ tags: query.tag });
   }
   if (query.startDate || query.endDate) {
-    filter.createdAt = {};
+    const dateRange = {};
     if (query.startDate) {
       const start = new Date(query.startDate);
       start.setHours(0, 0, 0, 0);
-      filter.createdAt.$gte = start;
+      dateRange.$gte = start;
     }
     if (query.endDate) {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
-      filter.createdAt.$lte = end;
+      dateRange.$lte = end;
     }
+    andConditions.push({ createdAt: dateRange });
   }
+
+  const filter = andConditions.length > 1 ? { $and: andConditions } : andConditions[0];
 
   const page = parseInt(query.page, 10) || 1;
   const limit = parseInt(query.limit, 10) || 10;
@@ -369,10 +405,20 @@ export const getCustomers = async (query = {}) => {
 
   // Compute live summary metrics for the directory cards
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const baseScopedFilter = user && !isOwnerOrAdmin && userObjId
+    ? {
+        deletedAt: null,
+        $or: [
+          { assignedStaff: userObjId },
+          { 'projects.assignedStaff': userObjId },
+        ],
+      }
+    : { deletedAt: null };
+
   const [totalCustomersCount, newThisMonthCount, allActiveCusts] = await Promise.all([
-    Customer.countDocuments({ deletedAt: null }),
-    Customer.countDocuments({ deletedAt: null, createdAt: { $gte: startOfMonth } }),
-    Customer.find({ deletedAt: null }).select('projects totalValue status'),
+    Customer.countDocuments(baseScopedFilter),
+    Customer.countDocuments({ ...baseScopedFilter, createdAt: { $gte: startOfMonth } }),
+    Customer.find(baseScopedFilter).select('projects totalValue status'),
   ]);
 
   let activeProjectsCount = 0;
@@ -589,20 +635,113 @@ export const getCustomerById = async (customerId) => {
   };
 };
 
-export const updateCustomer = async (customerId, updateData, userId) => {
+export const updateCustomer = async (customerId, rawUpdateData, userId) => {
+  let updateData = rawUpdateData;
+  if (updateData?.data && typeof updateData.data === 'object' && !Array.isArray(updateData.data)) {
+    updateData = updateData.data;
+  }
+
+  // Clone so we don't mutate input
+  updateData = { ...updateData };
+
+  // Normalize email
+  if (typeof updateData.email === 'string') {
+    updateData.email = updateData.email.trim().toLowerCase();
+  }
+
+  // Calculate totalValue from projects
   if (Array.isArray(updateData.projects)) {
     const sum = updateData.projects.reduce((acc, p) => acc + (Number(p.budget) || 0), 0);
     if (sum > 0) updateData.totalValue = sum;
   }
 
+  // Handle note appending
+  let newNote = null;
+  if (updateData.generalNotes && typeof updateData.generalNotes === 'string' && updateData.generalNotes.trim()) {
+    newNote = {
+      content: updateData.generalNotes.trim(),
+      createdBy: userId || null,
+      createdAt: new Date(),
+    };
+  }
+  delete updateData.generalNotes;
+
+  const updateOps = { $set: updateData };
+  if (newNote) {
+    updateOps.$push = { notes: newNote };
+  }
+
+  const oldCustomer = await Customer.findOne({ _id: customerId, deletedAt: null });
+  if (!oldCustomer) {
+    throw new AppError('Customer not found', 404);
+  }
+
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, deletedAt: null },
-    updateData,
+    updateOps,
     { new: true, runValidators: true }
-  ).populate('assignedStaff', 'firstName lastName avatar email');
+  )
+    .populate('assignedStaff', 'firstName lastName avatar email phone')
+    .populate('projects.assignedStaff', 'firstName lastName avatar email');
 
-  if (!customer) {
-    throw new AppError('Customer not found', 404);
+  // Keep linked leads in 2-way sync if personal/contact info was updated
+  if (
+    updateData.email ||
+    updateData.phone ||
+    updateData.alternatePhone ||
+    updateData.fullName ||
+    updateData.address ||
+    updateData.city ||
+    updateData.state ||
+    updateData.pincode ||
+    updateData.location
+  ) {
+    try {
+      const leadUpdates = {};
+      if (updateData.email) leadUpdates.email = updateData.email;
+      if (updateData.phone) leadUpdates.phone = updateData.phone;
+      if (updateData.alternatePhone !== undefined) leadUpdates.alternatePhone = updateData.alternatePhone;
+      if (updateData.fullName) leadUpdates.fullName = updateData.fullName;
+      if (updateData.address !== undefined) leadUpdates.address = updateData.address;
+      if (updateData.city !== undefined) leadUpdates.city = updateData.city;
+      if (updateData.state !== undefined) leadUpdates.state = updateData.state;
+      if (updateData.pincode !== undefined) leadUpdates.pincode = updateData.pincode;
+      if (updateData.location !== undefined) leadUpdates.location = updateData.location;
+
+      const directLeadIds = [
+        ...(customer.sourceLeadId ? [customer.sourceLeadId] : []),
+        ...(Array.isArray(customer.leads) ? customer.leads : []),
+      ];
+
+      const searchConditions = [
+        ...(directLeadIds.length > 0 ? [{ _id: { $in: directLeadIds } }] : []),
+        { customerId: customer._id },
+        ...(customer.phone ? [{ phone: customer.phone }] : []),
+        ...(oldCustomer?.phone ? [{ phone: oldCustomer.phone }] : []),
+        ...(customer.email ? [{ email: customer.email.toLowerCase() }] : []),
+        ...(oldCustomer?.email ? [{ email: oldCustomer.email.toLowerCase() }] : []),
+      ];
+
+      const matchedLeads = await Lead.find({
+        isDeleted: false,
+        $or: searchConditions,
+      });
+
+      if (matchedLeads.length > 0) {
+        const leadIdsToUpdate = matchedLeads.map((l) => l._id);
+        await Lead.updateMany(
+          { _id: { $in: leadIdsToUpdate } },
+          { $set: { ...leadUpdates, customerId: customer._id } }
+        );
+
+        if (!customer.sourceLeadId && matchedLeads[0]?._id) {
+          customer.sourceLeadId = matchedLeads[0]._id;
+          await Customer.findByIdAndUpdate(customer._id, { sourceLeadId: matchedLeads[0]._id });
+        }
+      }
+    } catch (leadSyncErr) {
+      console.warn('Lead sync during customer update failed:', leadSyncErr.message);
+    }
   }
 
   if (userId) {
@@ -1016,30 +1155,35 @@ export const sendCustomerEmail = async (customerId, emailOptions, userId) => {
     throw new AppError('Customer has no email address', 400);
   }
 
-  const result = await sendEmail({
-    to: recipientEmail,
-    cc: emailOptions.cc,
-    bcc: emailOptions.bcc,
-    subject: emailOptions.subject || 'Update from ThinkCRM',
-    text: emailOptions.message || '',
-    html: emailOptions.html || `<p>${(emailOptions.message || '').replace(/\n/g, '<br>')}</p>`,
-    attachments: emailOptions.attachments || [],
-  });
+  try {
+    const result = await sendEmail({
+      to: recipientEmail,
+      cc: emailOptions.cc,
+      bcc: emailOptions.bcc,
+      subject: emailOptions.subject || 'Update from ThinkTive CRM',
+      text: emailOptions.message || '',
+      html: emailOptions.html || `<p>${(emailOptions.message || '').replace(/\n/g, '<br>')}</p>`,
+      attachments: emailOptions.attachments || [],
+    });
 
-  await logActivity({
-    customerId: customer._id,
-    leadId: customer.sourceLeadId || undefined,
-    type: 'customer_email_sent',
-    description: `Email sent to ${recipientEmail}: "${emailOptions.subject || 'Update'}"`,
-    performedBy: userId,
-    metadata: {
-      recipient: recipientEmail,
-      subject: emailOptions.subject,
-      attachmentsCount: (emailOptions.attachments || []).length,
-    },
-  });
+    await logActivity({
+      customerId: customer._id,
+      leadId: customer.sourceLeadId || undefined,
+      type: 'customer_email_sent',
+      description: `Email sent to ${recipientEmail}: "${emailOptions.subject || 'Update'}"`,
+      performedBy: userId,
+      metadata: {
+        recipient: recipientEmail,
+        subject: emailOptions.subject,
+        attachmentsCount: (emailOptions.attachments || []).length,
+      },
+    });
 
-  return result;
+    return result;
+  } catch (error) {
+    logger.error(`[sendCustomerEmail] Failed to deliver email to ${recipientEmail}:`, error);
+    throw new AppError(`Failed to send email: ${error.message || 'SMTP delivery error'}`, 400);
+  }
 };
 
 /**

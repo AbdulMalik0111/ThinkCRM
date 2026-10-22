@@ -8,16 +8,17 @@ export const customersApi = apiSlice.injectEndpoints({
         params,
       }),
       providesTags: (result) =>
-        result
+        result?.data?.customers
           ? [
               ...result.data.customers.map(({ _id }) => ({ type: "Customer", id: _id })),
               { type: "Customer", id: "LIST" },
+              "Customer",
             ]
-          : [{ type: "Customer", id: "LIST" }],
+          : [{ type: "Customer", id: "LIST" }, "Customer"],
     }),
     getCustomerById: builder.query({
       query: (id) => `customers/${id}`,
-      providesTags: (result, error, id) => [{ type: "Customer", id }],
+      providesTags: (result, error, id) => [{ type: "Customer", id }, "Customer"],
     }),
     createCustomer: builder.mutation({
       query: (data) => ({
@@ -25,7 +26,13 @@ export const customersApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: [{ type: "Customer", id: "LIST" }, "Dashboard", "Lead"],
+      invalidatesTags: [
+        { type: "Customer", id: "LIST" },
+        "Customer",
+        { type: "Lead", id: "LIST" },
+        "Lead",
+        "Dashboard",
+      ],
     }),
     convertLeadToCustomer: builder.mutation({
       query: (sourceLeadId) => ({
@@ -33,17 +40,28 @@ export const customersApi = apiSlice.injectEndpoints({
         method: "POST",
         body: { sourceLeadId },
       }),
-      invalidatesTags: [{ type: "Customer", id: "LIST" }, "Customer", "Lead", "Dashboard"],
+      invalidatesTags: [
+        { type: "Customer", id: "LIST" },
+        "Customer",
+        { type: "Lead", id: "LIST" },
+        "Lead",
+        "Dashboard",
+      ],
     }),
     updateCustomer: builder.mutation({
-      query: ({ id, data }) => ({
+      query: ({ id, data, ...rest }) => ({
         url: `customers/${id}`,
         method: "PATCH",
-        body: data,
+        body: data !== undefined ? data : rest,
       }),
       invalidatesTags: (result, error, { id }) => [
         { type: "Customer", id },
         { type: "Customer", id: "LIST" },
+        "Customer",
+        { type: "Lead", id: "LIST" },
+        "Lead",
+        "Dashboard",
+        "Reports",
       ],
     }),
     deleteCustomer: builder.mutation({

@@ -3,7 +3,7 @@ import * as activityService from '../services/activity.service.js';
 
 export const getLeadStats = async (req, res, next) => {
   try {
-    const stats = await leadService.getLeadStats();
+    const stats = await leadService.getLeadStats(req.user);
     res.status(200).json({
       success: true,
       message: 'Lead statistics fetched successfully',
@@ -29,7 +29,7 @@ export const createLead = async (req, res, next) => {
 
 export const getLeads = async (req, res, next) => {
   try {
-    const data = await leadService.getLeads(req.query);
+    const data = await leadService.getLeads(req.query, req.user);
     res.status(200).json({
       success: true,
       message: 'Leads fetched successfully',

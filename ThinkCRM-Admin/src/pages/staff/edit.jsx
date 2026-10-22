@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import StaffForm from "./components/StaffForm";
 import { useUpdateStaffMutation } from "@/store/api/management/managementApiSlice";
+import { updateUserProfile } from "@/store/api/auth/authSlice";
 import { toast } from "react-toastify";
 import Card from "@/components/ui/Card";
 
@@ -9,6 +11,8 @@ const StaffEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useDispatch();
+  const { user: currentUser } = useSelector((state) => state.auth);
   const initialStaffData = location.state?.staff;
   
   const [updateStaff, { isLoading, isSuccess, isError, error }] = useUpdateStaffMutation();
@@ -30,17 +34,34 @@ const StaffEdit = () => {
     }
   }, [isSuccess, isError, error, navigate]);
 
-  const handleSubmit = (formData) => {
+  const handleSubmit = async (formData) => {
     const payload = {
       id,
       firstName: formData.firstName,
       lastName: formData.lastName,
+      phone: formData.phone || undefined,
       role: formData.role,
       permissions: formData.permissions,
       status: formData.status,
       isActive: formData.isActive
     };
-    updateStaff(payload);
+    
+    try {
+      const res = await updateStaff(payload).unwrap();
+      const currentId = currentUser?._id || currentUser?.id;
+      if (currentId && (currentId === id || currentUser?.email === initialStaffData?.email)) {
+        dispatch(updateUserProfile({
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          phone: payload.phone,
+          role: payload.role,
+          permissions: payload.permissions,
+          ...(res?.data?.user || {}),
+        }));
+      }
+    } catch (err) {
+      // handled by mutation error state
+    }
   };
 
   if (!initialStaffData) {

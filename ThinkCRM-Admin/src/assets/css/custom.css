@@ -747,9 +747,17 @@ span.flatpickr-weekday {
   background: #1e293b !important;
 }
 
+/* Ensure Toast notifications appear above ALL modals, drawers, and backdrops */
+.Toastify__toast-container {
+  z-index: 9999999 !important;
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+
 .Toastify__toast {
   border: 1px solid #e2e8f0 !important;
-  border-radius: 0.5rem !important;
+  border-radius: 0.75rem !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 .dark .Toastify__toast {

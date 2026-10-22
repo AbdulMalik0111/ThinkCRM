@@ -96,6 +96,19 @@ const customerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    preferredContactMethod: {
+      type: String,
+      default: 'Call',
+      trim: true,
+    },
+    bestTimeToContact: {
+      type: String,
+      trim: true,
+    },
+    communicationNotes: {
+      type: String,
+      trim: true,
+    },
     projects: [
       {
         projectName: {

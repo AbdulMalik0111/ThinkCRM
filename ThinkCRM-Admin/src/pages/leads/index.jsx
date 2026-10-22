@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Flatpickr from "react-flatpickr";
@@ -16,10 +16,12 @@ import AddLeadModal from "./components/AddLeadModal";
 import AddFollowUpModal from "./components/AddFollowUpModal";
 import ConvertLeadModal from "./components/ConvertLeadModal";
 import DeleteLeadModal from "./components/DeleteLeadModal";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import SendWhatsAppModal from "./components/SendWhatsAppModal";
 import SendEmailModal from "./components/SendEmailModal";
 import AddMeasurementModal from "./components/AddMeasurementModal";
 import UploadQuotationModal from "./components/UploadQuotationModal";
+import UploadLeadDocumentModal from "./components/UploadLeadDocumentModal";
 import ImportLeadModal from "./components/ImportLeadModal";
 import { LeadStatusBadge, LeadSourceBadge } from "./components/LeadStatusBadge";
 import store from "@/store";
@@ -38,23 +40,29 @@ import { useGetStaffQuery } from "@/store/api/management/managementApiSlice";
 
 const SOURCE_FILTER_OPTIONS = [
   { value: "all", label: "All Sources" },
-  { value: "website", label: "Website" },
-  { value: "meta_ads", label: "Meta Ads" },
-  { value: "referral", label: "Referral" },
-  { value: "google_ads", label: "Google Ads" },
-  { value: "social_media", label: "Social Media" },
-  { value: "direct", label: "Direct" },
-  { value: "other", label: "Other" },
+  { value: "Website", label: "Website" },
+  { value: "Meta Ads", label: "Meta Ads" },
+  { value: "Google Ads", label: "Google Ads" },
+  { value: "WhatsApp", label: "WhatsApp" },
+  { value: "Referral", label: "Referral" },
+  { value: "Phone", label: "Phone Call" },
+  { value: "Walk-in", label: "Walk-in" },
+  { value: "Other", label: "Other" },
 ];
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All Status" },
-  { value: "new", label: "New" },
+  { value: "new", label: "New Lead" },
   { value: "attempted", label: "Attempted" },
   { value: "contacted", label: "Contacted" },
-  { value: "follow_up", label: "Follow Up" },
-  { value: "in_progress", label: "In Progress" },
+  { value: "follow_up", label: "Follow-up" },
+  { value: "in_progress", label: "Call Not Picked Up" },
   { value: "qualified", label: "Qualified" },
+  { value: "measurement_pending", label: "Measurement Pending" },
+  { value: "measurement_scheduled", label: "Measurement Scheduled" },
+  { value: "measurement_completed", label: "Measurement Completed" },
+  { value: "quotation_pending", label: "Quotation Pending" },
+  { value: "quotation_sent", label: "Quotation Sent" },
   { value: "converted", label: "Converted" },
   { value: "lost", label: "Lost" },
   { value: "junk", label: "Junk" },
@@ -303,10 +311,12 @@ const Leads = () => {
   const [emailLead, setEmailLead] = useState(null);
   const [measurementLead, setMeasurementLead] = useState(null);
   const [quotationLead, setQuotationLead] = useState(null);
+  const [uploadDocLead, setUploadDocLead] = useState(null);
 
   // Bulk Action State
   const [bulkAssignStaffId, setBulkAssignStaffId] = useState("");
   const [bulkStatusValue, setBulkStatusValue] = useState("");
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [bulkAssignLeads, { isLoading: isBulkAssigning }] = useBulkAssignLeadsMutation();
   const [bulkUpdateStatus, { isLoading: isBulkUpdatingStatus }] = useBulkUpdateStatusMutation();
   const [bulkDeleteLeads, { isLoading: isBulkDeleting }] = useBulkDeleteLeadsMutation();
@@ -340,8 +350,16 @@ const Leads = () => {
       ...(sourceFilter !== "all" && { source: sourceFilter }),
       ...(statusFilter !== "all" && { status: statusFilter }),
       ...(staffFilter !== "all" && { assignedTo: staffFilter }),
-      ...(dateRange[0] && { startDate: dateRange[0].toISOString() }),
-      ...(dateRange[1] && { endDate: dateRange[1].toISOString() }),
+      ...(dateRange?.length === 2 && dateRange[0] && dateRange[1]
+        ? {
+            startDate: dateRange[0].toISOString(),
+            endDate: dateRange[1].toISOString(),
+          }
+        : dateRange?.length === 1 && dateRange[0]
+        ? {
+            startDate: dateRange[0].toISOString(),
+          }
+        : {}),
     };
   }, [currentPage, limit, searchTerm, sourceFilter, statusFilter, staffFilter, dateRange]);
 
@@ -353,8 +371,21 @@ const Leads = () => {
   } = useGetLeadsQuery(queryParams);
 
   const leads = leadsData?.data?.leads || [];
-  const totalLeads = leadsData?.data?.total || 0;
-  const totalPages = leadsData?.data?.totalPages || 1;
+  const pagination = leadsData?.data?.pagination || {
+    page: currentPage,
+    limit,
+    total: leadsData?.data?.total ?? leads.length,
+    totalPages: leadsData?.data?.totalPages ?? Math.max(1, Math.ceil(leads.length / limit)),
+  };
+  const totalLeads = pagination.total ?? leadsData?.data?.total ?? leads.length;
+  const totalPages = pagination.totalPages ?? leadsData?.data?.totalPages ?? Math.max(1, Math.ceil(totalLeads / limit));
+
+  // Auto-clamp page if current page exceeds totalPages
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   // Selected leads list
   const selectedLeads = useMemo(() => {
@@ -421,21 +452,22 @@ const Leads = () => {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedLeadIds.size === 0) return;
-    if (
-      !window.confirm(
-        `Are you sure you want to delete ${selectedLeadIds.size} selected leads? This cannot be undone.`
-      )
-    )
-      return;
+    setIsBulkDeleteModalOpen(true);
+  };
 
+  const handleConfirmBulkDelete = async () => {
+    if (selectedLeadIds.size === 0) return;
     try {
       await bulkDeleteLeads({
         leadIds: Array.from(selectedLeadIds),
       }).unwrap();
-      toast.success(`Deleted ${selectedLeadIds.size} leads`);
+      toast.success(
+        `Deleted ${selectedLeadIds.size} selected lead${selectedLeadIds.size > 1 ? "s" : ""}`
+      );
       setSelectedLeadIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       refetchLeads();
       refetchStats();
     } catch (err) {
@@ -775,46 +807,22 @@ const Leads = () => {
         },
       },
       {
-        headerName: "Source",
-        field: "leadSource",
-        minWidth: 155,
-        flex: 1,
-        cellRenderer: (params) => {
-          const lead = params.data;
-          if (!lead) return null;
-          const currentSource = lead.leadSource || "Website";
-
-          return (
-            <TableSelectDropdown
-              value={currentSource}
-              options={LEAD_SOURCE_OPTIONS}
-              onChange={(newVal) =>
-                handleUpdateLeadField(
-                  lead._id,
-                  { leadSource: newVal },
-                  `Source updated to ${newVal}`
-                )
-              }
-            />
-          );
-        },
-      },
-      {
         headerName: "Last Follow-up",
         minWidth: 145,
         flex: 1,
         cellRenderer: (params) => {
           const fu = params.data?.lastFollowUp;
-          if (!fu || !fu.scheduledAt) {
+          const lastDate = fu?.scheduledAt || params.data?.lastContactAt;
+          if (!lastDate) {
             return <span className="text-slate-400 font-inter font-medium text-[13.5px]">—</span>;
           }
           return (
             <div className="py-1 font-inter">
               <div className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100">
-                {dayjs(fu.scheduledAt).format("DD MMM YYYY")}
+                {dayjs(lastDate).format("DD MMM YYYY")}
               </div>
-              <div className="text-[12px] text-slate-500 font-medium capitalize">
-                {fu.notes ? fu.notes.slice(0, 20) : `${fu.type || "Call"} made`}
+              <div className="text-[12px] text-slate-500 font-medium capitalize truncate">
+                {fu?.notes ? fu.notes.slice(0, 20) : `${fu?.type || "Call"} made`}
               </div>
             </div>
           );
@@ -826,16 +834,26 @@ const Leads = () => {
         flex: 1.1,
         cellRenderer: (params) => {
           const fu = params.data?.nextFollowUp;
-          if (!fu || !fu.scheduledAt) {
+          const nextDate = fu?.scheduledAt || params.data?.nextFollowUpAt;
+          if (!nextDate) {
             return <span className="text-slate-400 font-inter font-medium text-[13.5px]">—</span>;
           }
+          const isOverdue = dayjs(nextDate).isBefore(dayjs());
           return (
             <div className="py-1 font-inter">
-              <div className="text-[13.5px] font-bold text-[#ef4444]">
-                {dayjs(fu.scheduledAt).format("DD MMM YYYY")}
+              <div
+                className={`text-[13.5px] font-bold ${
+                  isOverdue ? "text-rose-600 dark:text-rose-400" : "text-slate-800 dark:text-slate-100"
+                }`}
+              >
+                {dayjs(nextDate).format("DD MMM YYYY")}
               </div>
-              <div className="text-[12px] text-[#ef4444] font-semibold">
-                {dayjs(fu.scheduledAt).format("hh:mm A")}
+              <div
+                className={`text-[12px] font-semibold ${
+                  isOverdue ? "text-rose-500" : "text-blue-600 dark:text-blue-400"
+                }`}
+              >
+                {dayjs(nextDate).format("hh:mm A")}
               </div>
             </div>
           );
@@ -846,15 +864,24 @@ const Leads = () => {
         minWidth: 150,
         flex: 1,
         cellRenderer: (params) => {
-          const u = params.data?.assignedTo;
+          let u = params.data?.assignedTo;
           if (!u) {
             return <span className="text-slate-400 font-inter font-medium text-[13.5px]">Unassigned</span>;
           }
-          const name = `${u.firstName || ""} ${u.lastName || ""}`.trim();
+          if (typeof u === "string") {
+            const found = staffList.find((s) => s._id === u);
+            if (found) u = found;
+          }
+          const name =
+            typeof u === "object"
+              ? `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || "Staff"
+              : "Staff";
+          const initial =
+            typeof u === "object" && u.firstName ? u.firstName.charAt(0) : "S";
           return (
             <div className="flex items-center gap-2 py-1 font-inter">
               <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 flex-shrink-0">
-                {u.firstName?.charAt(0) || "U"}
+                {initial}
               </div>
               <span className="text-[13.5px] font-semibold text-slate-800 dark:text-slate-100 truncate">
                 {name}
@@ -907,7 +934,7 @@ const Leads = () => {
             {
               label: "Upload Files / Docs",
               icon: "heroicons-outline:arrow-up-tray",
-              onClick: () => setQuotationLead(lead),
+              onClick: () => setUploadDocLead(lead),
             },
             {
               label: "View Files & Docs",
@@ -976,7 +1003,7 @@ const Leads = () => {
         },
       },
     ],
-    [currentPage, limit, navigate]
+    [currentPage, limit, navigate, staffList]
   );
 
   // Real stats from backend (or zeros when loading)
@@ -1073,7 +1100,7 @@ const Leads = () => {
           {/* Add Lead Button */}
           <button
             type="button"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => navigate("/leads/new")}
             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[13.5px] font-semibold transition shadow-none cursor-pointer"
           >
             <Icon icon="heroicons-outline:plus" className="text-lg" />
@@ -1360,17 +1387,13 @@ const Leads = () => {
         selectedIds={selectedLeadIds}
         onSelectionChange={(newSet) => setSelectedLeadIds(newSet)}
         pagination={true}
-        paginationData={{
-          page: currentPage,
-          limit,
-          total: totalLeads,
-          totalPages,
-        }}
+        paginationData={pagination}
         onPageChange={(p) => setCurrentPage(p)}
         onPageSizeChange={(sz) => {
           setLimit(sz);
           setCurrentPage(1);
         }}
+        onRowClicked={(params) => navigate(`/leads/${params.data._id}`)}
         isLoading={isLeadsLoading}
         emptyMessage="No leads found matching your criteria."
         entityName="leads"
@@ -1408,7 +1431,7 @@ const Leads = () => {
         }}
       />
 
-      {/* 4. Delete Lead Modal */}
+      {/* 4. Delete Lead Modal (Single) */}
       <DeleteLeadModal
         isOpen={Boolean(deletingLead)}
         lead={deletingLead}
@@ -1417,6 +1440,31 @@ const Leads = () => {
           refetchLeads();
           refetchStats();
         }}
+      />
+
+      {/* 4b. Bulk Delete Confirmation Modal (Professional Popup) */}
+      <DeleteConfirmModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+        title={selectedLeadIds.size === 1 ? "Delete Lead" : `Delete ${selectedLeadIds.size} Leads`}
+        entityName={
+          selectedLeadIds.size === 1
+            ? leads.find((l) => selectedLeadIds.has(l._id))?.fullName || "this lead"
+            : `${selectedLeadIds.size} selected leads`
+        }
+        entityType={selectedLeadIds.size === 1 ? "lead" : "selected leads"}
+        message={
+          selectedLeadIds.size === 1
+            ? undefined
+            : `These ${selectedLeadIds.size} leads will be permanently deleted from the system along with all their associated follow-ups, communications, documents, and records.`
+        }
+        isLoading={isBulkDeleting}
+        confirmText={
+          selectedLeadIds.size === 1
+            ? "Delete Lead"
+            : `Delete ${selectedLeadIds.size} Leads`
+        }
       />
 
       {/* 5. Send WhatsApp Modal */}
@@ -1444,11 +1492,22 @@ const Leads = () => {
         }}
       />
 
-      {/* 8. Upload Quotation & Files Modal */}
+      {/* 8. Upload Quotation Modal */}
       <UploadQuotationModal
         isOpen={Boolean(quotationLead)}
         lead={quotationLead}
         onClose={() => setQuotationLead(null)}
+        onSuccess={() => {
+          refetchLeads();
+          refetchStats();
+        }}
+      />
+
+      {/* 9. Upload Lead Document / Files Modal */}
+      <UploadLeadDocumentModal
+        isOpen={Boolean(uploadDocLead)}
+        lead={uploadDocLead}
+        onClose={() => setUploadDocLead(null)}
         onSuccess={() => {
           refetchLeads();
           refetchStats();

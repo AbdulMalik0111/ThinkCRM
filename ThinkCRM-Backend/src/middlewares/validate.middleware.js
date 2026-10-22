@@ -2,13 +2,24 @@ import { AppError } from '../utils/AppError.js';
 
 export const validate = (schema) => (req, res, next) => {
   try {
-    req.body = schema.parse(req.body);
+    let payload = req.body;
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      payload.data &&
+      typeof payload.data === 'object' &&
+      !Array.isArray(payload.data) &&
+      (!schema.shape || !('data' in schema.shape))
+    ) {
+      payload = payload.data;
+    }
+    req.body = schema.parse(payload);
     next();
   } catch (error) {
-    const formattedErrors = error.errors.map((err) => ({
+    const formattedErrors = error.errors?.map((err) => ({
       field: err.path.join('.'),
       message: err.message,
-    }));
+    })) || [{ message: error.message }];
     next(new AppError('Validation failed', 400, formattedErrors));
   }
 };

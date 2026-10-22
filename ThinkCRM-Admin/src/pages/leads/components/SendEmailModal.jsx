@@ -88,18 +88,36 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
     }
   };
 
-  // Attachment handler
+  // Attachment handler - reads files into base64 for direct SMTP attachment
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const newAttachments = files.map((file) => ({
-      filename: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-      fileType: file.type || "application/pdf",
-    }));
-
-    setAttachments((prev) => [...prev, ...newAttachments]);
+    files.forEach((file) => {
+      if (file.size > 15 * 1024 * 1024) {
+        toast.warning(`File ${file.name} exceeds 15MB limit`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = (reader.result || "").split(",")[1];
+        setAttachments((prev) => [
+          ...prev,
+          {
+            filename: file.name,
+            content: base64Data,
+            encoding: "base64",
+            contentType: file.type || "application/octet-stream",
+            size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+          },
+        ]);
+      };
+      reader.onerror = () => {
+        toast.error(`Failed to read file ${file.name}`);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
   };
 
   const removeAttachment = (idx) => {
@@ -122,10 +140,10 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
       if (!bccVal.isValid) newErrors.bcc = bccVal.error;
     }
 
-    const subVal = validateText(subject, { required: true, minLength: 2, maxLength: 200, label: "Subject" });
+    const subVal = validateText(subject, { required: true, minLength: 2, maxLength: 500, max: 500, label: "Subject", allowSpecialChars: true });
     if (!subVal.isValid) newErrors.subject = subVal.error;
 
-    const msgVal = validateText(message, { required: true, minLength: 5, maxLength: 5000, label: "Message" });
+    const msgVal = validateText(message, { required: true, minLength: 2, maxLength: 10000, max: 10000, label: "Message", allowSpecialChars: true });
     if (!msgVal.isValid) newErrors.message = msgVal.error;
 
     setErrors(newErrors);
@@ -157,7 +175,7 @@ const SendEmailModal = ({ isOpen, onClose, lead }) => {
       setErrors({});
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to send email to lead");
+      toast.error(err?.data?.message || err?.message || "Failed to send email to lead");
     }
   };
 

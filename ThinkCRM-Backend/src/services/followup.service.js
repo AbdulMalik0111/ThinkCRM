@@ -88,8 +88,20 @@ export const getLeadFollowUps = async (leadId) => {
   });
 };
 
-export const getAllFollowUps = async () => {
-  return await FollowUp.find()
+export const getAllFollowUps = async (user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const filter = {};
+  if (user && !isOwnerOrAdmin && user._id) {
+    const userLeads = await Lead.find({ assignedTo: user._id, isDeleted: false }).select('_id');
+    const leadIds = userLeads.map((l) => l._id);
+    filter.$or = [
+      { assignedTo: user._id },
+      { createdBy: user._id },
+      { leadId: { $in: leadIds } },
+    ];
+  }
+
+  return await FollowUp.find(filter)
     .sort({ scheduledAt: 1 })
     .populate('assignedTo', 'firstName lastName avatar email')
     .populate('createdBy', 'firstName lastName avatar email')

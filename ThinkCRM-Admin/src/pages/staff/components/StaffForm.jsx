@@ -51,11 +51,16 @@ const StaffForm = ({
 
   useEffect(() => {
     if (initialData) {
+      let initPhone = initialData.phone || "";
+      if (initPhone) {
+        const phCheck = validatePhone(initPhone, { required: false });
+        initPhone = phCheck.formatted || initPhone;
+      }
       setFormData({
         firstName: initialData.firstName || "",
         lastName: initialData.lastName || "",
         email: initialData.email || "",
-        phone: initialData.phone || "",
+        phone: initPhone,
         password: "", // Not edited here
         role: initialData.role || "Staff",
         permissionMode: initialData.permissionMode || "INHERIT_ROLE",

@@ -34,7 +34,8 @@ app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static uploads folder (optional, if local storage used)
+// Serve static public and uploads folders
+app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 
 // Root endpoint - Health / Status check so anyone opening the backend URL sees it is live & running

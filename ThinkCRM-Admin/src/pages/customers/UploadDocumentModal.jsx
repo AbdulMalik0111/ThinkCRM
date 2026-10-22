@@ -30,6 +30,7 @@ const formatBytes = (bytes) => {
 const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Agreement");
+  const [customCategory, setCustomCategory] = useState("");
   const [fileUrl, setFileUrl] = useState("");
   const [fileSize, setFileSize] = useState(0);
   const [fileType, setFileType] = useState("application/pdf");
@@ -122,11 +123,17 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
     }
 
     try {
+      const finalCategory =
+        category === "Other" && customCategory?.trim()
+          ? customCategory.trim()
+          : category;
+
       await addCustomerDocument({
         id: customerId,
         documentData: {
           name: name.trim(),
-          category,
+          category: finalCategory,
+          type: finalCategory,
           url: fileUrl,
           fileType,
           size: fileSize,
@@ -136,6 +143,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
       toast.success("Document uploaded successfully!");
       handleRemoveFile();
       setName("");
+      setCustomCategory("");
       onClose();
     } catch (err) {
       toast.error(err?.data?.message || "Failed to upload document");
@@ -184,6 +192,26 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
             <option value="Other">Other Document</option>
           </select>
         </div>
+
+        {/* Custom Category Input when Other is selected */}
+        {category === "Other" && (
+          <div className="animate-fadeIn">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+              Specify Category / Custom Name
+            </label>
+            <input
+              type="text"
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="e.g. 3D Render, Material Sample, Elevation..."
+              className="w-full h-11 px-3.5 text-[14.5px] font-medium border border-slate-300 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition"
+              autoFocus
+            />
+            <p className="text-xs text-slate-400 mt-1">
+              This custom name will be saved as the document's category.
+            </p>
+          </div>
+        )}
 
         {/* File Dropzone */}
         <div>

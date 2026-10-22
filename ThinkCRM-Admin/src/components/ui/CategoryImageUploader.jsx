@@ -2,6 +2,7 @@ import React, { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 import { toast } from "react-toastify";
 
 const CategoryImageUploader = ({
@@ -17,6 +18,7 @@ const CategoryImageUploader = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [localPreview, setLocalPreview] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Derive display image URL
   const imageUrl = typeof currentImage === "object" ? currentImage?.url : currentImage;
@@ -75,17 +77,17 @@ const CategoryImageUploader = ({
     disabled: disabled || uploading || isDeleting,
   });
 
-  const handleDeleteExisting = async (e) => {
+  const handleDeleteExisting = (e) => {
     e.stopPropagation();
     if (!onDelete) return;
+    setShowDeleteModal(true);
+  };
 
-    if (!window.confirm("Are you sure you want to delete this category image? It will be removed from Cloudinary.")) {
-      return;
-    }
-
+  const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
       await onDelete();
+      setShowDeleteModal(false);
     } catch (err) {
       console.error("Failed to delete category image:", err);
       toast.error(err?.message || "Failed to delete category image");
@@ -229,6 +231,19 @@ const CategoryImageUploader = ({
           </div>
         </div>
       )}
+
+      {/* Professional Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Category Image"
+        entityName="this category image"
+        entityType="image"
+        message="This category image will be permanently removed from Cloudinary storage. This action cannot be undone."
+        isLoading={isDeleting}
+        confirmText="Delete Image"
+      />
     </div>
   );
 };

@@ -29,9 +29,8 @@ const Profile = lazy(() => import("./pages/profile"));
 const ChangePassword = lazy(() => import("./pages/change-password"));
 // Leads
 const Leads = lazy(() => import("./pages/leads"));
-const NewLead = lazy(() => import("./pages/leads/new"));
+const LeadForm = lazy(() => import("./pages/leads/LeadForm"));
 const LeadView = lazy(() => import("./pages/leads/view"));
-const EditLead = lazy(() => import("./pages/leads/edit"));
 const Pipeline = lazy(() => import("./pages/leads/pipeline"));
 const FollowUpsCalendar = lazy(() => import("./pages/leads/followups"));
 
@@ -59,11 +58,11 @@ function App() {
             
             {/* Leads */}
             <Route path="leads" element={<Leads />} />
-            <Route path="leads/new" element={<NewLead />} />
+            <Route path="leads/new" element={<LeadForm />} />
             <Route path="leads/pipeline" element={<Pipeline />} />
             <Route path="leads/follow-ups" element={<FollowUpsCalendar />} />
             <Route path="leads/:id" element={<LeadView />} />
-            <Route path="leads/:id/edit" element={<EditLead />} />
+            <Route path="leads/:id/edit" element={<LeadForm />} />
             
             {/* Customers */}
             <Route path="customers" element={<Customers />} />

@@ -17,10 +17,16 @@ import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
 /**
  * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
  */
-export const getLeadStats = async () => {
+export const getLeadStats = async (user = null) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const baseFilter = { isDeleted: false };
+  if (user && !isOwnerOrAdmin && user._id) {
+    baseFilter.assignedTo = user._id;
+  }
 
   const [
     totalLeads,
@@ -34,16 +40,16 @@ export const getLeadStats = async () => {
     convertedLeads,
     convertedPrev,
   ] = await Promise.all([
-    Lead.countDocuments({ isDeleted: false }),
-    Lead.countDocuments({ createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo }, isDeleted: false }),
-    Lead.countDocuments({ status: 'new', isDeleted: false }),
-    Lead.countDocuments({ status: 'new', createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo }, isDeleted: false }),
-    Lead.countDocuments({ status: { $in: ['contacted', 'attempted', 'in_progress', 'follow_up'] }, isDeleted: false }),
-    Lead.countDocuments({ status: { $in: ['contacted', 'attempted', 'in_progress', 'follow_up'] }, createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo }, isDeleted: false }),
-    Lead.countDocuments({ status: 'qualified', isDeleted: false }),
-    Lead.countDocuments({ status: 'qualified', createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo }, isDeleted: false }),
-    Lead.countDocuments({ status: { $in: ['won', 'converted'] }, isDeleted: false }),
-    Lead.countDocuments({ status: { $in: ['won', 'converted'] }, createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo }, isDeleted: false }),
+    Lead.countDocuments(baseFilter),
+    Lead.countDocuments({ ...baseFilter, createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo } }),
+    Lead.countDocuments({ ...baseFilter, status: 'new' }),
+    Lead.countDocuments({ ...baseFilter, status: 'new', createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo } }),
+    Lead.countDocuments({ ...baseFilter, status: { $in: ['contacted', 'attempted', 'in_progress', 'follow_up'] } }),
+    Lead.countDocuments({ ...baseFilter, status: { $in: ['contacted', 'attempted', 'in_progress', 'follow_up'] }, createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo } }),
+    Lead.countDocuments({ ...baseFilter, status: 'qualified' }),
+    Lead.countDocuments({ ...baseFilter, status: 'qualified', createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo } }),
+    Lead.countDocuments({ ...baseFilter, status: { $in: ['won', 'converted'] } }),
+    Lead.countDocuments({ ...baseFilter, status: { $in: ['won', 'converted'] }, createdAt: { $lt: thirtyDaysAgo, $gte: sixtyDaysAgo } }),
   ]);
 
   const calcChange = (curr, prev) => {
@@ -149,35 +155,14 @@ export const createLead = async (leadData, createdBy) => {
   return lead;
 };
 
-export const getLeads = async (query = {}) => {
+export const getLeads = async (query = {}, user = null) => {
   const filter = { isDeleted: { $ne: true } };
 
-  // Status Filter
-  if (query.status && query.status !== 'all' && query.status !== '') {
-    if (query.status === 'converted') {
-      filter.status = { $in: ['won', 'converted'] };
-    } else {
-      filter.status = query.status;
-    }
-  }
-
-  // Source Filter
-  if (query.source && query.source !== 'all' && query.source !== '') {
-    filter.leadSource = query.source;
-  }
-
-  // Priority Filter
-  if (query.priority && query.priority !== 'all' && query.priority !== '') {
-    filter.priority = query.priority;
-  }
-
-  // Project Type Filter
-  if (query.projectType && query.projectType !== 'all' && query.projectType !== '') {
-    filter.projectType = query.projectType;
-  }
-
-  // Assigned Staff Filter
-  if (query.assignedTo && query.assignedTo !== 'all' && query.assignedTo !== '') {
+  // Staff role scoping: non-owners and non-admins only see leads assigned to them
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (user && !isOwnerOrAdmin && user._id) {
+    filter.assignedTo = user._id;
+  } else if (query.assignedTo && query.assignedTo !== 'all' && query.assignedTo !== '') {
     if (query.assignedTo === 'unassigned') {
       filter.assignedTo = { $exists: false };
     } else {
@@ -185,16 +170,46 @@ export const getLeads = async (query = {}) => {
     }
   }
 
+  // Status Filter
+  if (query.status && query.status !== 'all' && query.status.trim() !== '') {
+    filter.status = query.status.trim();
+  }
+
+  // Source Filter
+  const source = query.source || query.leadSource;
+  if (source && source !== 'all' && source.trim() !== '') {
+    const cleanPattern = source.trim().replace(/_/g, '[\\s_]');
+    filter.leadSource = { $regex: new RegExp(`^${cleanPattern}$`, 'i') };
+  }
+
+  // Project Type Filter
+  if (query.projectType && query.projectType !== 'all' && query.projectType.trim() !== '') {
+    filter.projectType = query.projectType.trim();
+  }
+
+  // Priority Filter
+  if (query.priority && query.priority !== 'all' && query.priority.trim() !== '') {
+    filter.priority = query.priority.trim();
+  }
+
   // Date Range Filter (createdAt)
   if (query.startDate && query.endDate) {
+    const end = new Date(query.endDate);
+    if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+      end.setHours(23, 59, 59, 999);
+    }
     filter.createdAt = {
       $gte: new Date(query.startDate),
-      $lte: new Date(query.endDate),
+      $lte: end,
     };
   } else if (query.startDate) {
     filter.createdAt = { $gte: new Date(query.startDate) };
   } else if (query.endDate) {
-    filter.createdAt = { $lte: new Date(query.endDate) };
+    const end = new Date(query.endDate);
+    if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
+      end.setHours(23, 59, 59, 999);
+    }
+    filter.createdAt = { $lte: end };
   }
 
   // Search across fullName, email, phone, leadId, leadSource, city
@@ -302,6 +317,8 @@ export const getLeads = async (query = {}) => {
 
   return {
     leads,
+    total,
+    totalPages: Math.ceil(total / limit),
     pagination: {
       page,
       limit,
@@ -326,14 +343,109 @@ export const getLeadById = async (leadId) => {
 };
 
 export const updateLead = async (leadId, updateData, updatedBy) => {
+  if (updateData?.data && typeof updateData.data === 'object' && !Array.isArray(updateData.data)) {
+    updateData = updateData.data;
+  }
+  updateData = { ...updateData };
+
   const lead = await Lead.findById(leadId);
   if (!lead) {
     throw new AppError('Lead not found', 404);
   }
 
+  // Normalize email
+  if (typeof updateData.email === 'string') {
+    updateData.email = updateData.email.trim().toLowerCase();
+  }
+
+  // Normalize phone
+  if (typeof updateData.phone === 'string') {
+    updateData.phone = updateData.phone.trim();
+  }
+
+  // Append note to notesList if provided
+  if (updateData.notes && typeof updateData.notes === 'string' && updateData.notes.trim()) {
+    lead.notes = updateData.notes.trim();
+    if (!lead.notesList) lead.notesList = [];
+    lead.notesList.push({
+      content: updateData.notes.trim(),
+      author: updatedBy || null,
+      createdAt: new Date(),
+    });
+  }
+
   const oldStatus = lead.status;
+  const oldPhone = lead.phone;
+  const oldEmail = lead.email;
+
   Object.assign(lead, updateData);
   await lead.save();
+
+  // Two-way sync: keep linked Customer updated if personal/contact info changed
+  if (
+    updateData.email ||
+    updateData.phone ||
+    updateData.alternatePhone ||
+    updateData.fullName ||
+    updateData.city ||
+    updateData.state ||
+    updateData.pincode ||
+    updateData.address ||
+    updateData.location
+  ) {
+    try {
+      let targetCustomerId = lead.customerId;
+      let linkedCust = null;
+
+      if (targetCustomerId) {
+        linkedCust = await Customer.findOne({ _id: targetCustomerId, deletedAt: null });
+      }
+
+      if (!linkedCust) {
+        const searchConditions = [
+          { sourceLeadId: lead._id },
+          { leads: lead._id },
+          { 'projects.leadId': lead._id },
+          ...(oldPhone ? [{ phone: oldPhone }] : []),
+          ...(lead.phone ? [{ phone: lead.phone }] : []),
+          ...(oldEmail ? [{ email: oldEmail.toLowerCase() }] : []),
+          ...(lead.email ? [{ email: lead.email.toLowerCase() }] : []),
+        ];
+
+        linkedCust = await Customer.findOne({
+          deletedAt: null,
+          $or: searchConditions,
+        });
+
+        if (linkedCust) {
+          targetCustomerId = linkedCust._id;
+          lead.customerId = linkedCust._id;
+          await Lead.findByIdAndUpdate(lead._id, { customerId: linkedCust._id });
+        }
+      }
+
+      if (targetCustomerId) {
+        const custUpdates = {};
+        if (updateData.email) custUpdates.email = updateData.email;
+        if (updateData.phone) custUpdates.phone = updateData.phone;
+        if (updateData.alternatePhone !== undefined) custUpdates.alternatePhone = updateData.alternatePhone;
+        if (updateData.fullName) custUpdates.fullName = updateData.fullName;
+        if (updateData.city !== undefined) custUpdates.city = updateData.city;
+        if (updateData.state !== undefined) custUpdates.state = updateData.state;
+        if (updateData.pincode !== undefined) custUpdates.pincode = updateData.pincode;
+        if (updateData.address !== undefined) custUpdates.address = updateData.address;
+        if (updateData.location !== undefined) custUpdates.location = updateData.location;
+
+        if (!linkedCust?.sourceLeadId) {
+          custUpdates.sourceLeadId = lead._id;
+        }
+
+        await Customer.findByIdAndUpdate(targetCustomerId, { $set: custUpdates });
+      }
+    } catch (custSyncErr) {
+      console.warn('Customer sync during lead update failed:', custSyncErr.message);
+    }
+  }
 
   await logActivity({
     leadId: lead._id,
@@ -570,29 +682,34 @@ export const sendLeadEmail = async (leadId, emailOptions, userId) => {
     throw new AppError('Lead has no email address', 400);
   }
 
-  const result = await sendEmail({
-    to: recipientEmail,
-    cc: emailOptions.cc,
-    bcc: emailOptions.bcc,
-    subject: emailOptions.subject || 'Update from ThinkCRM',
-    text: emailOptions.message || '',
-    html: emailOptions.html || `<p>${(emailOptions.message || '').replace(/\n/g, '<br>')}</p>`,
-    attachments: emailOptions.attachments || [],
-  });
+  try {
+    const result = await sendEmail({
+      to: recipientEmail,
+      cc: emailOptions.cc,
+      bcc: emailOptions.bcc,
+      subject: emailOptions.subject || 'Update from ThinkTive CRM',
+      text: emailOptions.message || '',
+      html: emailOptions.html || `<p>${(emailOptions.message || '').replace(/\n/g, '<br>')}</p>`,
+      attachments: emailOptions.attachments || [],
+    });
 
-  await logActivity({
-    leadId: lead._id,
-    type: 'lead_email_sent',
-    description: `Email sent to ${recipientEmail}: "${emailOptions.subject || 'Update'}"`,
-    performedBy: userId,
-    metadata: {
-      recipient: recipientEmail,
-      subject: emailOptions.subject,
-      attachmentsCount: (emailOptions.attachments || []).length,
-    },
-  });
+    await logActivity({
+      leadId: lead._id,
+      type: 'lead_email_sent',
+      description: `Email sent to ${recipientEmail}: "${emailOptions.subject || 'Update'}"`,
+      performedBy: userId,
+      metadata: {
+        recipient: recipientEmail,
+        subject: emailOptions.subject,
+        attachmentsCount: (emailOptions.attachments || []).length,
+      },
+    });
 
-  return result;
+    return result;
+  } catch (error) {
+    logger.error(`[sendLeadEmail] Failed to deliver email to ${recipientEmail}:`, error);
+    throw new AppError(`Failed to send email: ${error.message || 'SMTP delivery error'}`, 400);
+  }
 };
 
 export const addLeadDocument = async (leadId, docData, file, userId) => {

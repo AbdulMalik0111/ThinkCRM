@@ -2,42 +2,6 @@ import { apiSlice } from "../apiSlice";
 
 export const managementApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
-    getCustomers: builder.query({
-      query: (params) => ({
-        url: "customers",
-        params,
-      }),
-      providesTags: ["Customer"],
-    }),
-    getCustomerById: builder.query({
-      query: (id) => ({
-        url: `customers/${id}`,
-      }),
-      providesTags: (result, error, id) => [{ type: "Customer", id }],
-    }),
-    createCustomer: builder.mutation({
-      query: (data) => ({
-        url: "customers",
-        method: "POST",
-        body: data,
-      }),
-      invalidatesTags: ["Customer"],
-    }),
-    updateCustomer: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `customers/${id}`,
-        method: "PATCH",
-        body: data,
-      }),
-      invalidatesTags: ["Customer"],
-    }),
-    deleteCustomer: builder.mutation({
-      query: (id) => ({
-        url: `customers/${id}`,
-        method: "DELETE",
-      }),
-      invalidatesTags: ["Customer"],
-    }),
     getCoupons: builder.query({
       query: (params) => ({
         url: "coupons",
@@ -127,7 +91,7 @@ export const managementApi = apiSlice.injectEndpoints({
         method: "PATCH",
         body: data,
       }),
-      invalidatesTags: ["Staff"],
+      invalidatesTags: ["Staff", "User"],
     }),
     suspendStaff: builder.mutation({
       query: (arg) => {
@@ -221,12 +185,7 @@ export const managementApi = apiSlice.injectEndpoints({
   }),
 });
 
-export const { 
-  useGetCustomersQuery, 
-  useGetCustomerByIdQuery,
-  useCreateCustomerMutation,
-  useUpdateCustomerMutation,
-  useDeleteCustomerMutation,
+export const {
   useGetCouponsQuery,
   useCreateCouponMutation,
   useUpdateCouponMutation,

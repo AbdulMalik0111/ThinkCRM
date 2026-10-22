@@ -110,8 +110,23 @@ const Login = () => {
       <div className="bg-white rounded-xl border border-slate-200 w-full max-w-[480px] p-8 md:p-10 relative z-10">
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <span className="text-4xl font-bold text-[#1e58c8] tracking-tight">ThinkCRM</span>
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center shadow-md">
+              <img 
+                src="/favicon.svg" 
+                alt="ThinkTive" 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+            <div className="flex flex-col">
+              <div className="text-2xl font-bold tracking-tight text-slate-900 flex items-baseline leading-none">
+                <span>ThinkTive</span>
+                <span className="text-[#06B6D4] font-black text-2xl leading-none">.</span>
+              </div>
+              <span className="text-[10px] uppercase tracking-widest font-semibold text-slate-500 mt-1">
+                IT Solution
+              </span>
+            </div>
           </div>
           
           {view === "login" ? (

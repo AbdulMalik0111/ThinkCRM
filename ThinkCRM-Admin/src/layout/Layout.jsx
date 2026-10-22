@@ -14,13 +14,25 @@ import MobileMenu from "../components/partials/sidebar/MobileMenu";
 import useMobileMenu from "@/hooks/useMobileMenu";
 import MobileFooter from "@/components/partials/footer/MobileFooter";
 import { ToastContainer } from "react-toastify";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { updateUserProfile } from "@/store/api/auth/authSlice";
+import { useGetMeQuery } from "@/store/api/auth/authApiSlice";
 import Loading from "@/components/Loading";
 import { motion, AnimatePresence } from "framer-motion";
 const Layout = () => {
   const { width, breakpoints } = useWidth();
   const [collapsed] = useSidebar();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { isAuth } = useSelector((state) => state.auth);
+  const { data: meData } = useGetMeQuery(undefined, { skip: !isAuth });
+
+  useEffect(() => {
+    if (meData?.data?.user) {
+      dispatch(updateUserProfile(meData.data.user));
+    }
+  }, [meData, dispatch]);
+
   const switchHeaderClass = () => {
     if (menuType === "horizontal" || menuHidden) {
       return "ltr:ml-0 rtl:mr-0 print:ml-0 print:mr-0";
@@ -40,7 +52,7 @@ const Layout = () => {
 
   return (
     <>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={4000} style={{ zIndex: 9999999 }} />
       <div className="print:hidden">
         <Header className={width > breakpoints.xl ? switchHeaderClass() : ""} />
         {menuType === "vertical" && width > breakpoints.xl && !menuHidden && (

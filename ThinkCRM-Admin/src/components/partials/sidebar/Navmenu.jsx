@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Collapse } from "react-collapse";
 import Icon from "@/components/ui/Icon";
 import { useDispatch, useSelector } from "react-redux";
 import useMobileMenu from "@/hooks/useMobileMenu";
 import Submenu from "./Submenu";
-import PermissionGuard from "@/components/PermissionGuard";
 
 const Navmenu = ({ menus }) => {
   const [activeSubmenu, setActiveSubmenu] = useState(null);
@@ -23,7 +21,18 @@ const Navmenu = ({ menus }) => {
   const [mobileMenu, setMobileMenu] = useMobileMenu();
   const [activeMultiMenu, setMultiMenu] = useState(null);
   const dispatch = useDispatch();
-  const { permissions } = useSelector((state) => state.auth);
+  const { user, permissions } = useSelector((state) => state.auth);
+
+  const role = (user?.role || '').toLowerCase();
+  const isSuperUser =
+    !user ||
+    !user.role ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'super admin' ||
+    role === 'administrator' ||
+    (Array.isArray(permissions) && permissions.includes('all'));
 
   const toggleMultiMenu = (j) => {
     if (activeMultiMenu === j) {
@@ -81,13 +90,18 @@ const Navmenu = ({ menus }) => {
           if (item.isHeadr) {
             acc.push({ ...item, isPendingHeader: true });
           } else {
-            const hasPermission = !item.permission || (permissions && (permissions.includes(item.permission) || permissions.includes('all')));
+            const hasPermission =
+              isSuperUser ||
+              !item.permission ||
+              (Array.isArray(permissions) && (permissions.includes(item.permission) || permissions.includes('all')));
             
             // If this item has children, we also need to check if ANY child has permission
             let hasChildPermission = false;
             if (item.child) {
               hasChildPermission = item.child.some(child => 
-                !child.permission || (permissions && (permissions.includes(child.permission) || permissions.includes('all')))
+                isSuperUser ||
+                !child.permission ||
+                (Array.isArray(permissions) && (permissions.includes(child.permission) || permissions.includes('all')))
               );
             }
 
@@ -103,64 +117,63 @@ const Navmenu = ({ menus }) => {
           }
           return acc;
         }, []).filter(item => !item.isPendingHeader).map((item, i) => (
-          <PermissionGuard key={i} permission={item.permission}>
-            <li
-              className={` single-sidebar-menu 
-                ${item.child ? "item-has-children" : ""}
-                ${activeSubmenu === i ? "open" : ""}
-                ${locationName === item.link ? "menu-item-active" : ""}`}
-            >
-              {/* single menu with no childred*/}
-              {!item.child && !item.isHeadr && (
-                <NavLink className="menu-link" to={item.link}>
-                  <span className="menu-icon grow-0">
+          <li
+            key={i}
+            className={` single-sidebar-menu 
+              ${item.child ? "item-has-children" : ""}
+              ${activeSubmenu === i ? "open" : ""}
+              ${locationName === item.link ? "menu-item-active" : ""}`}
+          >
+            {/* single menu with no childred*/}
+            {!item.child && !item.isHeadr && (
+              <NavLink className="menu-link" to={item.link}>
+                <span className="menu-icon grow-0">
+                  <Icon icon={item.icon} />
+                </span>
+                <div className="text-box grow font-semibold">{item.title}</div>
+                {item.badge && <span className="menu-badge">{item.badge}</span>}
+              </NavLink>
+            )}
+            {/* only for menulabel */}
+            {item.isHeadr && !item.child && (
+              <div className="menulabel font-bold">{item.title}</div>
+            )}
+            {/*    !!sub menu parent   */}
+            {item.child && (
+              <div
+                className={`menu-link ${
+                  activeSubmenu === i
+                    ? "parent_active not-collapsed"
+                    : "collapsed"
+                }`}
+                onClick={() => toggleSubmenu(i)}
+              >
+                <div className="flex-1 flex items-start">
+                  <span className="menu-icon">
                     <Icon icon={item.icon} />
                   </span>
-                  <div className="text-box grow font-semibold">{item.title}</div>
-                  {item.badge && <span className="menu-badge">{item.badge}</span>}
-                </NavLink>
-              )}
-              {/* only for menulabel */}
-              {item.isHeadr && !item.child && (
-                <div className="menulabel font-bold">{item.title}</div>
-              )}
-              {/*    !!sub menu parent   */}
-              {item.child && (
-                <div
-                  className={`menu-link ${
-                    activeSubmenu === i
-                      ? "parent_active not-collapsed"
-                      : "collapsed"
-                  }`}
-                  onClick={() => toggleSubmenu(i)}
-                >
-                  <div className="flex-1 flex items-start">
-                    <span className="menu-icon">
-                      <Icon icon={item.icon} />
-                    </span>
-                    <div className="text-box font-semibold">{item.title}</div>
-                  </div>
-                  <div className="flex-0">
-                    <div
-                      className={`menu-arrow transform transition-all duration-300 ${
-                        activeSubmenu === i ? " rotate-90" : ""
-                      }`}
-                    >
-                      <Icon icon="heroicons-outline:chevron-right" />
-                    </div>
+                  <div className="text-box font-semibold">{item.title}</div>
+                </div>
+                <div className="flex-0">
+                  <div
+                    className={`menu-arrow transform transition-all duration-300 ${
+                      activeSubmenu === i ? " rotate-90" : ""
+                    }`}
+                  >
+                    <Icon icon="heroicons-outline:chevron-right" />
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              <Submenu
-                activeSubmenu={activeSubmenu}
-                item={item}
-                i={i}
-                toggleMultiMenu={toggleMultiMenu}
-                activeMultiMenu={activeMultiMenu}
-              />
-            </li>
-          </PermissionGuard>
+            <Submenu
+              activeSubmenu={activeSubmenu}
+              item={item}
+              i={i}
+              toggleMultiMenu={toggleMultiMenu}
+              activeMultiMenu={activeMultiMenu}
+            />
+          </li>
         ))}
       </ul>
     </>

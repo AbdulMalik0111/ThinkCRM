@@ -14,10 +14,12 @@ import {
   useDeleteFollowUpMutation,
 } from "@/store/api/leads/followupApiSlice";
 import AddFollowUpModal from "./AddFollowUpModal";
+import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
 
 const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
   const [activeTab, setActiveTab] = useState("overview");
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
+  const [deletingFollowUpId, setDeletingFollowUpId] = useState(null);
   const [newNoteContent, setNewNoteContent] = useState("");
 
   const { data: leadData, isLoading: isLeadLoading, refetch: refetchLead } = useGetLeadByIdQuery(leadId, {
@@ -71,15 +73,20 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
     }
   };
 
-  const handleDeleteFollowUp = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this follow-up?")) return;
+  const handleDeleteFollowUp = (id) => {
+    setDeletingFollowUpId(id);
+  };
+
+  const handleConfirmDeleteFollowUp = async () => {
+    if (!deletingFollowUpId) return;
     try {
-      await deleteFollowUp(id).unwrap();
-      toast.success("Follow-up deleted");
+      await deleteFollowUp(deletingFollowUpId).unwrap();
+      toast.success("Follow-up deleted successfully");
+      setDeletingFollowUpId(null);
       refetchFollowUps();
       refetchLead();
     } catch (err) {
-      toast.error("Failed to delete follow-up");
+      toast.error(err?.data?.message || "Failed to delete follow-up");
     }
   };
 
@@ -539,6 +546,18 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
           refetchFollowUps();
           refetchLead();
         }}
+      />
+
+      {/* Delete Follow-up Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingFollowUpId)}
+        onClose={() => setDeletingFollowUpId(null)}
+        onConfirm={handleConfirmDeleteFollowUp}
+        title="Delete Follow-up"
+        entityName="this follow-up"
+        entityType="follow-up"
+        message="This follow-up schedule and reminders will be permanently removed. This action cannot be undone."
+        confirmText="Delete Follow-up"
       />
     </>
   );

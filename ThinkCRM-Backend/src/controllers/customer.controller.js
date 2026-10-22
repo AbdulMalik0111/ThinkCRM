@@ -21,7 +21,7 @@ export const createCustomer = async (req, res, next) => {
 
 export const getCustomers = async (req, res, next) => {
   try {
-    const data = await customerService.getCustomers(req.query);
+    const data = await customerService.getCustomers(req.query, req.user);
     res.status(200).json({
       success: true,
       message: 'Customers fetched successfully',
@@ -34,7 +34,7 @@ export const getCustomers = async (req, res, next) => {
 
 export const getCustomerById = async (req, res, next) => {
   try {
-    const data = await customerService.getCustomerById(req.params.id);
+    const data = await customerService.getCustomerById(req.params.id, req.user);
     res.status(200).json({
       success: true,
       message: 'Customer fetched successfully',

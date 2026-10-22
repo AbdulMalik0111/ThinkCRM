@@ -21,6 +21,7 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: "",
     category: "Floor Plan",
+    customCategory: "",
     file: null,
   });
 
@@ -54,16 +55,27 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleClose = () => {
+    setFormData({ name: "", category: "Floor Plan", customCategory: "", file: null });
+    setErrors({});
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     try {
+      const finalCategory =
+        formData.category === "Other" && formData.customCategory?.trim()
+          ? formData.customCategory.trim()
+          : formData.category;
+
       const payload = new FormData();
       payload.append("file", formData.file);
       payload.append("name", formData.name.trim());
-      payload.append("type", formData.category);
-      payload.append("category", formData.category);
+      payload.append("type", finalCategory);
+      payload.append("category", finalCategory);
 
       await uploadLeadDocument({
         leadId: lead._id,
@@ -71,9 +83,8 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
       }).unwrap();
 
       toast.success("Document uploaded successfully");
-      setFormData({ name: "", category: "Floor Plan", file: null });
+      handleClose();
       if (onSuccess) onSuccess();
-      onClose();
     } catch (err) {
       toast.error(err?.data?.message || err?.message || "Failed to upload document");
     }
@@ -99,8 +110,8 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+            onClick={handleClose}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer"
           >
             <Icon icon="heroicons-outline:x" className="text-xl" />
           </button>
@@ -191,7 +202,7 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition font-inter"
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition font-inter cursor-pointer"
             >
               {DOCUMENT_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -201,13 +212,33 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
             </select>
           </div>
 
+          {/* Custom Category Input - appears when "Other" is selected */}
+          {formData.category === "Other" && (
+            <div className="animate-fadeIn">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                Specify Category / Custom Name
+              </label>
+              <input
+                type="text"
+                value={formData.customCategory || ""}
+                onChange={(e) => setFormData({ ...formData, customCategory: e.target.value })}
+                placeholder="Enter custom category name or note (e.g. 3D Render, Elevation, Notes...)"
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-primary-500 transition font-inter"
+                autoFocus
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                This custom name will be saved as the document's category.
+              </p>
+            </div>
+          )}
+
           </div>
 
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isLoading}
               className="px-4 py-2 text-[13.5px] font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition font-inter cursor-pointer"
             >

@@ -28,21 +28,46 @@ const splitPhoneValue = (raw, defaultCountry = 'IN') => {
   if (!raw) return { country: defaultCountry, nationalNumber: '' };
 
   const str = String(raw).trim();
-  const parsed = parsePhoneNumberFromString(str, defaultCountry);
 
+  // If phone string starts with +91
+  if (str.startsWith('+91')) {
+    let clean = str.replace(/^\+91[\s-]*/, '').replace(/\D/g, '');
+    if (clean.length > 10 && clean.startsWith('91')) {
+      clean = clean.slice(2);
+    }
+    return { country: 'IN', nationalNumber: clean.slice(0, 10) };
+  }
+
+  const cleanDigits = str.replace(/\D/g, '');
+
+  if (defaultCountry === 'IN' || (cleanDigits.length >= 11 && (cleanDigits.startsWith('91') || cleanDigits.startsWith('0')))) {
+    let nat = cleanDigits;
+    if (cleanDigits.length === 12 && cleanDigits.startsWith('91')) {
+      nat = cleanDigits.slice(2);
+    } else if (cleanDigits.length === 11 && cleanDigits.startsWith('0')) {
+      nat = cleanDigits.slice(1);
+    } else if (cleanDigits.length > 10 && cleanDigits.startsWith('91')) {
+      nat = cleanDigits.slice(2);
+    }
+    return { country: 'IN', nationalNumber: nat.slice(0, 10) };
+  }
+
+  const parsed = parsePhoneNumberFromString(str, defaultCountry);
   if (parsed) {
     const c = parsed.country || defaultCountry;
+    let num = parsed.nationalNumber || '';
+    if (c === 'IN') {
+      if (num.length > 10 && num.startsWith('91')) {
+        num = num.slice(2);
+      }
+      num = num.slice(0, 10);
+    }
     return {
       country: c,
-      nationalNumber: parsed.nationalNumber || '',
+      nationalNumber: num,
     };
   }
 
-  // Fallback: If starts with +91 or 91
-  const cleanDigits = str.replace(/\D/g, '');
-  if (str.startsWith('+91') || (cleanDigits.length === 12 && cleanDigits.startsWith('91'))) {
-    return { country: 'IN', nationalNumber: cleanDigits.slice(-10) };
-  }
   if (str.startsWith('+1')) {
     return { country: 'US', nationalNumber: cleanDigits.replace(/^1/, '') };
   }
@@ -112,25 +137,39 @@ const PhoneInputWithCountry = ({
   }, [searchQuery]);
 
   const emitChange = (countryCode, num) => {
-    const cleanNum = num.replace(/\D/g, '');
-    let combined = '';
+    let cleanNum = (num || '').toString().replace(/\D/g, '');
 
-    if (cleanNum) {
-      try {
-        const dial = `+${getCountryCallingCode(countryCode)}`;
-        combined = `${dial} ${cleanNum}`;
-      } catch {
-        combined = `+91 ${cleanNum}`;
+    // For India (+91), strip any leading 91 or 0 if more than 10 digits
+    if (countryCode === 'IN') {
+      if (cleanNum.length === 12 && cleanNum.startsWith('91')) {
+        cleanNum = cleanNum.slice(2);
+      } else if (cleanNum.length === 11 && cleanNum.startsWith('0')) {
+        cleanNum = cleanNum.slice(1);
+      } else if (cleanNum.length > 10 && cleanNum.startsWith('91')) {
+        cleanNum = cleanNum.slice(2);
+      } else if (cleanNum.length > 10) {
+        cleanNum = cleanNum.slice(0, 10);
       }
     }
 
-    const validation = validatePhone(combined, { country: countryCode, required });
+    // Do NOT prepend +91 for India because +91 is already in the UI country dropdown prefix!
+    let emittedVal = cleanNum;
+    if (cleanNum && countryCode !== 'IN') {
+      try {
+        const dial = `+${getCountryCallingCode(countryCode)}`;
+        emittedVal = `${dial} ${cleanNum}`;
+      } catch {
+        emittedVal = cleanNum;
+      }
+    }
+
+    const validation = validatePhone(emittedVal, { country: countryCode, required });
 
     if (onChange) {
-      onChange(combined, {
+      onChange(emittedVal, {
         countryCode,
         nationalNumber: cleanNum,
-        combined,
+        combined: emittedVal,
         isValid: validation.isValid,
         error: validation.error,
       });
@@ -155,7 +194,10 @@ const PhoneInputWithCountry = ({
       const parsed = parsePhoneNumberFromString(rawVal, selectedCountry);
       if (parsed) {
         const newCountry = parsed.country || selectedCountry;
-        const newNum = parsed.nationalNumber;
+        let newNum = parsed.nationalNumber;
+        if (newCountry === 'IN' && newNum.length > 10 && newNum.startsWith('91')) {
+          newNum = newNum.slice(2);
+        }
         setSelectedCountry(newCountry);
         setNationalNumber(newNum);
         emitChange(newCountry, newNum);
@@ -166,14 +208,15 @@ const PhoneInputWithCountry = ({
     // Strip non-digits
     let digits = rawVal.replace(/\D/g, '');
 
-    // For Indian mobile numbers, cap at 10 digits
-    if (selectedCountry === 'IN' && digits.length > 10) {
-      // If user pasted 12 digits starting with 91, strip 91
+    // For Indian mobile numbers, cap at 10 digits and strip leading 91
+    if (selectedCountry === 'IN') {
       if (digits.length === 12 && digits.startsWith('91')) {
         digits = digits.slice(2);
       } else if (digits.length === 11 && digits.startsWith('0')) {
         digits = digits.slice(1);
-      } else {
+      } else if (digits.length > 10 && digits.startsWith('91')) {
+        digits = digits.slice(2);
+      } else if (digits.length > 10) {
         digits = digits.slice(0, 10);
       }
     }
@@ -189,7 +232,10 @@ const PhoneInputWithCountry = ({
       const parsed = parsePhoneNumberFromString(pasted, selectedCountry);
       if (parsed) {
         const newCountry = parsed.country || selectedCountry;
-        const newNum = parsed.nationalNumber;
+        let newNum = parsed.nationalNumber;
+        if (newCountry === 'IN' && newNum.length > 10 && newNum.startsWith('91')) {
+          newNum = newNum.slice(2);
+        }
         setSelectedCountry(newCountry);
         setNationalNumber(newNum);
         emitChange(newCountry, newNum);

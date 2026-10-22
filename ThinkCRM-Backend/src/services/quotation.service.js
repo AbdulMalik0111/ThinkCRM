@@ -8,6 +8,7 @@ import { logActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 import { uploadToCloudinary, deleteFromCloudinary, getCloudinaryDownloadUrl } from '../utils/cloudinary.js';
 import { sendEmail } from '../integrations/email/email.service.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Transforms quotation object so uploadedFile.url, pdfUrl, and fileUrl
@@ -105,10 +106,31 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
     leadId,
     customerId: customerId || undefined,
     type: 'quotation_uploaded',
-    description: `Quotation ${quotation.quotationNumber} uploaded for amount ${amount}`,
+    description: `Quotation ${quotation.quotationNumber} uploaded for amount ₹${amount.toLocaleString('en-IN')}`,
     performedBy: createdBy,
     metadata: { quotationId: quotation._id },
   });
+
+  // Auto-send quotation to lead in background if email is present
+  if (customerEmail) {
+    try {
+      await dispatchQuotationEmail({
+        quotation,
+        lead,
+        customer: customerId ? await Customer.findById(customerId) : null,
+        sentBy: createdBy,
+        fileBuffer: file?.buffer,
+        fileMime: file?.mimetype,
+        fileName: file?.originalname,
+      });
+    } catch (autoSendErr) {
+      logger.warn(`[createQuotation] Auto-send email warning for ${customerEmail}:`, autoSendErr?.message || autoSendErr);
+    }
+  } else {
+    lead.status = 'quotation_pending';
+    lead.quotationStatus = 'pending';
+    await lead.save();
+  }
 
   return formatQuotationFileUrl(quotation);
 };
@@ -144,18 +166,20 @@ export const createCustomerQuotation = async (customerId, data, file, createdBy)
   }
 
   let leadId = data.leadId || null;
+  let linkedLead = null;
   if (leadId) {
-    const lead = await Lead.findById(leadId);
-    if (lead) {
-      lead.status = 'quotation_pending';
-      lead.quotationStatus = 'pending';
-      if (!lead.customerId) {
-        lead.customerId = customer._id;
+    linkedLead = await Lead.findById(leadId);
+    if (linkedLead) {
+      linkedLead.status = 'quotation_pending';
+      linkedLead.quotationStatus = 'pending';
+      if (!linkedLead.customerId) {
+        linkedLead.customerId = customer._id;
       }
-      await lead.save();
+      await linkedLead.save();
     }
   } else if (customer.sourceLeadId) {
     leadId = customer.sourceLeadId;
+    linkedLead = await Lead.findById(leadId);
   }
 
   const rawAmount = data.amount !== undefined ? data.amount : (data.totalAmount !== undefined ? data.totalAmount : 0);
@@ -187,7 +211,120 @@ export const createCustomerQuotation = async (customerId, data, file, createdBy)
     metadata: { quotationId: quotation._id },
   });
 
+  // Auto-send quotation to customer in background if email is present
+  if (customerEmail) {
+    try {
+      await dispatchQuotationEmail({
+        quotation,
+        lead: linkedLead,
+        customer,
+        sentBy: createdBy,
+        fileBuffer: file?.buffer,
+        fileMime: file?.mimetype,
+        fileName: file?.originalname,
+      });
+    } catch (autoSendErr) {
+      logger.warn(`[createCustomerQuotation] Auto-send email warning for ${customerEmail}:`, autoSendErr?.message || autoSendErr);
+    }
+  }
+
   return formatQuotationFileUrl(quotation);
+};
+
+/**
+ * Universal quotation email dispatcher (used by auto-send on upload and manual send)
+ */
+export const dispatchQuotationEmail = async ({
+  quotation,
+  lead,
+  customer,
+  sentBy,
+  fileBuffer,
+  fileMime,
+  fileName,
+}) => {
+  const recipientEmail = quotation.customerEmail || customer?.email || lead?.email;
+  if (!recipientEmail) {
+    logger.warn(`[dispatchQuotationEmail] No email address found for quotation ${quotation.quotationNumber}, skipping email dispatch.`);
+    return false;
+  }
+
+  const customerName = quotation.customerName || customer?.fullName || lead?.fullName || 'Valued Customer';
+  const amountFormatted = Number(quotation.amount || 0).toLocaleString('en-IN');
+  const validUntilStr = quotation.validUntil
+    ? new Date(quotation.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
+
+  const html = `
+    <p>Dear <strong>${customerName}</strong>,</p>
+    <p>${quotation.message || 'Thank you for choosing ThinkTive. Please find attached the official quotation for your project.'}</p>
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 15px;"><strong>Quotation Number:</strong> ${quotation.quotationNumber}</p>
+      <p style="margin: 0 0 8px 0; font-size: 16px; color: #0284c7;"><strong>Total Amount:</strong> ₹${amountFormatted}</p>
+      ${validUntilStr ? `<p style="margin: 0; font-size: 14px; color: #64748b;"><strong>Valid Until:</strong> ${validUntilStr}</p>` : ''}
+    </div>
+    <p style="font-size: 14px; color: #475569;">The complete quotation document is attached to this email for your review.</p>
+    <p style="font-size: 14px; color: #475569;">If you have any questions or wish to proceed with the next steps, feel free to reply directly to this email.</p>
+    <br/>
+    <p style="margin: 0; font-size: 14px; color: #334155;">Best regards,</p>
+    <p style="margin: 2px 0 0 0; font-size: 15px; font-weight: 700; color: #0f172a;">ThinkTive Team</p>
+  `;
+
+  // Prepare attachments (supports buffer from fresh upload or Cloudinary URL)
+  const attachments = [];
+  if (fileBuffer) {
+    attachments.push({
+      filename: fileName || quotation.uploadedFile?.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
+      content: fileBuffer,
+      contentType: fileMime || quotation.uploadedFile?.mimeType || 'application/pdf',
+    });
+  } else if (quotation.uploadedFile?.url) {
+    attachments.push({
+      filename: quotation.uploadedFile?.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
+      path: quotation.uploadedFile.url,
+      contentType: quotation.uploadedFile?.mimeType || 'application/pdf',
+    });
+  }
+
+  await sendEmail({
+    to: recipientEmail,
+    subject: `Quotation ${quotation.quotationNumber} from ThinkTive (₹${amountFormatted})`,
+    html,
+    attachments,
+  });
+
+  quotation.status = 'sent';
+  quotation.sentAt = new Date();
+  if (sentBy) quotation.sentBy = sentBy;
+  await quotation.save();
+
+  if (lead) {
+    lead.status = 'quotation_sent';
+    lead.quotationStatus = 'sent';
+    await lead.save();
+  }
+
+  await logActivity({
+    leadId: lead?._id || quotation.leadId || undefined,
+    customerId: customer?._id || quotation.customerId || undefined,
+    type: 'quotation_sent',
+    description: `Quotation ${quotation.quotationNumber} was automatically sent to ${recipientEmail}`,
+    performedBy: sentBy,
+    metadata: { quotationId: quotation._id, recipient: recipientEmail },
+  });
+
+  if (lead && lead.assignedTo && sentBy && lead.assignedTo.toString() !== sentBy.toString()) {
+    await createNotification({
+      recipient: lead.assignedTo,
+      type: 'quotation_sent',
+      title: 'Quotation Sent',
+      message: `Quotation ${quotation.quotationNumber} has been sent to customer for lead ${lead.fullName}.`,
+      entityType: 'Quotation',
+      entityId: quotation._id,
+    });
+  }
+
+  return true;
 };
 
 export const sendQuotation = async (leadOrCustomerId, quotationId, sentBy) => {
@@ -220,74 +357,16 @@ export const sendQuotation = async (leadOrCustomerId, quotationId, sentBy) => {
     throw new AppError('Customer email is required to send quotation', 400);
   }
 
-  // Send Email
-  const html = `
-    <p>Dear ${quotation.customerName || 'Customer'},</p>
-    <p>${quotation.message || 'Please find attached the quotation for your project.'}</p>
-    <br/>
-    <p>Best regards,</p>
-    <p>ThinkCRM Team</p>
-  `;
-
-  const attachmentPath = quotation.uploadedFile?.storageKey
-    ? getCloudinaryDownloadUrl(quotation.uploadedFile.storageKey, 'pdf', 'image')
-    : quotation.uploadedFile?.url;
-
   try {
-    await sendEmail({
-      to: quotation.customerEmail,
-      subject: `Your Quotation — ${quotation.quotationNumber}`,
-      html,
-      attachments: attachmentPath
-        ? [
-            {
-              filename: quotation.uploadedFile?.fileName || `Quotation-${quotation.quotationNumber}.pdf`,
-              path: attachmentPath,
-            },
-          ]
-        : [],
+    await dispatchQuotationEmail({
+      quotation,
+      lead,
+      customer,
+      sentBy,
     });
   } catch (emailErr) {
-    console.warn('[QuotationService] SMTP warning:', emailErr?.message || emailErr);
-  }
-
-  quotation.status = 'sent';
-  quotation.sentAt = Date.now();
-  quotation.sentBy = sentBy;
-  await quotation.save();
-
-  if (lead) {
-    lead.status = 'quotation_sent';
-    lead.quotationStatus = 'sent';
-    await lead.save();
-
-    await logActivity({
-      leadId: lead._id,
-      customerId: quotation.customerId || customer?._id || undefined,
-      type: 'quotation_sent',
-      description: `Quotation ${quotation.quotationNumber} was sent to ${quotation.customerEmail}`,
-      performedBy: sentBy,
-      metadata: { quotationId: quotation._id },
-    });
-
-    if (lead.assignedTo && lead.assignedTo.toString() !== sentBy.toString()) {
-      await createNotification({
-        recipient: lead.assignedTo,
-        type: 'quotation_sent',
-        title: 'Quotation Sent',
-        message: `Quotation ${quotation.quotationNumber} has been sent to customer for lead ${lead.fullName}.`,
-        entityType: 'Quotation',
-        entityId: quotation._id,
-      });
-    }
-  } else if (customer) {
-    await logActivity({
-      customerId: customer._id,
-      type: 'quotation_sent',
-      description: `Quotation ${quotation.quotationNumber} was sent to ${quotation.customerEmail}`,
-      performedBy: sentBy,
-      metadata: { quotationId: quotation._id },
-    });
+    logger.error(`[sendQuotation] Failed to deliver quotation email:`, emailErr);
+    throw new AppError(`Failed to send quotation email: ${emailErr?.message || 'SMTP delivery error'}`, 400);
   }
 
   return formatQuotationFileUrl(quotation);

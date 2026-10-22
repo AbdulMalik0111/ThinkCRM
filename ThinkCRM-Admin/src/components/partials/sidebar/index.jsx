@@ -13,15 +13,20 @@ const Sidebar = () => {
   const [scroll, setScroll] = useState(false);
 
   useEffect(() => {
+    const node = scrollableNodeRef.current;
+    if (!node) return;
     const handleScroll = () => {
-      if (scrollableNodeRef.current.scrollTop > 0) {
+      if (node.scrollTop > 0) {
         setScroll(true);
       } else {
         setScroll(false);
       }
     };
-    scrollableNodeRef.current.addEventListener("scroll", handleScroll);
-  }, [scrollableNodeRef]);
+    node.addEventListener("scroll", handleScroll);
+    return () => {
+      node.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const [collapsed, setMenuCollapsed] = useSidebar();
   const [menuHover, setMenuHover] = useState(false);

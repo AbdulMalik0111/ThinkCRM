@@ -96,7 +96,11 @@ const LeadQuotations = ({ leadId, lead }) => {
         formData: dataPayload,
       }).unwrap();
 
-      toast.success("Quotation uploaded successfully");
+      toast.success(
+        lead?.email
+          ? "Quotation uploaded and automatically sent to customer!"
+          : "Quotation uploaded successfully"
+      );
       setIsModalOpen(false);
       refetch();
     } catch (err) {

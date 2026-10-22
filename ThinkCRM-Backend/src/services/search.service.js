@@ -322,6 +322,18 @@ export const executeGlobalSearch = async ({
 
   const parsedLimit = Math.max(1, Math.min(50, parseInt(limit, 10) || 8));
 
+  // Determine user-scoped lead and customer IDs for staff data isolation
+  let userLeadIds = null;
+  let userCustIds = null;
+  if (!isSuperUser && user?._id) {
+    const [uLeads, uCusts] = await Promise.all([
+      Lead.find({ assignedTo: user._id, isDeleted: false }).select('_id'),
+      Customer.find({ deletedAt: null, $or: [{ assignedStaff: user._id }, { 'projects.assignedStaff': user._id }] }).select('_id'),
+    ]);
+    userLeadIds = uLeads.map((l) => l._id);
+    userCustIds = uCusts.map((c) => c._id);
+  }
+
   // Build async query promises for each supported entity
   const searchPromises = {};
 
@@ -342,10 +354,15 @@ export const executeGlobalSearch = async ({
       leadConditions.push({ alternatePhone: phoneRegex });
     }
 
-    searchPromises.leads = Lead.find({
+    const leadFindQuery = {
       isDeleted: { $ne: true },
       $or: leadConditions,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      leadFindQuery.assignedTo = user._id;
+    }
+
+    searchPromises.leads = Lead.find(leadFindQuery)
       .select('leadId fullName phone alternatePhone email city location projectType status budget priority createdAt')
       .limit(parsedLimit)
       .lean();
@@ -368,10 +385,22 @@ export const executeGlobalSearch = async ({
       customerConditions.push({ alternatePhone: phoneRegex });
     }
 
-    searchPromises.customers = Customer.find({
+    const customerFindQuery = {
       deletedAt: null,
       $or: customerConditions,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      customerFindQuery.$and = [
+        {
+          $or: [
+            { assignedStaff: user._id },
+            { 'projects.assignedStaff': user._id },
+          ],
+        },
+      ];
+    }
+
+    searchPromises.customers = Customer.find(customerFindQuery)
       .select('customerId fullName phone alternatePhone email city location companyName projectType status totalValue createdAt')
       .limit(parsedLimit)
       .lean();
@@ -379,8 +408,15 @@ export const executeGlobalSearch = async ({
 
   // 3. PROJECTS (Embedded within Customers)
   if (canViewCustomers && (!entityFilter || entityFilter === 'projects')) {
+    const projMatch = { deletedAt: null, 'projects.0': { $exists: true } };
+    if (!isSuperUser && user?._id) {
+      projMatch.$or = [
+        { assignedStaff: user._id },
+        { 'projects.assignedStaff': user._id },
+      ];
+    }
     searchPromises.projects = Customer.aggregate([
-      { $match: { deletedAt: null, 'projects.0': { $exists: true } } },
+      { $match: projMatch },
       { $unwind: '$projects' },
       {
         $match: {
@@ -426,9 +462,21 @@ export const executeGlobalSearch = async ({
       quotationConditions.push({ amount: numericVal });
     }
 
-    searchPromises.quotations = Quotation.find({
+    const quotFindQuery = {
       $or: quotationConditions,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      quotFindQuery.$and = [
+        {
+          $or: [
+            { createdBy: user._id },
+            { leadId: { $in: userLeadIds || [] } },
+          ],
+        },
+      ];
+    }
+
+    searchPromises.quotations = Quotation.find(quotFindQuery)
       .select('quotationNumber amount status customerName customerEmail uploadedFile leadId createdAt')
       .populate('leadId', 'leadId fullName phone')
       .limit(parsedLimit)
@@ -445,9 +493,23 @@ export const executeGlobalSearch = async ({
       { priority: regex },
     ];
 
-    searchPromises.followups = FollowUp.find({
+    const followupFindQuery = {
       $or: followupConditions,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      followupFindQuery.$and = [
+        {
+          $or: [
+            { assignedTo: user._id },
+            { createdBy: user._id },
+            { leadId: { $in: userLeadIds || [] } },
+            { customerId: { $in: userCustIds || [] } },
+          ],
+        },
+      ];
+    }
+
+    searchPromises.followups = FollowUp.find(followupFindQuery)
       .select('type status priority scheduledAt completedAt notes outcome leadId customerId createdAt')
       .populate('leadId', 'leadId fullName phone')
       .populate('customerId', 'customerId fullName phone')
@@ -463,9 +525,22 @@ export const executeGlobalSearch = async ({
       { 'attachments.fileName': regex },
     ];
 
-    searchPromises.measurements = Measurement.find({
+    const measFindQuery = {
       $or: measurementConditions,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      measFindQuery.$and = [
+        {
+          $or: [
+            { assignedTo: user._id },
+            { conductedBy: user._id },
+            { leadId: { $in: userLeadIds || [] } },
+          ],
+        },
+      ];
+    }
+
+    searchPromises.measurements = Measurement.find(measFindQuery)
       .select('status scheduledAt notes attachments leadId assignedTo createdAt')
       .populate('leadId', 'leadId fullName phone city location')
       .populate('assignedTo', 'firstName lastName')
@@ -478,9 +553,13 @@ export const executeGlobalSearch = async ({
     const docAggregations = [];
 
     if (canViewCustomers) {
+      const custDocMatch = { deletedAt: null, 'documents.0': { $exists: true } };
+      if (!isSuperUser && userCustIds) {
+        custDocMatch._id = { $in: userCustIds };
+      }
       docAggregations.push(
         Customer.aggregate([
-          { $match: { deletedAt: null, 'documents.0': { $exists: true } } },
+          { $match: custDocMatch },
           { $unwind: '$documents' },
           {
             $match: {
@@ -511,9 +590,13 @@ export const executeGlobalSearch = async ({
     }
 
     if (canViewLeads) {
+      const leadDocMatch = { isDeleted: { $ne: true }, 'documents.0': { $exists: true } };
+      if (!isSuperUser && userLeadIds) {
+        leadDocMatch._id = { $in: userLeadIds };
+      }
       docAggregations.push(
         Lead.aggregate([
-          { $match: { isDeleted: { $ne: true }, 'documents.0': { $exists: true } } },
+          { $match: leadDocMatch },
           { $unwind: '$documents' },
           {
             $match: {
@@ -549,9 +632,21 @@ export const executeGlobalSearch = async ({
 
   // 8. NOTES & ACTIVITIES (Excluded from default search to avoid noisy system audit logs)
   if (entityFilter === 'notes' && (canViewLeads || canViewCustomers)) {
-    searchPromises.notes = Activity.find({
+    const actFindQuery = {
       description: regex,
-    })
+    };
+    if (!isSuperUser && user?._id) {
+      actFindQuery.$and = [
+        {
+          $or: [
+            { performedBy: user._id },
+            { leadId: { $in: userLeadIds || [] } },
+            { customerId: { $in: userCustIds || [] } },
+          ],
+        },
+      ];
+    }
+    searchPromises.notes = Activity.find(actFindQuery)
       .select('type description metadata leadId customerId createdAt')
       .populate('leadId', 'leadId fullName')
       .populate('customerId', 'customerId fullName')

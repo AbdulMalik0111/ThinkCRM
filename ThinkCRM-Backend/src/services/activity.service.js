@@ -3,6 +3,9 @@ import { Lead } from '../models/Lead.js';
 import { Customer } from '../models/Customer.js';
 
 export const logActivity = async ({ leadId, customerId, type, description, metadata, performedBy }) => {
+  if (!performedBy) {
+    return null;
+  }
   const data = {
     type,
     description,
@@ -12,7 +15,12 @@ export const logActivity = async ({ leadId, customerId, type, description, metad
   if (leadId) data.leadId = leadId;
   if (customerId) data.customerId = customerId;
 
-  return await Activity.create(data);
+  try {
+    return await Activity.create(data);
+  } catch (err) {
+    console.warn('logActivity warning:', err.message);
+    return null;
+  }
 };
 
 export const getLeadActivities = async (leadId) => {

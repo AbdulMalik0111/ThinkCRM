@@ -31,7 +31,7 @@ export const calcPercentageChange = (current = 0, previous = 0) => {
   return Number(diff.toFixed(1));
 };
 
-export const getAnalyticsOverview = async (query = {}) => {
+export const getAnalyticsOverview = async (query = {}, user = null) => {
   const now = new Date();
 
   // Date Parsing: default to current month or provided range
@@ -61,7 +61,12 @@ export const getAnalyticsOverview = async (query = {}) => {
       match.createdAt = { $gte: start, $lte: end };
     }
 
-    if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
+    const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+    if (user && !isOwnerOrAdmin && user._id) {
+      match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+        ? new mongoose.Types.ObjectId(user._id)
+        : user._id;
+    } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
       match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
     }
 
@@ -418,7 +423,7 @@ export const getAnalyticsOverview = async (query = {}) => {
   };
 };
 
-export const getExportRecords = async (query = {}) => {
+export const getExportRecords = async (query = {}, user = null) => {
   const now = new Date();
   let startDate = query.startDate ? new Date(query.startDate) : new Date(now.getFullYear(), 0, 1);
   let endDate = query.endDate ? new Date(query.endDate) : now;
@@ -427,7 +432,12 @@ export const getExportRecords = async (query = {}) => {
   if (startDate && endDate) {
     match.createdAt = { $gte: startDate, $lte: endDate };
   }
-  if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (user && !isOwnerOrAdmin && user._id) {
+    match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+  } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
     match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
   }
   if (query.source && query.source !== 'all') {
@@ -466,7 +476,7 @@ export const getExportRecords = async (query = {}) => {
   }));
 };
 
-export const getDetailedRecords = async (query = {}) => {
+export const getDetailedRecords = async (query = {}, user = null) => {
   const page = parseInt(query.page, 10) || 1;
   const limit = parseInt(query.limit, 10) || 10;
   const skip = (page - 1) * limit;
@@ -479,7 +489,12 @@ export const getDetailedRecords = async (query = {}) => {
   if (startDate && endDate) {
     match.createdAt = { $gte: startDate, $lte: endDate };
   }
-  if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (user && !isOwnerOrAdmin && user._id) {
+    match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+  } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
     match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
   }
   if (query.source && query.source !== 'all') {

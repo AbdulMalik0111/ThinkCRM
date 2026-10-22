@@ -122,9 +122,9 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
         expectedStartDate: activeProject.startDate ? activeProject.startDate.slice(0, 10) : "",
         expectedCompletionDate: activeProject.completionDate ? activeProject.completionDate.slice(0, 10) : "",
 
-        preferredContactMethod: "Call",
-        bestTimeToContact: "Morning (10 AM - 1 PM)",
-        communicationNotes: "",
+        preferredContactMethod: source.preferredContactMethod || "Call",
+        bestTimeToContact: source.bestTimeToContact || "Morning (10 AM - 1 PM)",
+        communicationNotes: source.communicationNotes || "",
 
         generalNotes: source.notes?.[0]?.content || "",
 
@@ -241,11 +241,14 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       return;
     }
 
+    const altRes = formData.alternatePhone ? validatePhone(formData.alternatePhone, { required: false }) : null;
+    const cleanAltPhone = altRes?.formatted || formData.alternatePhone.trim();
+
     const payload = {
       fullName: formData.fullName.trim(),
       phone: phoneRes.formatted || formData.phone.trim(),
       email: formData.email.trim() || undefined,
-      alternatePhone: formData.alternatePhone.trim() || undefined,
+      alternatePhone: cleanAltPhone || undefined,
       source: formData.source,
       status: formData.status,
       assignedStaff: formData.assignedStaff || undefined,
@@ -265,16 +268,21 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       customerType: formData.customerType,
       companyName: formData.customerType === "Business" ? formData.companyName.trim() : undefined,
       gstin: formData.customerType === "Business" ? formData.gstin.trim() : undefined,
+
+      preferredContactMethod: formData.preferredContactMethod || undefined,
+      bestTimeToContact: formData.bestTimeToContact.trim() || undefined,
+      communicationNotes: formData.communicationNotes.trim() || undefined,
+      generalNotes: formData.generalNotes.trim() || undefined,
     };
 
-    // If adding a project
-    if (formData.projectName.trim()) {
+    // If adding or updating a project
+    if (formData.projectName.trim() || formData.projectType || formData.totalValue) {
       payload.projects = [
         {
-          projectName: formData.projectName.trim(),
-          projectType: formData.projectType,
+          projectName: formData.projectName.trim() || `${formData.projectType || 'Interior'} Project`,
+          projectType: formData.projectType || "Modular Kitchen",
           budget: formData.totalValue ? Number(formData.totalValue) : 0,
-          status: formData.projectStatus,
+          status: formData.projectStatus || "active",
           startDate: formData.expectedStartDate || undefined,
           completionDate: formData.expectedCompletionDate || undefined,
           description: formData.projectDescription.trim() || undefined,
@@ -283,7 +291,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       ];
     }
 
-    // If initial note
+    // If initial note for new customer
     if (formData.generalNotes.trim() && !isEditMode) {
       payload.notes = [
         {
@@ -296,12 +304,23 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       if (isEditMode) {
         await updateCustomer({ id: customerId, data: payload }).unwrap();
         toast.success("Customer updated successfully!");
+        if (onClose) {
+          onClose();
+        } else {
+          navigate(`/customers/${customerId}`);
+        }
       } else {
-        await createCustomer(payload).unwrap();
+        const res = await createCustomer(payload).unwrap();
         toast.success("Customer created successfully!");
+        const newCustomerId = res?.data?.customer?._id || res?.data?._id;
+        if (onClose) {
+          onClose();
+        } else if (newCustomerId) {
+          navigate(`/customers/${newCustomerId}`);
+        } else {
+          navigate("/customers");
+        }
       }
-
-      handleClose();
     } catch (err) {
       toast.error(err?.data?.message || `Failed to ${isEditMode ? "update" : "create"} customer`);
     }
@@ -343,12 +362,12 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
             </button>
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                {isEditMode ? "Edit Customer" : "Add New Customer"}
+                {isEditMode ? "Edit Customer" : "Add Customer"}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {isEditMode
                   ? "Update complete customer details, projects, and communication preferences"
-                  : "Create a new verified customer profile with complete contact and project details"}
+                  : "Create complete customer details, projects, and communication preferences"}
               </p>
             </div>
           </div>
@@ -885,6 +904,35 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                   <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">Customer Documents</h4>
                 </div>
 
+                {customerData?.data?.customer?.documents?.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase">Existing Documents ({customerData.data.customer.documents.length})</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {customerData.data.customer.documents.map((doc) => (
+                        <div key={doc._id} className="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-2.5 truncate">
+                            <Icon icon="heroicons-outline:document-text" className="text-xl text-primary-500 flex-shrink-0" />
+                            <div className="truncate">
+                              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{doc.name}</p>
+                              <p className="text-[10px] text-slate-400 capitalize">{doc.category || "General"}</p>
+                            </div>
+                          </div>
+                          {doc.url && (
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 text-xs font-semibold text-primary-600 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-950/40 rounded transition"
+                            >
+                              View
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-8 text-center bg-slate-50/50 dark:bg-slate-900/30">
                   <div className="h-12 w-12 rounded-full bg-primary-50 dark:bg-primary-950/40 text-primary-500 flex items-center justify-center mx-auto mb-3">
                     <Icon icon="heroicons-outline:document-arrow-up" className="text-2xl" />
@@ -997,7 +1045,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
               disabled={isSaving}
             >
               {isSaving && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
-              <span>{isSaving ? (isEditMode ? "Saving..." : "Creating...") : (isEditMode ? "Save Customer" : "Save Customer")}</span>
+              <span>{isSaving ? (isEditMode ? "Saving Changes..." : "Creating Customer...") : (isEditMode ? "Save Changes" : "Save Customer")}</span>
             </button>
           </div>
         </form>

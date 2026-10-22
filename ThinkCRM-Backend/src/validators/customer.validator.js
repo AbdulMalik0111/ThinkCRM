@@ -80,6 +80,8 @@ export const createCustomerSchema = z
     bestTimeToContact: z.string().optional().nullable(),
     communicationNotes: z.string().trim().max(2000).optional().nullable(),
     generalNotes: z.string().trim().max(5000).optional().nullable(),
+    projects: z.array(z.any()).optional(),
+    notes: z.array(z.any()).optional(),
   })
   .refine((data) => data.sourceLeadId || (data.fullName && data.phone), {
     message: 'Either sourceLeadId or Full Name and Phone must be provided',
@@ -159,6 +161,7 @@ export const updateCustomerSchema = z.object({
   bestTimeToContact: z.string().optional().nullable(),
   communicationNotes: z.string().trim().max(2000).optional().nullable(),
   generalNotes: z.string().trim().max(5000).optional().nullable(),
+  notes: z.array(z.any()).optional(),
 });
 
 export const addCustomerProjectSchema = z.object({

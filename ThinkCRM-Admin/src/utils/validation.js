@@ -49,7 +49,7 @@ export const validatePhone = (phone, { country = 'IN', required = true } = {}) =
         return {
           isValid: true,
           error: null,
-          formatted: `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`,
+          formatted: digits,
           nationalNumber: digits,
           country: 'IN',
         };
@@ -73,7 +73,7 @@ export const validatePhone = (phone, { country = 'IN', required = true } = {}) =
       return {
         isValid: false,
         error: 'Enter a valid 10-digit Indian mobile number (starts with 6, 7, 8, or 9)',
-        formatted: parsed.formatInternational() || raw,
+        formatted: nationalNumber,
         nationalNumber,
         country: 'IN',
       };
@@ -93,7 +93,7 @@ export const validatePhone = (phone, { country = 'IN', required = true } = {}) =
   return {
     isValid: true,
     error: null,
-    formatted: parsed.formatInternational(),
+    formatted: detectedCountry === 'IN' ? nationalNumber : parsed.formatInternational(),
     nationalNumber,
     country: detectedCountry,
   };
@@ -108,7 +108,9 @@ export const validatePhone = (phone, { country = 'IN', required = true } = {}) =
  * @param {string} options.fieldName
  * @returns {{ isValid: boolean, error: string|null, value: string }}
  */
-export const validateEmail = (email, { required = false, fieldName = 'Email' } = {}) => {
+export const validateEmail = (email, options = {}) => {
+  const required = options.required ?? false;
+  const fieldName = options.fieldName || options.label || 'Email';
   const raw = (email || '').toString().trim();
 
   if (!raw) {
@@ -140,17 +142,13 @@ export const validateEmail = (email, { required = false, fieldName = 'Email' } =
  * @param {object} options
  * @returns {{ isValid: boolean, error: string|null, value: string }}
  */
-export const validateText = (
-  text,
-  {
-    required = true,
-    fieldName = 'Field',
-    min = 2,
-    max = 100,
-    allowSpecialChars = false,
-  } = {}
-) => {
-  const raw = (text || '').toString().trim().replace(/\s+/g, ' ');
+export const validateText = (text, options = {}) => {
+  const required = options.required ?? true;
+  const fieldName = options.fieldName || options.label || options.name || 'Field';
+  const min = options.min ?? options.minLength ?? 2;
+  const max = options.max ?? options.maxLength ?? 100;
+  const allowSpecialChars = options.allowSpecialChars ?? false;
+  const raw = (text || '').toString().trim().replace(/[ \t]+/g, ' ');
 
   if (!raw) {
     if (required) {

@@ -7,11 +7,18 @@ export const leadsApi = apiSlice.injectEndpoints({
         url: "leads",
         params,
       }),
-      providesTags: ["Lead"],
+      providesTags: (result) =>
+        result?.data?.leads
+          ? [
+              ...result.data.leads.map(({ _id }) => ({ type: "Lead", id: _id })),
+              { type: "Lead", id: "LIST" },
+              "Lead",
+            ]
+          : [{ type: "Lead", id: "LIST" }, "Lead"],
     }),
     getLeadById: builder.query({
       query: (id) => `leads/${id}`,
-      providesTags: (result, error, id) => [{ type: "Lead", id }],
+      providesTags: (result, error, id) => [{ type: "Lead", id }, "Lead"],
     }),
     createLead: builder.mutation({
       query: (data) => ({
@@ -19,7 +26,13 @@ export const leadsApi = apiSlice.injectEndpoints({
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["Lead", "Dashboard"],
+      invalidatesTags: [
+        { type: "Lead", id: "LIST" },
+        "Lead",
+        { type: "Customer", id: "LIST" },
+        "Customer",
+        "Dashboard",
+      ],
     }),
     updateLead: builder.mutation({
       query: ({ id, data }) => ({
@@ -29,7 +42,10 @@ export const leadsApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (result, error, { id }) => [
         { type: "Lead", id },
+        { type: "Lead", id: "LIST" },
         "Lead",
+        { type: "Customer", id: "LIST" },
+        "Customer",
         "Dashboard",
       ],
     }),

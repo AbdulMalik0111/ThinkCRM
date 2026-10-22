@@ -33,9 +33,9 @@ export const errorHandler = (err, req, res, next) => {
       });
     } else {
       logger.error('ERROR 💥', err);
-      res.status(500).json({
+      res.status(err.statusCode || 500).json({
         success: false,
-        message: 'Something went very wrong!',
+        message: err.message || 'Something went wrong while processing your request',
       });
     }
   }

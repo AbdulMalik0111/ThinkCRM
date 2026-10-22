@@ -1,11 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { validateText, validateEmail, focusFirstError } from "@/utils/validation";
+import { useUpdateStaffMutation } from "@/store/api/management/managementApiSlice";
+import { updateUserProfile } from "@/store/api/auth/authSlice";
+import { toast } from "react-toastify";
 
 const Profile = () => {
   const { user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
+  const [updateStaff, { isLoading }] = useUpdateStaffMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
@@ -13,6 +18,16 @@ const Profile = () => {
     email: user?.email || "",
   });
   const [formErrors, setFormErrors] = useState({});
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,7 +37,7 @@ const Profile = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = {};
     const fnCheck = validateText(formData.firstName, { fieldName: "First Name", required: true, minLength: 2, maxLength: 50 });
@@ -40,8 +55,26 @@ const Profile = () => {
       return;
     }
     setFormErrors({});
-    // Simulate save
-    setIsEditing(false);
+
+    try {
+      const userId = user?._id || user?.id;
+      if (userId) {
+        const res = await updateStaff({
+          id: userId,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+        }).unwrap();
+        dispatch(updateUserProfile({
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          ...(res?.data?.user || {}),
+        }));
+        toast.success("Profile updated successfully");
+      }
+      setIsEditing(false);
+    } catch (err) {
+      toast.error(err?.data?.message || "Failed to update profile");
+    }
   };
 
   const initial = user?.firstName ? user.firstName.charAt(0).toUpperCase() : "A";

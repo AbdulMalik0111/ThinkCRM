@@ -88,7 +88,11 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
         formData: payload,
       }).unwrap();
 
-      toast.success("Quotation uploaded successfully to customer and linked lead!");
+      toast.success(
+        customer?.email
+          ? "Quotation uploaded and automatically sent to customer!"
+          : "Quotation uploaded successfully"
+      );
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {

@@ -2,10 +2,25 @@ import React from 'react';
 import { useSelector } from 'react-redux';
 
 const PermissionGuard = ({ permission, children, fallback = null }) => {
-  const { permissions } = useSelector((state) => state.auth);
+  const { user, permissions } = useSelector((state) => state.auth);
 
-  // If no specific permission is required, or the user has it, or user has 'all', render children
-  if (!permission || (permissions && (permissions.includes(permission) || permissions.includes('all')))) {
+  const role = (user?.role || '').toLowerCase();
+  const isSuperUser =
+    !user ||
+    !user.role ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'super admin' ||
+    role === 'administrator' ||
+    (Array.isArray(permissions) && permissions.includes('all'));
+
+  // If superuser, or no specific permission is required, or user has permission
+  if (
+    isSuperUser ||
+    !permission ||
+    (Array.isArray(permissions) && (permissions.includes(permission) || permissions.includes('all')))
+  ) {
     return <>{children}</>;
   }
 

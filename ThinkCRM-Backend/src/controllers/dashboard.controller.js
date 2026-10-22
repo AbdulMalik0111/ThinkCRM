@@ -6,11 +6,46 @@ import { Customer } from '../models/Customer.js';
 
 export const getDashboardStats = async (req, res, next) => {
   try {
+    const user = req.user;
+    const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const endOfToday = new Date(today);
     endOfToday.setHours(23, 59, 59, 999);
+
+    const leadBase = { isDeleted: false };
+    const custBase = { deletedAt: null };
+    const followUpBase = {};
+    const measurementBase = {};
+    const quotationBase = {};
+
+    if (user && !isOwnerOrAdmin && user._id) {
+      leadBase.assignedTo = user._id;
+      const userLeads = await Lead.find(leadBase).select('_id');
+      const leadIds = userLeads.map((l) => l._id);
+
+      custBase.$or = [
+        { assignedStaff: user._id },
+        { 'projects.assignedStaff': user._id },
+      ];
+      followUpBase.$or = [
+        { assignedTo: user._id },
+        { performedBy: user._id },
+        { createdBy: user._id },
+        { leadId: { $in: leadIds } },
+      ];
+      measurementBase.$or = [
+        { assignedTo: user._id },
+        { conductedBy: user._id },
+        { leadId: { $in: leadIds } },
+      ];
+      quotationBase.$or = [
+        { createdBy: user._id },
+        { leadId: { $in: leadIds } },
+      ];
+    }
 
     const [
       totalLeads,
@@ -25,17 +60,17 @@ export const getDashboardStats = async (req, res, next) => {
       lostLeads,
       activeCustomers,
     ] = await Promise.all([
-      Lead.countDocuments({ isDeleted: false }),
-      Lead.countDocuments({ status: 'new', isDeleted: false }),
-      Lead.countDocuments({ createdAt: { $gte: today, $lte: endOfToday }, isDeleted: false }),
-      FollowUp.countDocuments({ scheduledAt: { $gte: today, $lte: endOfToday }, status: 'pending' }),
-      FollowUp.countDocuments({ scheduledAt: { $lt: today }, status: 'pending' }),
-      Measurement.countDocuments({ status: { $in: ['pending', 'scheduled'] } }),
-      Quotation.countDocuments({ status: 'draft' }),
-      Quotation.countDocuments({ status: 'sent' }),
-      Lead.countDocuments({ status: 'won', isDeleted: false }),
-      Lead.countDocuments({ status: 'lost', isDeleted: false }),
-      Customer.countDocuments({ deletedAt: null }),
+      Lead.countDocuments(leadBase),
+      Lead.countDocuments({ ...leadBase, status: 'new' }),
+      Lead.countDocuments({ ...leadBase, createdAt: { $gte: today, $lte: endOfToday } }),
+      FollowUp.countDocuments({ ...followUpBase, scheduledAt: { $gte: today, $lte: endOfToday }, status: 'pending' }),
+      FollowUp.countDocuments({ ...followUpBase, scheduledAt: { $lt: today }, status: 'pending' }),
+      Measurement.countDocuments({ ...measurementBase, status: { $in: ['pending', 'scheduled'] } }),
+      Quotation.countDocuments({ ...quotationBase, status: 'draft' }),
+      Quotation.countDocuments({ ...quotationBase, status: 'sent' }),
+      Lead.countDocuments({ ...leadBase, status: 'won' }),
+      Lead.countDocuments({ ...leadBase, status: 'lost' }),
+      Customer.countDocuments(custBase),
     ]);
 
     const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(2) : 0;

@@ -53,8 +53,17 @@ export const authSlice = createSlice({
       localStorage.removeItem("adminRefreshToken");
       localStorage.removeItem("adminSessionId");
     },
+    updateUserProfile: (state, action) => {
+      const updatedUser = { ...state.user, ...action.payload };
+      state.user = updatedUser;
+      if (action.payload.permissions) {
+        state.permissions = action.payload.permissions;
+        localStorage.setItem("adminPermissions", JSON.stringify(state.permissions));
+      }
+      localStorage.setItem("adminUser", JSON.stringify(updatedUser));
+    },
   },
 });
 
-export const { setUser, setToken, logOut } = authSlice.actions;
+export const { setUser, setToken, logOut, updateUserProfile } = authSlice.actions;
 export default authSlice.reducer;

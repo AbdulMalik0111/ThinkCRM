@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { Activity } from '../models/Activity.js';
 import { AppError } from '../utils/AppError.js';
+import { normalizePhone } from '../utils/normalize.js';
 
 export const createUser = async (userData) => {
   const existingUser = await User.findOne({ email: userData.email });
@@ -10,8 +11,15 @@ export const createUser = async (userData) => {
     throw new AppError('Email already in use', 400);
   }
 
+  let cleanPhone = userData.phone;
+  if (cleanPhone) {
+    const { canonical } = normalizePhone(cleanPhone);
+    cleanPhone = canonical || cleanPhone.trim();
+  }
+
   const user = await User.create({
     ...userData,
+    phone: cleanPhone || undefined,
     passwordHash: userData.password, // handled by pre-save hook
   });
   
@@ -72,7 +80,18 @@ export const updateUser = async (userId, updateData) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new AppError('Invalid staff ID', 400);
   }
-  const user = await User.findByIdAndUpdate(userId, updateData, {
+
+  const cleanData = { ...updateData };
+  if (cleanData.phone !== undefined) {
+    if (cleanData.phone) {
+      const { canonical } = normalizePhone(cleanData.phone);
+      cleanData.phone = canonical || cleanData.phone.trim();
+    } else {
+      cleanData.phone = null;
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(userId, cleanData, {
     new: true,
     runValidators: true,
   }).select('-passwordHash -refreshToken');

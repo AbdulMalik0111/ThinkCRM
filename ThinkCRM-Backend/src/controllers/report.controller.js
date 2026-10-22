@@ -4,7 +4,7 @@ import { Quotation } from '../models/Quotation.js';
 
 export const getAnalyticsOverview = async (req, res, next) => {
   try {
-    const data = await reportService.getAnalyticsOverview(req.query);
+    const data = await reportService.getAnalyticsOverview(req.query, req.user);
     res.status(200).json({
       success: true,
       message: 'Analytics overview fetched successfully',
@@ -17,7 +17,7 @@ export const getAnalyticsOverview = async (req, res, next) => {
 
 export const getDetailedRecords = async (req, res, next) => {
   try {
-    const data = await reportService.getDetailedRecords(req.query);
+    const data = await reportService.getDetailedRecords(req.query, req.user);
     res.status(200).json({
       success: true,
       message: 'Detailed report records fetched successfully',
@@ -31,7 +31,7 @@ export const getDetailedRecords = async (req, res, next) => {
 export const exportReport = async (req, res, next) => {
   try {
     const format = req.query.format || 'csv';
-    const records = await reportService.getExportRecords(req.query);
+    const records = await reportService.getExportRecords(req.query, req.user);
 
     if (format === 'csv') {
       const headers = [

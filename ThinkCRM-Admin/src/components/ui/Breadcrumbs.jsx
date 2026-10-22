@@ -31,7 +31,15 @@ const Breadcrumbs = () => {
 
   // Clean up IDs from the path
   let displayPath = locationName;
-  if (displayPath.match(/catalog\/products\/[a-f0-9]{24}\/edit/i)) {
+  if (displayPath.match(/customers\/new/i)) {
+    displayPath = "customers / add customer";
+  } else if (displayPath.match(/customers\/[a-f0-9]{24}\/edit/i)) {
+    displayPath = "customers / details / edit customer";
+  } else if (displayPath.match(/leads\/new/i)) {
+    displayPath = "leads / add lead";
+  } else if (displayPath.match(/leads\/[a-f0-9]{24}\/edit/i)) {
+    displayPath = "leads / details / edit lead";
+  } else if (displayPath.match(/catalog\/products\/[a-f0-9]{24}\/edit/i)) {
     displayPath = "catalog / products / edit product";
   } else if (displayPath.match(/catalog\/products\/[a-f0-9]{24}/i)) {
     displayPath = "catalog / products / product details";

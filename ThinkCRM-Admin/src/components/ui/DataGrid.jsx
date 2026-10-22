@@ -39,12 +39,12 @@ const DataGrid = ({
 
   // Pagination stats calculation
   const isBackendPagination = Boolean(paginationData && onPageChange);
-  const total = isBackendPagination ? (paginationData.total || 0) : rowData.length;
+  const total = isBackendPagination ? (paginationData.total ?? rowData.length) : rowData.length;
   const page = isBackendPagination ? (paginationData.page || 1) : 1;
   const limit = isBackendPagination ? (paginationData.limit || 10) : 10;
   const totalPages = isBackendPagination
-    ? (paginationData.totalPages || Math.ceil(total / limit) || 1)
-    : (Math.ceil(total / limit) || 1);
+    ? (paginationData.totalPages || Math.max(1, Math.ceil(total / limit)))
+    : Math.max(1, Math.ceil(total / limit));
 
   const startIndex = total > 0 ? (page - 1) * limit + 1 : 0;
   const endIndex = Math.min(page * limit, total);
@@ -224,7 +224,7 @@ const DataGrid = ({
                   <tr
                     key={rowId}
                     onClick={() => onRowClicked && onRowClicked({ data: row })}
-                    className={`transition-colors duration-150 ${
+                    className={`transition-colors duration-150 ${onRowClicked ? "cursor-pointer" : ""} ${
                       isSelected
                         ? "bg-blue-50/60 dark:bg-blue-950/20"
                         : "hover:bg-slate-50/80 dark:hover:bg-slate-700/30"
@@ -232,7 +232,10 @@ const DataGrid = ({
                   >
                     {/* Row Checkbox */}
                     {enableSelection && (
-                      <td className="py-3 px-3 w-12 text-center select-none">
+                      <td
+                        className="py-3 px-3 w-12 text-center select-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <label className="inline-flex items-center justify-center cursor-pointer">
                           <input
                             type="checkbox"
@@ -305,6 +308,10 @@ const DataGrid = ({
                         cellContent = cellValue;
                       }
 
+                      const extraCellClass = col.cellClass
+                        ? col.cellClass.replace(/\b(flex|items-\w+|justify-\w+)\b/g, "").trim()
+                        : "";
+
                       return (
                         <td
                           key={col.headerName || col.field || colIdx}
@@ -315,7 +322,7 @@ const DataGrid = ({
                           }}
                           className={`py-3 px-4 text-[14px] text-slate-700 dark:text-slate-200 align-middle ${
                             isCenter ? "text-center" : isRight ? "text-right" : "text-left"
-                          }`}
+                          } ${extraCellClass}`}
                         >
                           {cellContent}
                         </td>
