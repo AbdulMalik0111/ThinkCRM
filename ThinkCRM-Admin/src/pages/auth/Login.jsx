@@ -9,8 +9,8 @@ import { validateEmail } from "@/utils/validation";
 
 const Login = () => {
   const [view, setView] = useState("login"); // 'login' or 'forgot'
-  const [email, setEmail] = useState("thinkcrm@gmail.com");
-  const [password, setPassword] = useState("thinkcrm");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
   const [isForgotLoading, setIsForgotLoading] = useState(false);
@@ -144,7 +144,7 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="admin@example.com"
+                placeholder="Enter your email"
               />
             </div>
 
@@ -158,8 +158,8 @@ const Login = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-slate-200 rounded-md pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition tracking-wider"
-                  placeholder="••••••••"
+                  className="w-full border border-slate-200 rounded-md pl-4 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition placeholder:tracking-normal"
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"
@@ -216,7 +216,7 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-slate-200 rounded-md px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="you@example.com"
+                placeholder="Enter your email"
               />
             </div>
 

@@ -4,6 +4,7 @@ import path from "path";
 import rollupReplace from "@rollup/plugin-replace";
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "/",
   resolve: {
     alias: [
       {
