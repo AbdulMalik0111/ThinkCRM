@@ -46,15 +46,79 @@ export const restrictTo = (...roles) => {
   };
 };
 
+export const ROLE_DEFAULT_PERMISSIONS = {
+  Owner: ['all'],
+  Admin: ['all'],
+  'Sales Manager': [
+    'leads.view',
+    'leads.create',
+    'leads.update',
+    'leads.assign',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'quotations.view',
+    'quotations.create',
+    'quotations.send',
+    'measurements.view',
+    'measurements.create',
+    'measurements.update',
+    'reports.view',
+    'notifications.view',
+  ],
+  'Sales Executive': [
+    'leads.view',
+    'leads.create',
+    'leads.update',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'quotations.view',
+    'quotations.create',
+    'quotations.send',
+    'measurements.view',
+    'measurements.create',
+    'measurements.update',
+    'reports.view',
+    'notifications.view',
+  ],
+  Staff: [
+    'leads.view',
+    'leads.create',
+    'leads.update',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'quotations.view',
+    'quotations.create',
+    'quotations.send',
+    'measurements.view',
+    'measurements.create',
+    'measurements.update',
+    'reports.view',
+    'notifications.view',
+  ],
+};
+
 export const requirePermission = (permission) => {
   return (req, res, next) => {
-    // Owner always has full access, skip permission check
+    if (!req.user) {
+      return next(new AppError('You are not logged in! Please log in to get access.', 401));
+    }
+
+    // Owner and Admin always have full access, skip permission check
     if (req.user.role === 'Owner' || req.user.role === 'Admin') {
       return next();
     }
-    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
-      return next(new AppError(`You do not have the required permission: ${permission}`, 403));
+
+    const roleDefaults = ROLE_DEFAULT_PERMISSIONS[req.user.role] || [];
+    const userPermissions = Array.isArray(req.user.permissions) ? req.user.permissions : [];
+    const allPermissions = Array.from(new Set([...roleDefaults, ...userPermissions]));
+
+    if (allPermissions.includes('all') || allPermissions.includes(permission)) {
+      return next();
     }
-    next();
+
+    return next(new AppError(`You do not have the required permission: ${permission}`, 403));
   };
 };
