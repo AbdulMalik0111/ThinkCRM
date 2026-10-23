@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
@@ -63,11 +64,13 @@ const TYPE_CONFIG = {
 
 const FollowUpsCalendar = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Queries & Mutations
   const { data, isLoading, isFetching, refetch } = useGetAllFollowUpsQuery();
   const { data: leadsData } = useGetLeadsQuery({ limit: 500 });
-  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const [createFollowUp, { isLoading: isCreating }] = useCreateFollowUpMutation();
   const [updateFollowUp, { isLoading: isUpdating }] = useUpdateFollowUpMutation();
   const [deleteFollowUp] = useDeleteFollowUpMutation();
@@ -485,26 +488,28 @@ const FollowUpsCalendar = () => {
               }}
             />
 
-            <ToolbarFilterDropdown
-              filter={{
-                id: "staffFilter",
-                value: staffFilter,
-                onChange: setStaffFilter,
-                placeholder: "All Assigned Staff",
-                minWidth: "180px",
-                isSearchable: true,
-                options: [
-                  { value: "all", label: "All Assigned Staff" },
-                  ...staffList.map((st) => ({
-                    value: st._id,
-                    label: `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name || "Staff",
-                  })),
-                ],
-              }}
-            />
+            {isOwnerOrAdmin && (
+              <ToolbarFilterDropdown
+                filter={{
+                  id: "staffFilter",
+                  value: staffFilter,
+                  onChange: setStaffFilter,
+                  placeholder: "All Assigned Staff",
+                  minWidth: "180px",
+                  isSearchable: true,
+                  options: [
+                    { value: "all", label: "All Assigned Staff" },
+                    ...staffList.map((st) => ({
+                      value: st._id,
+                      label: `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name || "Staff",
+                    })),
+                  ],
+                }}
+              />
+            )}
 
             {/* Clear Filter Button */}
-            {(searchTerm || typeFilter !== "all" || staffFilter !== "all") && (
+            {(searchTerm || typeFilter !== "all" || (isOwnerOrAdmin && staffFilter !== "all")) && (
               <button
                 type="button"
                 onClick={() => {
@@ -533,7 +538,7 @@ const FollowUpsCalendar = () => {
             No Follow-Ups Found
           </h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5">
-            {searchTerm || typeFilter !== "all" || staffFilter !== "all"
+            {searchTerm || typeFilter !== "all" || (isOwnerOrAdmin && staffFilter !== "all")
               ? "No tasks match your selected filter criteria. Try adjusting or clearing your filters."
               : "No follow-up tasks scheduled in this category yet."}
           </p>

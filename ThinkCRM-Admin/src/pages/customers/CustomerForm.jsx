@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
@@ -25,6 +26,9 @@ const TAB_ITEMS = [
 const PRESET_TAGS = ["VIP", "High Budget", "Repeat Customer", "Referral", "Architect"];
 
 const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustomerId = null, initialData = null }) => {
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
+
   const navigate = useNavigate();
   const routeParams = useParams();
   const customerId = propCustomerId || routeParams.id;
@@ -38,7 +42,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
     { skip: !isEditMode || Boolean(initialData) }
   );
 
-  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const staffList = staffData?.data?.users || [];
 
   const [createCustomer, { isLoading: isCreating }] = useCreateCustomerMutation();
@@ -52,7 +56,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
     alternatePhone: "",
     source: "Website",
     status: "active",
-    assignedStaff: "",
+    assignedStaff: !isOwnerOrAdmin && user?._id ? user._id : "",
     tags: ["VIP", "High Budget"],
     avatar: "",
 
@@ -103,7 +107,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
         alternatePhone: source.alternatePhone || "",
         source: source.source || "Website",
         status: source.status || "active",
-        assignedStaff: source.assignedStaff?._id || source.assignedStaff || "",
+        assignedStaff: source.assignedStaff?._id || source.assignedStaff || (!isOwnerOrAdmin && user?._id ? user._id : ""),
         tags: Array.isArray(source.tags) && source.tags.length > 0 ? source.tags : ["VIP"],
         avatar: source.avatar || "",
 
@@ -134,6 +138,12 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       });
     }
   }, [customerData, initialData]);
+
+  useEffect(() => {
+    if (!isOwnerOrAdmin && user?._id && !formData.assignedStaff) {
+      setFormData((prev) => ({ ...prev, assignedStaff: user._id }));
+    }
+  }, [user, isOwnerOrAdmin]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -243,6 +253,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
 
     const altRes = formData.alternatePhone ? validatePhone(formData.alternatePhone, { required: false }) : null;
     const cleanAltPhone = altRes?.formatted || formData.alternatePhone.trim();
+    const effectiveAssignedStaff = !isOwnerOrAdmin && user?._id ? user._id : (formData.assignedStaff || undefined);
 
     const payload = {
       fullName: formData.fullName.trim(),
@@ -251,7 +262,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
       alternatePhone: cleanAltPhone || undefined,
       source: formData.source,
       status: formData.status,
-      assignedStaff: formData.assignedStaff || undefined,
+      assignedStaff: effectiveAssignedStaff,
       tags: formData.tags,
       avatar: formData.avatar || undefined,
 
@@ -286,7 +297,7 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
           startDate: formData.expectedStartDate || undefined,
           completionDate: formData.expectedCompletionDate || undefined,
           description: formData.projectDescription.trim() || undefined,
-          assignedStaff: formData.assignedStaff || undefined,
+          assignedStaff: effectiveAssignedStaff,
         },
       ];
     }
@@ -535,19 +546,28 @@ const CustomerForm = ({ isModal = false, onClose = null, customerId: propCustome
                     <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
                       Assigned Staff
                     </label>
-                    <select
-                      name="assignedStaff"
-                      value={formData.assignedStaff}
-                      onChange={handleChange}
-                      className="form-control text-sm"
-                    >
-                      <option value="">Unassigned</option>
-                      {staffList.map((st) => (
-                        <option key={st._id} value={st._id}>
-                          {st.name} ({st.email})
-                        </option>
-                      ))}
-                    </select>
+                    {!isOwnerOrAdmin ? (
+                      <input
+                        type="text"
+                        disabled
+                        value={`${user?.firstName || user?.name || ""} ${user?.lastName || ""} (Assigned to You)`}
+                        className="form-control text-sm bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                      />
+                    ) : (
+                      <select
+                        name="assignedStaff"
+                        value={formData.assignedStaff}
+                        onChange={handleChange}
+                        className="form-control text-sm"
+                      >
+                        <option value="">Unassigned</option>
+                        {staffList.map((st) => (
+                          <option key={st._id} value={st._id}>
+                            {st.name || `${st.firstName || ""} ${st.lastName || ""}`.trim()} ({st.email})
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   {/* Tags */}

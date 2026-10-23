@@ -13,6 +13,8 @@ import { convertLeadToCustomer as convertService } from './customer.service.js';
 import { uploadToCloudinary, deleteFromCloudinary, formatDocumentFileUrl } from '../utils/cloudinary.js';
 import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
+import { sendEmail } from '../integrations/email/email.service.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
@@ -25,7 +27,7 @@ export const getLeadStats = async (user = null) => {
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   const baseFilter = { isDeleted: false };
   if (user && !isOwnerOrAdmin && user._id) {
-    baseFilter.assignedTo = user._id;
+    baseFilter.$or = [{ assignedTo: user._id }, { createdBy: user._id }];
   }
 
   const [
@@ -86,7 +88,7 @@ export const getLeadStats = async (user = null) => {
   };
 };
 
-export const createLead = async (leadData, createdBy) => {
+export const createLead = async (leadData, createdBy, user = null) => {
   if (leadData.metaLeadId) {
     const existing = await Lead.findOne({ metaLeadId: leadData.metaLeadId });
     if (existing) {
@@ -94,11 +96,19 @@ export const createLead = async (leadData, createdBy) => {
     }
   }
 
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+
   // Extract initial follow-up payload if provided
   const { nextFollowUpDate, nextFollowUpTime, nextFollowUpType, sendReminderNotification, ...leadFields } = leadData;
 
+  // Strict role scoping: If staff creates a lead, it is automatically assigned to themselves
+  const finalAssignedTo = (!isOwnerOrAdmin && (user?._id || createdBy))
+    ? (user?._id || createdBy)
+    : (leadFields.assignedTo || undefined);
+
   const lead = await Lead.create({
     ...leadFields,
+    assignedTo: finalAssignedTo,
     createdBy,
   });
 
@@ -156,40 +166,55 @@ export const createLead = async (leadData, createdBy) => {
 };
 
 export const getLeads = async (query = {}, user = null) => {
-  const filter = { isDeleted: { $ne: true } };
+  const andConditions = [{ isDeleted: { $ne: true } }];
 
-  // Staff role scoping: non-owners and non-admins only see leads assigned to them
+  // Staff role scoping: non-owners and non-admins only see leads assigned to them or created by them
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   if (user && !isOwnerOrAdmin && user._id) {
-    filter.assignedTo = user._id;
+    const userObjId = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+    andConditions.push({
+      $or: [
+        { assignedTo: userObjId },
+        { createdBy: userObjId },
+      ],
+    });
   } else if (query.assignedTo && query.assignedTo !== 'all' && query.assignedTo !== '') {
     if (query.assignedTo === 'unassigned') {
-      filter.assignedTo = { $exists: false };
+      andConditions.push({
+        $or: [
+          { assignedTo: { $exists: false } },
+          { assignedTo: null },
+        ],
+      });
+    } else if (mongoose.Types.ObjectId.isValid(query.assignedTo)) {
+      andConditions.push({ assignedTo: new mongoose.Types.ObjectId(query.assignedTo) });
     } else {
-      filter.assignedTo = query.assignedTo;
+      andConditions.push({ assignedTo: query.assignedTo });
     }
   }
 
   // Status Filter
   if (query.status && query.status !== 'all' && query.status.trim() !== '') {
-    filter.status = query.status.trim();
+    andConditions.push({ status: query.status.trim() });
   }
 
   // Source Filter
   const source = query.source || query.leadSource;
   if (source && source !== 'all' && source.trim() !== '') {
     const cleanPattern = source.trim().replace(/_/g, '[\\s_]');
-    filter.leadSource = { $regex: new RegExp(`^${cleanPattern}$`, 'i') };
+    andConditions.push({ leadSource: { $regex: new RegExp(`^${cleanPattern}$`, 'i') } });
   }
 
   // Project Type Filter
   if (query.projectType && query.projectType !== 'all' && query.projectType.trim() !== '') {
-    filter.projectType = query.projectType.trim();
+    andConditions.push({ projectType: query.projectType.trim() });
   }
 
   // Priority Filter
   if (query.priority && query.priority !== 'all' && query.priority.trim() !== '') {
-    filter.priority = query.priority.trim();
+    andConditions.push({ priority: query.priority.trim() });
   }
 
   // Date Range Filter (createdAt)
@@ -198,33 +223,39 @@ export const getLeads = async (query = {}, user = null) => {
     if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
       end.setHours(23, 59, 59, 999);
     }
-    filter.createdAt = {
-      $gte: new Date(query.startDate),
-      $lte: end,
-    };
+    andConditions.push({
+      createdAt: {
+        $gte: new Date(query.startDate),
+        $lte: end,
+      },
+    });
   } else if (query.startDate) {
-    filter.createdAt = { $gte: new Date(query.startDate) };
+    andConditions.push({ createdAt: { $gte: new Date(query.startDate) } });
   } else if (query.endDate) {
     const end = new Date(query.endDate);
     if (end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0) {
       end.setHours(23, 59, 59, 999);
     }
-    filter.createdAt = { $lte: end };
+    andConditions.push({ createdAt: { $lte: end } });
   }
 
-  // Search across fullName, email, phone, leadId, leadSource, city
+  // Search across fullName, email, phone, leadId, leadSource, city, projectType
   if (query.search && query.search.trim() !== '') {
     const s = query.search.trim();
-    filter.$or = [
-      { fullName: { $regex: s, $options: 'i' } },
-      { email: { $regex: s, $options: 'i' } },
-      { phone: { $regex: s, $options: 'i' } },
-      { leadId: { $regex: s, $options: 'i' } },
-      { leadSource: { $regex: s, $options: 'i' } },
-      { city: { $regex: s, $options: 'i' } },
-      { projectType: { $regex: s, $options: 'i' } },
-    ];
+    andConditions.push({
+      $or: [
+        { fullName: { $regex: s, $options: 'i' } },
+        { email: { $regex: s, $options: 'i' } },
+        { phone: { $regex: s, $options: 'i' } },
+        { leadId: { $regex: s, $options: 'i' } },
+        { leadSource: { $regex: s, $options: 'i' } },
+        { city: { $regex: s, $options: 'i' } },
+        { projectType: { $regex: s, $options: 'i' } },
+      ],
+    });
   }
+
+  const filter = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
 
   const page = parseInt(query.page, 10) || 1;
   const limit = parseInt(query.limit, 10) || 10;
@@ -328,29 +359,49 @@ export const getLeads = async (query = {}, user = null) => {
   };
 };
 
-export const getLeadById = async (leadId) => {
-  const lead = await Lead.findById(leadId)
+export const getLeadById = async (leadId, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const query = { _id: leadId, isDeleted: { $ne: true } };
+  if (user && !isOwnerOrAdmin && user._id) {
+    const userObjId = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+    query.$or = [{ assignedTo: userObjId }, { createdBy: userObjId }];
+  }
+
+  const lead = await Lead.findOne(query)
     .populate('assignedTo', 'firstName lastName avatar email phone')
     .populate('createdBy', 'firstName lastName avatar email')
     .populate('notesList.author', 'firstName lastName avatar');
 
   if (!lead) {
-    throw new AppError('Lead not found', 404);
+    throw new AppError('Lead not found or access denied', 404);
   }
   const leadObj = lead.toObject();
   leadObj.documents = (leadObj.documents || []).map(formatDocumentFileUrl);
   return leadObj;
 };
 
-export const updateLead = async (leadId, updateData, updatedBy) => {
+export const updateLead = async (leadId, updateData, updatedBy, user = null) => {
   if (updateData?.data && typeof updateData.data === 'object' && !Array.isArray(updateData.data)) {
     updateData = updateData.data;
   }
   updateData = { ...updateData };
 
-  const lead = await Lead.findById(leadId);
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const query = { _id: leadId, isDeleted: { $ne: true } };
+  if (user && !isOwnerOrAdmin && user._id) {
+    const userObjId = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+    query.$or = [{ assignedTo: userObjId }, { createdBy: userObjId }];
+    // Non-admin staff cannot reassign leads to others
+    delete updateData.assignedTo;
+  }
+
+  const lead = await Lead.findOne(query);
   if (!lead) {
-    throw new AppError('Lead not found', 404);
+    throw new AppError('Lead not found or access denied', 404);
   }
 
   // Normalize email
@@ -509,10 +560,19 @@ export const updateLead = async (leadId, updateData, updatedBy) => {
   return lead;
 };
 
-export const deleteLead = async (leadId, deletedBy) => {
-  const lead = await Lead.findById(leadId);
+export const deleteLead = async (leadId, deletedBy, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const query = { _id: leadId, isDeleted: false };
+  if (user && !isOwnerOrAdmin && user._id) {
+    const userObjId = mongoose.Types.ObjectId.isValid(user._id)
+      ? new mongoose.Types.ObjectId(user._id)
+      : user._id;
+    query.$or = [{ assignedTo: userObjId }, { createdBy: userObjId }];
+  }
+
+  const lead = await Lead.findOne(query);
   if (!lead) {
-    throw new AppError('Lead not found', 404);
+    throw new AppError('Lead not found or access denied', 404);
   }
 
   lead.isDeleted = true;

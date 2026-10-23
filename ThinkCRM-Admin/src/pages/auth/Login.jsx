@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useLoginMutation } from "@/store/api/auth/authApiSlice";
 import { setUser } from "@/store/api/auth/authSlice";
 import { toast } from "react-toastify";
@@ -17,6 +17,13 @@ const Login = () => {
   
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { isAuth } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (isAuth) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuth, navigate]);
 
   const [login, { isLoading }] = useLoginMutation();
 
@@ -46,7 +53,7 @@ const Login = () => {
           sessionId: response.data.user._id
         }));
         toast.success("Login Successful");
-        navigate("/");
+        navigate("/dashboard", { replace: true });
       }
     } catch (err) {
       toast.error(err?.data?.message || "Login failed");

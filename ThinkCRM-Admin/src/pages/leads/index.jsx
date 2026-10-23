@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Flatpickr from "react-flatpickr";
@@ -287,6 +288,8 @@ const TableSelectDropdown = ({
 
 const Leads = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Filters & Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -339,7 +342,7 @@ const Leads = () => {
 
   // Queries
   const { data: statsData, refetch: refetchStats } = useGetLeadStatsQuery();
-  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const staffList = staffData?.data?.users || staffData?.data?.staff || [];
 
   const queryParams = useMemo(() => {
@@ -1199,24 +1202,26 @@ const Leads = () => {
             </select>
           </div>
 
-          {/* Staff Dropdown */}
-          <div className="min-w-[140px]">
-            <select
-              value={staffFilter}
-              onChange={(e) => {
-                setStaffFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="all">All Staff</option>
-              {staffList.map((st) => (
-                <option key={st._id} value={st._id}>
-                  {st.firstName} {st.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Staff Dropdown - only for Owner/Admin */}
+          {isOwnerOrAdmin && (
+            <div className="min-w-[140px]">
+              <select
+                value={staffFilter}
+                onChange={(e) => {
+                  setStaffFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full px-3 py-2 text-[13.5px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                <option value="all">All Staff</option>
+                {staffList.map((st) => (
+                  <option key={st._id} value={st._id}>
+                    {st.firstName} {st.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Date Range Picker with Flatpickr */}
           <div className="min-w-[210px] relative">
@@ -1281,34 +1286,36 @@ const Leads = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* Assign To Segmented Control */}
-              <div className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
-                <select
-                  value={bulkAssignStaffId}
-                  onChange={(e) => setBulkAssignStaffId(e.target.value)}
-                  className="bulk-action-select h-9 pl-3 pr-7 text-[13px] font-medium bg-transparent text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
-                >
-                  <option value="">Assign to staff...</option>
-                  {staffList.map((st) => (
-                    <option key={st._id} value={st._id}>
-                      {st.firstName} {st.lastName}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={handleBulkAssign}
-                  disabled={!bulkAssignStaffId || isBulkAssigning}
-                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white text-[12.5px] font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed border-l border-slate-200 dark:border-slate-700"
-                >
-                  {isBulkAssigning ? (
-                    <Icon icon="heroicons-outline:refresh" className="animate-spin text-sm" />
-                  ) : (
-                    <Icon icon="heroicons-outline:user-plus" className="text-sm" />
-                  )}
-                  <span>Assign</span>
-                </button>
-              </div>
+              {/* Assign To Segmented Control - only for Owner/Admin */}
+              {isOwnerOrAdmin && (
+                <div className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
+                  <select
+                    value={bulkAssignStaffId}
+                    onChange={(e) => setBulkAssignStaffId(e.target.value)}
+                    className="bulk-action-select h-9 pl-3 pr-7 text-[13px] font-medium bg-transparent text-slate-700 dark:text-slate-200 border-none outline-none cursor-pointer"
+                  >
+                    <option value="">Assign to staff...</option>
+                    {staffList.map((st) => (
+                      <option key={st._id} value={st._id}>
+                        {st.firstName} {st.lastName}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleBulkAssign}
+                    disabled={!bulkAssignStaffId || isBulkAssigning}
+                    className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white text-[12.5px] font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed border-l border-slate-200 dark:border-slate-700"
+                  >
+                    {isBulkAssigning ? (
+                      <Icon icon="heroicons-outline:refresh" className="animate-spin text-sm" />
+                    ) : (
+                      <Icon icon="heroicons-outline:user-plus" className="text-sm" />
+                    )}
+                    <span>Assign</span>
+                  </button>
+                </div>
+              )}
 
               {/* Change Status Segmented Control */}
               <div className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">

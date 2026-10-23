@@ -7,7 +7,6 @@ export const menuItems = [
     title: "Dashboard",
     icon: "heroicons-outline:template",
     link: "dashboard",
-    permission: "dashboard.view",
   },
   {
     title: "Leads",

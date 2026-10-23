@@ -22,13 +22,15 @@ export const getDashboardStats = async (req, res, next) => {
     const quotationBase = {};
 
     if (user && !isOwnerOrAdmin && user._id) {
-      leadBase.assignedTo = user._id;
+      leadBase.$or = [{ assignedTo: user._id }, { createdBy: user._id }];
       const userLeads = await Lead.find(leadBase).select('_id');
       const leadIds = userLeads.map((l) => l._id);
 
       custBase.$or = [
         { assignedStaff: user._id },
         { 'projects.assignedStaff': user._id },
+        { sourceLeadId: { $in: leadIds } },
+        { leads: { $in: leadIds } },
       ];
       followUpBase.$or = [
         { assignedTo: user._id },

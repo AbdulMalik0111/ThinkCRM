@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
@@ -47,6 +48,8 @@ const statusLabels = {
 
 const Customers = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Query & Filter states
   const [page, setPage] = useState(1);
@@ -85,7 +88,7 @@ const Customers = () => {
   };
 
   const { data: response, isLoading, isFetching, refetch } = useGetCustomersQuery(queryParams);
-  const { data: staffData, isLoading: isStaffLoading } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData, isLoading: isStaffLoading } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const [deleteCustomer] = useDeleteCustomerMutation();
 
   const customers = response?.data?.customers || [];
@@ -635,22 +638,26 @@ const Customers = () => {
               { value: "follow_up", label: "Follow-up" },
             ],
           },
-          {
-            id: "assignedStaff",
-            value: assignedStaff,
-            onChange: (val) => {
-              setAssignedStaff(val);
-              setPage(1);
-            },
-            placeholder: "All Assigned Staff",
-            minWidth: "175px",
-            isSearchable: true,
-            isLoading: isStaffLoading,
-            options: staffList.map((st) => ({
-              value: st._id,
-              label: `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name,
-            })),
-          },
+          ...(isOwnerOrAdmin
+            ? [
+                {
+                  id: "assignedStaff",
+                  value: assignedStaff,
+                  onChange: (val) => {
+                    setAssignedStaff(val);
+                    setPage(1);
+                  },
+                  placeholder: "All Assigned Staff",
+                  minWidth: "175px",
+                  isSearchable: true,
+                  isLoading: isStaffLoading,
+                  options: staffList.map((st) => ({
+                    value: st._id,
+                    label: `${st.firstName || ""} ${st.lastName || ""}`.trim() || st.name,
+                  })),
+                },
+              ]
+            : []),
         ]}
         onClearFilters={handleClearFilters}
         onRefresh={() => refetch()}

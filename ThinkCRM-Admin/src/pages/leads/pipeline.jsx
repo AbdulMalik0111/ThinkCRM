@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import Icon from "@/components/ui/Icon";
 import Loading from "@/components/Loading";
@@ -88,10 +89,12 @@ const priorityStyles = {
 
 const Pipeline = () => {
   const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Queries & Mutations
   const { data: response, isLoading, isFetching, refetch } = useGetLeadsQuery({ limit: 1000 });
-  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const [updateLead] = useUpdateLeadMutation();
 
   const [leads, setLeads] = useState([]);
@@ -381,21 +384,23 @@ const Pipeline = () => {
           )}
         </div>
 
-        {/* Staff Filter */}
-        <div className="w-44">
-          <select
-            value={staffFilter}
-            onChange={(e) => setStaffFilter(e.target.value)}
-            className="w-full px-3 py-2 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none"
-          >
-            <option value="all">All Staff</option>
-            {staffList.map((st) => (
-              <option key={st._id} value={st._id}>
-                {st.firstName} {st.lastName}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Staff Filter - only for Owner/Admin */}
+        {isOwnerOrAdmin && (
+          <div className="w-44">
+            <select
+              value={staffFilter}
+              onChange={(e) => setStaffFilter(e.target.value)}
+              className="w-full px-3 py-2 text-[13px] font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none"
+            >
+              <option value="all">All Staff</option>
+              {staffList.map((st) => (
+                <option key={st._id} value={st._id}>
+                  {st.firstName} {st.lastName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Project Type Filter */}
         <div className="w-48">

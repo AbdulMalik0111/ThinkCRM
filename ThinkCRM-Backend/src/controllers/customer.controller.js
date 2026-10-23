@@ -7,7 +7,7 @@ export const createCustomer = async (req, res, next) => {
     if (req.body.sourceLeadId && !req.body.fullName) {
       customer = await customerService.convertLeadToCustomer(req.body.sourceLeadId, req.user._id);
     } else {
-      customer = await customerService.createCustomer(req.body, req.user._id);
+      customer = await customerService.createCustomer(req.body, req.user._id, req.user);
     }
     res.status(201).json({
       success: true,
@@ -47,7 +47,7 @@ export const getCustomerById = async (req, res, next) => {
 
 export const updateCustomer = async (req, res, next) => {
   try {
-    const customer = await customerService.updateCustomer(req.params.id, req.body, req.user._id);
+    const customer = await customerService.updateCustomer(req.params.id, req.body, req.user._id, req.user);
     res.status(200).json({
       success: true,
       message: 'Customer updated successfully',

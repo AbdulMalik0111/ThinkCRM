@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import { toast } from "react-toastify";
@@ -104,6 +105,9 @@ const LeadForm = ({ isModal = false, onClose = null, leadId: propLeadId = null, 
   const leadId = propLeadId || routeParams.id;
   const isEditMode = Boolean(leadId);
 
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
+
   const [activeTab, setActiveTab] = useState("basic");
 
   // RTK Query for fetching lead details if editing
@@ -125,7 +129,7 @@ const LeadForm = ({ isModal = false, onClose = null, leadId: propLeadId = null, 
     leadSource: "Website",
     status: "new",
     priority: "medium",
-    assignedTo: "",
+    assignedTo: !isOwnerOrAdmin && user?._id ? user._id : "",
 
     // Project Details
     projectType: "Full Home Interior",
@@ -285,7 +289,7 @@ const LeadForm = ({ isModal = false, onClose = null, leadId: propLeadId = null, 
         leadSource: formData.leadSource,
         status: formData.status,
         priority: formData.priority,
-        assignedTo: formData.assignedTo || undefined,
+        assignedTo: !isOwnerOrAdmin && user?._id ? user._id : (formData.assignedTo || undefined),
 
         projectType: formData.projectType,
         projectDescription: formData.projectDescription.trim() || undefined,
@@ -548,19 +552,28 @@ const LeadForm = ({ isModal = false, onClose = null, leadId: propLeadId = null, 
                     <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
                       Assigned Staff
                     </label>
-                    <select
-                      name="assignedTo"
-                      value={formData.assignedTo}
-                      onChange={handleChange}
-                      className="form-control text-sm"
-                    >
-                      <option value="">Unassigned</option>
-                      {staffList.map((st) => (
-                        <option key={st._id} value={st._id}>
-                          {st.firstName} {st.lastName} ({st.email})
-                        </option>
-                      ))}
-                    </select>
+                    {isOwnerOrAdmin ? (
+                      <select
+                        name="assignedTo"
+                        value={formData.assignedTo}
+                        onChange={handleChange}
+                        className="form-control text-sm"
+                      >
+                        <option value="">Unassigned</option>
+                        {staffList.map((st) => (
+                          <option key={st._id} value={st._id}>
+                            {st.firstName} {st.lastName} ({st.email})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        disabled
+                        value={`${user?.firstName || ""} ${user?.lastName || ""} (Assigned to You)`}
+                        className="form-control text-sm bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-not-allowed"
+                      />
+                    )}
                   </div>
                 </div>
               </div>

@@ -326,11 +326,21 @@ export const executeGlobalSearch = async ({
   let userLeadIds = null;
   let userCustIds = null;
   if (!isSuperUser && user?._id) {
-    const [uLeads, uCusts] = await Promise.all([
-      Lead.find({ assignedTo: user._id, isDeleted: false }).select('_id'),
-      Customer.find({ deletedAt: null, $or: [{ assignedStaff: user._id }, { 'projects.assignedStaff': user._id }] }).select('_id'),
-    ]);
+    const uLeads = await Lead.find({
+      isDeleted: false,
+      $or: [{ assignedTo: user._id }, { createdBy: user._id }],
+    }).select('_id');
     userLeadIds = uLeads.map((l) => l._id);
+
+    const uCusts = await Customer.find({
+      deletedAt: null,
+      $or: [
+        { assignedStaff: user._id },
+        { 'projects.assignedStaff': user._id },
+        { sourceLeadId: { $in: userLeadIds } },
+        { leads: { $in: userLeadIds } },
+      ],
+    }).select('_id');
     userCustIds = uCusts.map((c) => c._id);
   }
 
@@ -359,7 +369,11 @@ export const executeGlobalSearch = async ({
       $or: leadConditions,
     };
     if (!isSuperUser && user?._id) {
-      leadFindQuery.assignedTo = user._id;
+      leadFindQuery.$and = [
+        {
+          $or: [{ assignedTo: user._id }, { createdBy: user._id }],
+        },
+      ];
     }
 
     searchPromises.leads = Lead.find(leadFindQuery)
@@ -395,6 +409,8 @@ export const executeGlobalSearch = async ({
           $or: [
             { assignedStaff: user._id },
             { 'projects.assignedStaff': user._id },
+            { sourceLeadId: { $in: userLeadIds || [] } },
+            { leads: { $in: userLeadIds || [] } },
           ],
         },
       ];

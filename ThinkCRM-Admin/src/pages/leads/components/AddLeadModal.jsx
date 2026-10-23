@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import Icon from "@/components/ui/Icon";
 import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
@@ -61,9 +62,12 @@ const FOLLOWUP_TYPES = [
 ];
 
 const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
+  const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
+
   const [activeTab, setActiveTab] = useState("basic");
   const [createLead, { isLoading }] = useCreateLeadMutation();
-  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 });
+  const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
 
   const staffList = staffData?.data?.users || staffData?.data?.staff || [];
 
@@ -76,7 +80,7 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
     status: "new",
     projectType: "Modular Kitchen",
     requirement: "",
-    assignedTo: "",
+    assignedTo: !isOwnerOrAdmin && user?._id ? user._id : "",
     nextFollowUpDate: "",
     nextFollowUpTime: "17:00",
     nextFollowUpType: "call",
@@ -90,6 +94,12 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (!isOwnerOrAdmin && user?._id && !formData.assignedTo) {
+      setFormData((prev) => ({ ...prev, assignedTo: user._id }));
+    }
+  }, [user, isOwnerOrAdmin]);
 
   if (!isOpen) return null;
 
@@ -148,7 +158,7 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
         status: formData.status,
         projectType: formData.projectType,
         requirement: formData.requirement.trim() || undefined,
-        assignedTo: formData.assignedTo || undefined,
+        assignedTo: !isOwnerOrAdmin && user?._id ? user._id : (formData.assignedTo || undefined),
         budgetRange: formData.budgetRange || undefined,
         preferredTimeline: formData.preferredTimeline || undefined,
         city: formData.city.trim() || undefined,
@@ -350,19 +360,28 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
                     <label className="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5 font-inter">
                       Assign To
                     </label>
-                    <select
-                      name="assignedTo"
-                      value={formData.assignedTo}
-                      onChange={handleChange}
-                      className="w-full px-3.5 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-inter"
-                    >
-                      <option value="">Select staff</option>
-                      {staffList.map((st) => (
-                        <option key={st._id} value={st._id}>
-                          {st.firstName} {st.lastName}
-                        </option>
-                      ))}
-                    </select>
+                    {!isOwnerOrAdmin ? (
+                      <input
+                        type="text"
+                        disabled
+                        value={`${user?.firstName || ""} ${user?.lastName || ""} (Assigned to You)`}
+                        className="w-full px-3.5 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-inter cursor-not-allowed"
+                      />
+                    ) : (
+                      <select
+                        name="assignedTo"
+                        value={formData.assignedTo}
+                        onChange={handleChange}
+                        className="w-full px-3.5 py-2 text-[13.5px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition font-inter"
+                      >
+                        <option value="">Select staff</option>
+                        {staffList.map((st) => (
+                          <option key={st._id} value={st._id}>
+                            {st.firstName} {st.lastName}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div>

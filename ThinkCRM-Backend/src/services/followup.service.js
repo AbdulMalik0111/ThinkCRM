@@ -4,17 +4,27 @@ import { AppError } from '../utils/AppError.js';
 import { logActivity } from './activity.service.js';
 import { createNotification } from './notification.service.js';
 
-export const createFollowUp = async (leadId, data, createdBy) => {
+export const createFollowUp = async (leadId, data, createdBy, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   const lead = await Lead.findById(leadId);
   if (!lead) {
     throw new AppError('Lead not found', 404);
+  }
+
+  // Access check for staff
+  if (user && !isOwnerOrAdmin && user._id) {
+    const isAssigned = lead.assignedTo && lead.assignedTo.toString() === user._id.toString();
+    const isCreator = lead.createdBy && lead.createdBy.toString() === user._id.toString();
+    if (!isAssigned && !isCreator) {
+      throw new AppError('Access denied: You cannot schedule follow-ups for this lead', 403);
+    }
   }
 
   const followUp = await FollowUp.create({
     ...data,
     leadId,
     createdBy,
-    assignedTo: data.assignedTo || lead.assignedTo,
+    assignedTo: (!isOwnerOrAdmin && user?._id) ? user._id : (data.assignedTo || lead.assignedTo || createdBy),
   });
 
   lead.nextFollowUpAt = followUp.scheduledAt;
@@ -42,10 +52,25 @@ export const createFollowUp = async (leadId, data, createdBy) => {
   return followUp;
 };
 
-export const updateFollowUp = async (followUpId, data, updatedBy) => {
+export const updateFollowUp = async (followUpId, data, updatedBy, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   const followUp = await FollowUp.findById(followUpId).populate('leadId');
   if (!followUp) {
     throw new AppError('Follow-up not found', 404);
+  }
+
+  if (user && !isOwnerOrAdmin && user._id) {
+    const isFollowUpOwner =
+      (followUp.assignedTo && followUp.assignedTo.toString() === user._id.toString()) ||
+      (followUp.createdBy && followUp.createdBy.toString() === user._id.toString());
+    const isLeadOwner =
+      followUp.leadId &&
+      ((followUp.leadId.assignedTo && followUp.leadId.assignedTo.toString() === user._id.toString()) ||
+       (followUp.leadId.createdBy && followUp.leadId.createdBy.toString() === user._id.toString()));
+
+    if (!isFollowUpOwner && !isLeadOwner) {
+      throw new AppError('Access denied: You cannot edit this follow-up', 403);
+    }
   }
 
   const oldStatus = followUp.status;
@@ -71,7 +96,18 @@ export const updateFollowUp = async (followUpId, data, updatedBy) => {
   return followUp;
 };
 
-export const getLeadFollowUps = async (leadId) => {
+export const getLeadFollowUps = async (leadId, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (user && !isOwnerOrAdmin && user._id) {
+    const lead = await Lead.findById(leadId);
+    if (!lead) throw new AppError('Lead not found', 404);
+    const isAssigned = lead.assignedTo && lead.assignedTo.toString() === user._id.toString();
+    const isCreator = lead.createdBy && lead.createdBy.toString() === user._id.toString();
+    if (!isAssigned && !isCreator) {
+      throw new AppError('Access denied', 403);
+    }
+  }
+
   const followUps = await FollowUp.find({ leadId })
     .populate('assignedTo', 'firstName lastName avatar email')
     .populate('createdBy', 'firstName lastName avatar email');
@@ -92,7 +128,10 @@ export const getAllFollowUps = async (user = null) => {
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   const filter = {};
   if (user && !isOwnerOrAdmin && user._id) {
-    const userLeads = await Lead.find({ assignedTo: user._id, isDeleted: false }).select('_id');
+    const userLeads = await Lead.find({
+      isDeleted: false,
+      $or: [{ assignedTo: user._id }, { createdBy: user._id }],
+    }).select('_id');
     const leadIds = userLeads.map((l) => l._id);
     filter.$or = [
       { assignedTo: user._id },
@@ -108,13 +147,29 @@ export const getAllFollowUps = async (user = null) => {
     .populate('leadId', 'fullName company email phone status projectType leadId');
 };
 
-export const deleteFollowUp = async (followUpId, deletedBy) => {
-  const followUp = await FollowUp.findById(followUpId);
+export const deleteFollowUp = async (followUpId, deletedBy, user = null) => {
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  const followUp = await FollowUp.findById(followUpId).populate('leadId');
   if (!followUp) {
     throw new AppError('Follow-up not found', 404);
   }
 
+  if (user && !isOwnerOrAdmin && user._id) {
+    const isFollowUpOwner =
+      (followUp.assignedTo && followUp.assignedTo.toString() === user._id.toString()) ||
+      (followUp.createdBy && followUp.createdBy.toString() === user._id.toString());
+    const isLeadOwner =
+      followUp.leadId &&
+      ((followUp.leadId.assignedTo && followUp.leadId.assignedTo.toString() === user._id.toString()) ||
+       (followUp.leadId.createdBy && followUp.leadId.createdBy.toString() === user._id.toString()));
+
+    if (!isFollowUpOwner && !isLeadOwner) {
+      throw new AppError('Access denied: You cannot delete this follow-up', 403);
+    }
+  }
+
   await FollowUp.findByIdAndDelete(followUpId);
+
 
   if (followUp.leadId) {
     const nextPending = await FollowUp.findOne({

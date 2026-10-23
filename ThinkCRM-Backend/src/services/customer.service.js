@@ -11,6 +11,7 @@ import { uploadToCloudinary, deleteFromCloudinary, formatDocumentFileUrl } from 
 import { normalizePhone, normalizeEmail, nameSimilarity } from '../utils/normalize.js';
 import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
 import { formatQuotationFileUrl } from './quotation.service.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Converts a lead to a customer, or links it to an existing verified customer (Deduplication).
@@ -199,10 +200,15 @@ export const convertLeadToCustomer = async (leadId, createdBy, options = {}) => 
   return customer;
 };
 
-export const createCustomer = async (data, createdBy) => {
+export const createCustomer = async (data, createdBy, user = null) => {
   // If sourceLeadId is provided, run conversion/deduplication workflow
   if (data.sourceLeadId) {
     return await convertLeadToCustomer(data.sourceLeadId, createdBy);
+  }
+
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (!isOwnerOrAdmin && (user?._id || createdBy)) {
+    data.assignedStaff = user?._id || createdBy;
   }
 
   // Check for duplicate customer by phone or email
@@ -246,7 +252,7 @@ export const createCustomer = async (data, createdBy) => {
       status: data.projectStatus || 'active',
       startDate: data.startDate || new Date(),
       completionDate: data.completionDate || null,
-      assignedStaff: data.assignedStaff || null,
+      assignedStaff: data.assignedStaff || (user?._id || createdBy) || null,
     });
   }
 
@@ -283,17 +289,25 @@ export const createCustomer = async (data, createdBy) => {
 export const getCustomers = async (query = {}, user = null) => {
   const andConditions = [{ deletedAt: null }];
 
-  // Staff role scoping: non-owners and non-admins only see customers assigned to them
+  // Staff role scoping: non-owners and non-admins only see customers assigned to them or their leads
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   let userObjId = null;
   if (user && !isOwnerOrAdmin && user._id) {
     userObjId = mongoose.Types.ObjectId.isValid(user._id)
       ? new mongoose.Types.ObjectId(user._id)
       : user._id;
+
+    const userLeadIds = await Lead.find({
+      isDeleted: false,
+      $or: [{ assignedTo: userObjId }, { createdBy: userObjId }],
+    }).distinct('_id');
+
     andConditions.push({
       $or: [
         { assignedStaff: userObjId },
         { 'projects.assignedStaff': userObjId },
+        { sourceLeadId: { $in: userLeadIds } },
+        { leads: { $in: userLeadIds } },
       ],
     });
   }
@@ -405,12 +419,21 @@ export const getCustomers = async (query = {}, user = null) => {
 
   // Compute live summary metrics for the directory cards
   const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const userLeadIds = (user && !isOwnerOrAdmin && userObjId)
+    ? await Lead.find({
+        isDeleted: false,
+        $or: [{ assignedTo: userObjId }, { createdBy: userObjId }],
+      }).distinct('_id')
+    : [];
+
   const baseScopedFilter = user && !isOwnerOrAdmin && userObjId
     ? {
         deletedAt: null,
         $or: [
           { assignedStaff: userObjId },
           { 'projects.assignedStaff': userObjId },
+          { sourceLeadId: { $in: userLeadIds } },
+          { leads: { $in: userLeadIds } },
         ],
       }
     : { deletedAt: null };
@@ -456,7 +479,7 @@ export const getCustomers = async (query = {}, user = null) => {
   };
 };
 
-export const getCustomerById = async (customerId) => {
+export const getCustomerById = async (customerId, user = null) => {
   const customer = await Customer.findOne({ _id: customerId, deletedAt: null })
     .populate('assignedStaff', 'firstName lastName avatar email phone')
     .populate('projects.assignedStaff', 'firstName lastName avatar email')
@@ -465,6 +488,35 @@ export const getCustomerById = async (customerId) => {
 
   if (!customer) {
     throw new AppError('Customer not found', 404);
+  }
+
+  const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
+  if (user && !isOwnerOrAdmin && user._id) {
+    const userObjIdStr = user._id.toString();
+    const isDirectStaff =
+      customer.assignedStaff?._id?.toString() === userObjIdStr ||
+      customer.assignedStaff?.toString() === userObjIdStr;
+    const isProjectStaff = customer.projects?.some(
+      (p) =>
+        p.assignedStaff?._id?.toString() === userObjIdStr ||
+        p.assignedStaff?.toString() === userObjIdStr
+    );
+
+    let hasLeadAccess = false;
+    if (!isDirectStaff && !isProjectStaff) {
+      const leadIds = [customer.sourceLeadId, ...(customer.leads || [])].filter(Boolean);
+      if (leadIds.length > 0) {
+        const matchingLead = await Lead.findOne({
+          _id: { $in: leadIds },
+          $or: [{ assignedTo: user._id }, { createdBy: user._id }],
+        });
+        if (matchingLead) hasLeadAccess = true;
+      }
+    }
+
+    if (!isDirectStaff && !isProjectStaff && !hasLeadAccess) {
+      throw new AppError('Customer not found or access denied', 403);
+    }
   }
 
   // Retrieve ALL linked leads for this customer
