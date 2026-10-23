@@ -105,6 +105,7 @@ export const createLead = async (leadData, createdBy, user = null) => {
 
   const lead = await Lead.create({
     ...leadFields,
+    createdAt: new Date(),
     assignedTo: finalAssignedTo,
     createdBy,
   });
@@ -262,8 +263,12 @@ export const getLeads = async (query = {}, user = null) => {
   if (query.sort) {
     const [field, order] = query.sort.split(':');
     sort[field] = order === 'desc' ? -1 : 1;
+    if (field !== '_id') {
+      sort._id = -1;
+    }
   } else {
     sort.createdAt = -1;
+    sort._id = -1;
   }
 
   const total = await Lead.countDocuments(filter);

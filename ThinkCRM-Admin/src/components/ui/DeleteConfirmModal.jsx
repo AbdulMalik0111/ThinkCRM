@@ -1,16 +1,16 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 
 /**
  * Universal ThinkCRM Delete Confirmation Modal
- * Replicates exact design from user's reference screenshot:
+ * Replicates exact design from user's reference screenshot with double-click protection:
  * - Clean white header with title & close button
  * - Soft red rounded circular icon badge with trash icon
  * - Prominent bold confirmation question
  * - Subtitle explaining permanent deletion
  * - High-contrast warning alert banner ("This action cannot be undone. Please confirm to continue.")
- * - Right-aligned cancel and solid red delete buttons
+ * - Right-aligned cancel and solid red delete buttons with instantaneous loading & lockout
  */
 const DeleteConfirmModal = ({
   isOpen,
@@ -23,6 +23,28 @@ const DeleteConfirmModal = ({
   isLoading = false,
   confirmText = "Delete Customer",
 }) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSubmitting(false);
+    }
+  }, [isOpen]);
+
+  const effectiveLoading = Boolean(isLoading || submitting);
+
+  const handleConfirmClick = async (e) => {
+    e?.preventDefault?.();
+    if (effectiveLoading) return;
+    try {
+      setSubmitting(true);
+      await onConfirm?.();
+    } catch (err) {
+      setSubmitting(false);
+      throw err;
+    }
+  };
+
   // Derive entity type if not explicitly passed
   const derivedType =
     entityType ||
@@ -51,7 +73,7 @@ const DeleteConfirmModal = ({
     <Modal
       title={title}
       activeModal={isOpen}
-      onClose={isLoading ? () => {} : onClose}
+      onClose={effectiveLoading ? () => {} : onClose}
       className="max-w-[560px] font-inter"
       noFade={false}
       centered={true}
@@ -102,22 +124,22 @@ const DeleteConfirmModal = ({
           <button
             type="button"
             onClick={onClose}
-            disabled={isLoading}
-            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition disabled:opacity-50"
+            disabled={effectiveLoading}
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
+            onClick={handleConfirmClick}
+            disabled={effectiveLoading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
             <Icon
-              icon={isLoading ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
-              className={`text-base ${isLoading ? "animate-spin" : ""}`}
+              icon={effectiveLoading ? "heroicons-outline:arrow-path" : "heroicons-outline:trash"}
+              className={`text-base ${effectiveLoading ? "animate-spin" : ""}`}
             />
-            <span>{isLoading ? "Deleting..." : confirmText || "Delete"}</span>
+            <span>{effectiveLoading ? "Deleting..." : confirmText || "Delete"}</span>
           </button>
         </div>
       </div>

@@ -35,7 +35,6 @@ export const uploadToCloudinary = (fileSource, folder = 'thinkcrm/documents', cu
   const options = {
     folder: folder || 'thinkcrm/documents',
     resource_type: 'auto',
-    quality: 'auto:good', // Intelligent perceptual compression without losing visual quality
     ...customOptions,
   };
 

@@ -1,13 +1,19 @@
 import React, { useState, useRef } from "react";
+import { useDispatch } from "react-redux";
 import Icon from "@/components/ui/Icon";
 import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import { apiSlice } from "@/store/api/apiSlice";
+import { uploadFileWithProgress } from "@/utils/uploadWithProgress";
 import { useCreateCustomerQuotationMutation } from "@/store/api/customers/customersApiSlice";
 import { validateNumber, focusFirstError } from "@/utils/validation";
 
 const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, onSuccess }) => {
-  const [createCustomerQuotation, { isLoading }] = useCreateCustomerQuotationMutation();
+  const dispatch = useDispatch();
+  const [createCustomerQuotation] = useCreateCustomerQuotationMutation();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -64,7 +70,10 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate() || isUploading) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       const payload = new FormData();
@@ -83,10 +92,19 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
         payload.append("validUntil", dayjs(formData.validUntil).toISOString());
       }
 
-      await createCustomerQuotation({
-        customerId: customer._id,
+      await uploadFileWithProgress({
+        url: `customers/${customer._id}/quotations`,
         formData: payload,
-      }).unwrap();
+        onProgress: (percent) => setUploadProgress(percent),
+      });
+
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: "Customer", id: customer._id },
+          { type: "Quotation" },
+          "Dashboard",
+        ])
+      );
 
       toast.success(
         customer?.email
@@ -96,7 +114,10 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || "Failed to upload quotation");
+      toast.error(err?.message || err?.data?.message || "Failed to upload quotation");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -305,7 +326,7 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
           <button
             type="button"
             onClick={onClose}
-            disabled={isLoading}
+            disabled={isUploading}
             className="px-4 py-2 text-[13.5px] font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition font-inter"
           >
             Cancel
@@ -313,16 +334,22 @@ const UploadCustomerQuotationModal = ({ isOpen, customer, leads = [], onClose, o
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-5 py-2 text-[13.5px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-none font-inter disabled:opacity-50"
+            disabled={isUploading}
+            className="relative overflow-hidden flex items-center justify-center gap-2 px-5 py-2 text-[13.5px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-none font-inter disabled:opacity-60 min-w-[170px]"
           >
-            {isLoading ? (
-              <>
+            {isUploading && (
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-emerald-500/40 transition-all duration-150 pointer-events-none"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            )}
+            {isUploading ? (
+              <div className="relative z-10 flex items-center gap-2">
                 <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-base" />
-                <span>Uploading to Cloudinary...</span>
-              </>
+                <span>{uploadProgress === 100 ? "Processing..." : `Uploading ${uploadProgress}%...`}</span>
+              </div>
             ) : (
-              <span>Upload Quotation</span>
+              <span className="relative z-10">Upload Quotation</span>
             )}
           </button>
         </div>

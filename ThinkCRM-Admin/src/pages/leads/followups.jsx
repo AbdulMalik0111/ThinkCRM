@@ -69,7 +69,7 @@ const FollowUpsCalendar = () => {
 
   // Queries & Mutations
   const { data, isLoading, isFetching, refetch } = useGetAllFollowUpsQuery();
-  const { data: leadsData } = useGetLeadsQuery({ limit: 500 });
+  const { data: leadsData } = useGetLeadsQuery({ limit: 500, sort: "createdAt:desc" });
   const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const [createFollowUp, { isLoading: isCreating }] = useCreateFollowUpMutation();
   const [updateFollowUp, { isLoading: isUpdating }] = useUpdateFollowUpMutation();
@@ -211,7 +211,7 @@ const FollowUpsCalendar = () => {
   };
 
   const handleExecuteDelete = async () => {
-    if (!itemToDelete) return;
+    if (!itemToDelete || isDeleting) return;
     try {
       setIsDeleting(true);
       await deleteFollowUp(itemToDelete._id || itemToDelete).unwrap();

@@ -111,21 +111,24 @@ export const createQuotation = async (leadId, data, file, createdBy) => {
     metadata: { quotationId: quotation._id },
   });
 
-  // Auto-send quotation to lead in background if email is present
+  // Auto-send quotation to lead in background if email is present (non-blocking)
   if (customerEmail) {
-    try {
-      await dispatchQuotationEmail({
-        quotation,
-        lead,
-        customer: customerId ? await Customer.findById(customerId) : null,
-        sentBy: createdBy,
-        fileBuffer: file?.buffer,
-        fileMime: file?.mimetype,
-        fileName: file?.originalname,
-      });
-    } catch (autoSendErr) {
-      logger.warn(`[createQuotation] Auto-send email warning for ${customerEmail}:`, autoSendErr?.message || autoSendErr);
-    }
+    (async () => {
+      try {
+        const customerDoc = customerId ? await Customer.findById(customerId) : null;
+        await dispatchQuotationEmail({
+          quotation,
+          lead,
+          customer: customerDoc,
+          sentBy: createdBy,
+          fileBuffer: file?.buffer,
+          fileMime: file?.mimetype,
+          fileName: file?.originalname,
+        });
+      } catch (autoSendErr) {
+        logger.warn(`[createQuotation] Auto-send email warning for ${customerEmail}:`, autoSendErr?.message || autoSendErr);
+      }
+    })();
   } else {
     lead.status = 'quotation_pending';
     lead.quotationStatus = 'pending';
@@ -211,21 +214,19 @@ export const createCustomerQuotation = async (customerId, data, file, createdBy)
     metadata: { quotationId: quotation._id },
   });
 
-  // Auto-send quotation to customer in background if email is present
+  // Auto-send quotation to customer in background if email is present (non-blocking)
   if (customerEmail) {
-    try {
-      await dispatchQuotationEmail({
-        quotation,
-        lead: linkedLead,
-        customer,
-        sentBy: createdBy,
-        fileBuffer: file?.buffer,
-        fileMime: file?.mimetype,
-        fileName: file?.originalname,
-      });
-    } catch (autoSendErr) {
+    dispatchQuotationEmail({
+      quotation,
+      lead: linkedLead,
+      customer,
+      sentBy: createdBy,
+      fileBuffer: file?.buffer,
+      fileMime: file?.mimetype,
+      fileName: file?.originalname,
+    }).catch((autoSendErr) => {
       logger.warn(`[createCustomerQuotation] Auto-send email warning for ${customerEmail}:`, autoSendErr?.message || autoSendErr);
-    }
+    });
   }
 
   return formatQuotationFileUrl(quotation);

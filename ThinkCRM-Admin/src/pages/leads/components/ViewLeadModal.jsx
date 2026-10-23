@@ -36,7 +36,7 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
 
   const [addLeadNote, { isLoading: isAddingNote }] = useAddLeadNoteMutation();
   const [updateFollowUp] = useUpdateFollowUpMutation();
-  const [deleteFollowUp] = useDeleteFollowUpMutation();
+  const [deleteFollowUp, { isLoading: isDeletingFollowUp }] = useDeleteFollowUpMutation();
 
   if (!isOpen || !leadId) return null;
 
@@ -78,7 +78,7 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
   };
 
   const handleConfirmDeleteFollowUp = async () => {
-    if (!deletingFollowUpId) return;
+    if (!deletingFollowUpId || isDeletingFollowUp) return;
     try {
       await deleteFollowUp(deletingFollowUpId).unwrap();
       toast.success("Follow-up deleted successfully");
@@ -551,13 +551,14 @@ const ViewLeadModal = ({ isOpen, leadId, onClose, onEditLead }) => {
       {/* Delete Follow-up Confirmation Modal */}
       <DeleteConfirmModal
         isOpen={Boolean(deletingFollowUpId)}
-        onClose={() => setDeletingFollowUpId(null)}
+        onClose={isDeletingFollowUp ? () => {} : () => setDeletingFollowUpId(null)}
         onConfirm={handleConfirmDeleteFollowUp}
         title="Delete Follow-up"
         entityName="this follow-up"
         entityType="follow-up"
         message="This follow-up schedule and reminders will be permanently removed. This action cannot be undone."
         confirmText="Delete Follow-up"
+        isLoading={isDeletingFollowUp}
       />
     </>
   );

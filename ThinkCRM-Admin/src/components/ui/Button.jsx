@@ -22,10 +22,11 @@ function Button({
         <button
           type={type}
           onClick={onClick}
-          className={`btn btn inline-flex justify-center   ${
+          disabled={Boolean(disabled || isLoading)}
+          className={`btn inline-flex justify-center ${
             isLoading ? " pointer-events-none" : ""
           }
-        ${disabled ? " opacity-40 cursor-not-allowed" : ""}
+        ${disabled || isLoading ? " opacity-40 cursor-not-allowed" : ""}
         ${className}`}
         >
           {/* if has children and not loading*/}

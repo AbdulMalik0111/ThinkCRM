@@ -1,6 +1,9 @@
 import React, { useState, useRef } from "react";
+import { useDispatch } from "react-redux";
 import Icon from "@/components/ui/Icon";
 import { toast } from "react-toastify";
+import { apiSlice } from "@/store/api/apiSlice";
+import { uploadFileWithProgress } from "@/utils/uploadWithProgress";
 import { useUploadLeadDocumentMutation } from "@/store/api/leads/leadsApiSlice";
 
 const DOCUMENT_CATEGORIES = [
@@ -15,7 +18,10 @@ const DOCUMENT_CATEGORIES = [
 ];
 
 const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
-  const [uploadLeadDocument, { isLoading }] = useUploadLeadDocumentMutation();
+  const dispatch = useDispatch();
+  const [uploadLeadDocument] = useUploadLeadDocumentMutation();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -63,7 +69,10 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate() || isUploading) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       const finalCategory =
@@ -77,16 +86,27 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
       payload.append("type", finalCategory);
       payload.append("category", finalCategory);
 
-      await uploadLeadDocument({
-        leadId: lead._id,
+      await uploadFileWithProgress({
+        url: `leads/${lead._id}/documents`,
         formData: payload,
-      }).unwrap();
+        onProgress: (percent) => setUploadProgress(percent),
+      });
+
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: "Lead", id: lead._id },
+          "Dashboard",
+        ])
+      );
 
       toast.success("Document uploaded successfully");
       handleClose();
       if (onSuccess) onSuccess();
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || "Failed to upload document");
+      toast.error(err?.message || err?.data?.message || "Failed to upload document");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -239,23 +259,29 @@ const UploadLeadDocumentModal = ({ isOpen, lead, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={handleClose}
-              disabled={isLoading}
+              disabled={isUploading}
               className="px-4 py-2 text-[13.5px] font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition font-inter cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="flex items-center gap-2 px-5 py-2 text-[13.5px] font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition shadow-none font-inter disabled:opacity-50 cursor-pointer"
+              disabled={isUploading}
+              className="relative overflow-hidden flex items-center justify-center gap-2 px-5 py-2 text-[13.5px] font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition shadow-none font-inter disabled:opacity-60 cursor-pointer min-w-[170px]"
             >
-              {isLoading ? (
-                <>
+              {isUploading && (
+                <div
+                  className="absolute left-0 top-0 bottom-0 bg-teal-500/40 transition-all duration-150 pointer-events-none"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              )}
+              {isUploading ? (
+                <div className="relative z-10 flex items-center gap-2">
                   <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-base" />
-                  <span>Uploading...</span>
-                </>
+                  <span>{uploadProgress === 100 ? "Processing..." : `Uploading ${uploadProgress}%...`}</span>
+                </div>
               ) : (
-                <span>Upload Document</span>
+                <span className="relative z-10">Upload Document</span>
               )}
             </button>
           </div>

@@ -32,6 +32,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
   const [message, setMessage] = useState("");
   const [messageError, setMessageError] = useState("");
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const templateRef = useRef(null);
   const [addCustomerNote] = useAddCustomerNoteMutation();
 
@@ -75,6 +76,7 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
   };
 
   const handleSendWhatsApp = async () => {
+    if (isSending) return;
     if (!customer?.phone) {
       toast.error("Customer does not have a phone number");
       return;
@@ -99,27 +101,32 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
       return;
     }
 
-    // Clean phone number (strip spaces, dashes, parentheses)
-    let cleanPhone = customer.phone.replace(/[^0-9]/g, "");
-    if (cleanPhone.length === 10) {
-      cleanPhone = `91${cleanPhone}`;
-    }
-
-    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message.trim())}`;
-    window.open(waUrl, "_blank");
-
-    // Log the communication into the customer's notes/activity
     try {
-      await addCustomerNote({
-        id: customer._id,
-        content: `WhatsApp message initiated: "${message.trim()}"`,
-      }).unwrap();
-    } catch (e) {
-      // Non-blocking
-    }
+      setIsSending(true);
+      // Clean phone number (strip spaces, dashes, parentheses)
+      let cleanPhone = customer.phone.replace(/[^0-9]/g, "");
+      if (cleanPhone.length === 10) {
+        cleanPhone = `91${cleanPhone}`;
+      }
 
-    toast.success("WhatsApp initiated in browser!");
-    onClose();
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message.trim())}`;
+      window.open(waUrl, "_blank");
+
+      // Log the communication into the customer's notes/activity
+      try {
+        await addCustomerNote({
+          id: customer._id,
+          content: `WhatsApp message initiated: "${message.trim()}"`,
+        }).unwrap();
+      } catch (e) {
+        // Non-blocking
+      }
+
+      toast.success("WhatsApp initiated in browser!");
+      onClose();
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -233,26 +240,37 @@ const SendWhatsAppModal = ({ isOpen, onClose, customer }) => {
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/80">
           <button
             type="button"
-            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition cursor-pointer"
+            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={onClose}
+            disabled={isSending}
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSendWhatsApp}
-            className="inline-flex items-center gap-2.5 px-5 py-2.5 text-xs md:text-sm font-bold text-white bg-[#25D366] hover:bg-[#20ba59] active:bg-[#1da850] rounded-xl transition shadow-sm hover:shadow cursor-pointer"
+            disabled={isSending}
+            className="inline-flex items-center gap-2.5 px-5 py-2.5 text-xs md:text-sm font-bold text-white bg-[#25D366] hover:bg-[#20ba59] active:bg-[#1da850] rounded-xl transition shadow-sm hover:shadow cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <span className="h-5 w-5 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-2xs">
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="#25D366">
-                <path d="M12.004 2C6.486 2 2.012 6.474 2.012 11.993c0 1.815.488 3.52 1.34 5.006L2 22l5.132-1.346a9.954 9.954 0 0 0 4.872 1.339h.004c5.518 0 9.992-4.474 9.992-9.993 0-5.52-4.474-9.993-9.992-9.993z" />
-                <path
-                  fill="#FFFFFF"
-                  d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.476-.15-.677.15-.2.301-.776.978-.952 1.179-.175.2-.351.226-.652.075s-1.27-.468-2.42-1.493c-.894-.798-1.498-1.784-1.674-2.085-.175-.301-.019-.464.132-.614.135-.135.301-.351.451-.527.15-.175.2-.301.301-.501.101-.2.05-.376-.025-.526-.075-.15-.677-1.632-.927-2.234-.244-.587-.492-.507-.677-.517h-.576c-.2 0-.526.075-.802.376s-1.053 1.028-1.053 2.508 1.078 2.909 1.229 3.11c.15.2 2.122 3.24 5.141 4.544.718.31 1.278.496 1.716.635.722.23 1.38.197 1.9-.12.578-.352 1.78-1.455 2.031-2.864.25-1.41-.051-2.617-.251-2.918-.2-.301-.501-.451-.802-.602z"
-                />
-              </svg>
-            </span>
-            <span>Send WhatsApp</span>
+            {isSending ? (
+              <>
+                <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+                <span>Opening...</span>
+              </>
+            ) : (
+              <>
+                <span className="h-5 w-5 rounded-full bg-white flex items-center justify-center flex-shrink-0 shadow-2xs">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="#25D366">
+                    <path d="M12.004 2C6.486 2 2.012 6.474 2.012 11.993c0 1.815.488 3.52 1.34 5.006L2 22l5.132-1.346a9.954 9.954 0 0 0 4.872 1.339h.004c5.518 0 9.992-4.474 9.992-9.993 0-5.52-4.474-9.993-9.992-9.993z" />
+                    <path
+                      fill="#FFFFFF"
+                      d="M17.472 14.382c-.301-.15-1.78-.878-2.056-.978-.276-.1-.476-.15-.677.15-.2.301-.776.978-.952 1.179-.175.2-.351.226-.652.075s-1.27-.468-2.42-1.493c-.894-.798-1.498-1.784-1.674-2.085-.175-.301-.019-.464.132-.614.135-.135.301-.351.451-.527.15-.175.2-.301.301-.501.101-.2.05-.376-.025-.526-.075-.15-.677-1.632-.927-2.234-.244-.587-.492-.507-.677-.517h-.576c-.2 0-.526.075-.802.376s-1.053 1.028-1.053 2.508 1.078 2.909 1.229 3.11c.15.2 2.122 3.24 5.141 4.544.718.31 1.278.496 1.716.635.722.23 1.38.197 1.9-.12.578-.352 1.78-1.455 2.031-2.864.25-1.41-.051-2.617-.251-2.918-.2-.301-.501-.451-.802-.602z"
+                    />
+                  </svg>
+                </span>
+                <span>Send WhatsApp</span>
+              </>
+            )}
           </button>
         </div>
       </div>

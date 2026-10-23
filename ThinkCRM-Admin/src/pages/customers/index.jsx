@@ -135,7 +135,7 @@ const Customers = () => {
 
   // Delete customer confirmation
   const handleConfirmDelete = async () => {
-    if (!deleteConfirm.customer) return;
+    if (!deleteConfirm.customer || deleteConfirm.isLoading) return;
     try {
       setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
       await deleteCustomer(deleteConfirm.customer._id).unwrap();

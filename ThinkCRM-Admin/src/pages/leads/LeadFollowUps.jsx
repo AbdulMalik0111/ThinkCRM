@@ -200,7 +200,7 @@ const LeadFollowUps = ({ leadId }) => {
   };
 
   const handleConfirmDeleteSingle = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || isDeletingSingle) return;
     try {
       await deleteFollowUp(deleteTarget._id).unwrap();
       toast.success("Follow-up deleted successfully");
@@ -212,6 +212,7 @@ const LeadFollowUps = ({ leadId }) => {
   };
 
   const handleConfirmDeleteAll = async () => {
+    if (isDeletingAll) return;
     try {
       await deleteAllLeadFollowUps(leadId).unwrap();
       toast.success("All follow-ups deleted successfully");

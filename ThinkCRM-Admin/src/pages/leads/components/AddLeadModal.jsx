@@ -141,6 +141,7 @@ const AddLeadModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!validateForm()) {
       setActiveTab("basic");
       return;

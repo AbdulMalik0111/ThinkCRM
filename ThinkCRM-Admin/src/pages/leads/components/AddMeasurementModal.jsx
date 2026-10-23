@@ -45,6 +45,7 @@ const AddMeasurementModal = ({ isOpen, lead, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!validate()) return;
 
     try {

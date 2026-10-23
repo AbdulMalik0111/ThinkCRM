@@ -349,6 +349,7 @@ const Leads = () => {
     return {
       page: currentPage,
       limit,
+      sort: "createdAt:desc",
       ...(searchTerm && { search: searchTerm }),
       ...(sourceFilter !== "all" && { source: sourceFilter }),
       ...(statusFilter !== "all" && { status: statusFilter }),
@@ -461,7 +462,7 @@ const Leads = () => {
   };
 
   const handleConfirmBulkDelete = async () => {
-    if (selectedLeadIds.size === 0) return;
+    if (selectedLeadIds.size === 0 || isBulkDeleting) return;
     try {
       await bulkDeleteLeads({
         leadIds: Array.from(selectedLeadIds),
@@ -1420,6 +1421,7 @@ const Leads = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {
+          setCurrentPage(1);
           refetchLeads();
           refetchStats();
         }}
@@ -1535,6 +1537,7 @@ const Leads = () => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={() => {
+          setCurrentPage(1);
           refetchLeads();
           refetchStats();
         }}

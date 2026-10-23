@@ -116,6 +116,7 @@ const CustomerView = () => {
   const [sendCustomerQuotation] = useSendCustomerQuotationMutation();
 
   const handleConfirmDeleteCustomer = async () => {
+    if (isDeletingCustomer) return;
     try {
       setIsDeletingCustomer(true);
       await deleteCustomer(id).unwrap();
@@ -202,7 +203,7 @@ const CustomerView = () => {
   };
 
   const handleConfirmDeleteNote = async () => {
-    if (!deleteNoteConfirm.noteId) return;
+    if (!deleteNoteConfirm.noteId || deleteNoteConfirm.isLoading) return;
     try {
       setDeleteNoteConfirm((prev) => ({ ...prev, isLoading: true }));
       await deleteCustomerNote({ id, noteId: deleteNoteConfirm.noteId }).unwrap();

@@ -84,6 +84,7 @@ const CategoryImageUploader = ({
   };
 
   const handleConfirmDelete = async () => {
+    if (isDeleting) return;
     setIsDeleting(true);
     try {
       await onDelete();

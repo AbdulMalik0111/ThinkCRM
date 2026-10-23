@@ -28,6 +28,7 @@ import dayjs from "dayjs";
 import DataGrid from "@/components/ui/DataGrid";
 import RowActions from "@/components/ui/RowActions";
 import DeleteConfirmModal from "@/components/ui/DeleteConfirmModal";
+import ConfirmModal from "@/components/shared/ConfirmModal";
 import { getAvatarColor, renderStatusPill } from "@/components/common/tableUtils";
 
 const StaffActivity = ({ staffId }) => {
@@ -85,7 +86,7 @@ const Staff = () => {
 
   const [showActivity, setShowActivity] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [confirmAction, setConfirmAction] = useState({ show: false, action: null, message: "", title: "" });
+  const [confirmAction, setConfirmAction] = useState({ show: false, action: null, message: "", title: "", isLoading: false });
 
   // Delete & Suspend State
   const [deleteConfirm, setDeleteConfirm] = useState({
@@ -103,7 +104,7 @@ const Staff = () => {
   const navigate = useNavigate();
 
   const handleConfirmSuspendStaff = async () => {
-    if (!suspendConfirm.staff) return;
+    if (!suspendConfirm.staff || suspendConfirm.isLoading) return;
     const { _id: id, status, firstName, lastName, name } = suspendConfirm.staff;
     const staffName = `${firstName || ""} ${lastName || ""}`.trim() || name || "Staff member";
     const isSuspending = status === "active";
@@ -130,22 +131,25 @@ const Staff = () => {
       show: true,
       title: "Reset Password",
       message: "Are you sure you want to reset this staff member's password? It will invalidate their current sessions.",
+      isLoading: false,
       action: async () => {
         try {
+          setConfirmAction((prev) => ({ ...prev, isLoading: true }));
           const res = await resetPassword(id).unwrap();
           toast.success(`Password reset successful! Temp password: ${res.data.tempPassword}`, {
             autoClose: false // Keep open so admin can copy it
           });
         } catch (err) {
           toast.error(err?.data?.message || "Failed to reset password");
+        } finally {
+          setConfirmAction({ show: false, action: null, message: "", title: "", isLoading: false });
         }
-        setConfirmAction({ show: false, action: null, message: "", title: "" });
       }
     });
   };
 
   const handleConfirmDeleteStaff = async () => {
-    if (!deleteConfirm.staff) return;
+    if (!deleteConfirm.staff || deleteConfirm.isLoading) return;
     try {
       setDeleteConfirm((prev) => ({ ...prev, isLoading: true }));
       await deleteStaff(deleteConfirm.staff._id).unwrap();
@@ -413,33 +417,16 @@ const Staff = () => {
       />
 
       {/* Generic Confirmation Modal (for password reset, etc.) */}
-      <Modal
-        activeModal={confirmAction.show}
-        onClose={() => setConfirmAction({ show: false, action: null, message: "", title: "" })}
+      <ConfirmModal
+        isOpen={confirmAction.show}
+        onClose={confirmAction.isLoading || isResetting ? () => {} : () => setConfirmAction({ show: false, action: null, message: "", title: "", isLoading: false })}
+        onConfirm={confirmAction.action}
         title={confirmAction.title}
-        centered={true}
-        className="max-w-[460px] font-inter"
-      >
-        <div className="pt-1">
-          <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-6">{confirmAction.message}</p>
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/80">
-            <button
-              type="button"
-              className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
-              onClick={() => setConfirmAction({ show: false, action: null, message: "", title: "" })}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition"
-              onClick={confirmAction.action}
-            >
-              Confirm
-            </button>
-          </div>
-        </div>
-      </Modal>
+        message={confirmAction.message}
+        isLoading={confirmAction.isLoading || isResetting}
+        confirmText="Confirm"
+        confirmType="primary"
+      />
 
       {/* Suspend / Reactivate Confirmation Modal */}
       <Modal

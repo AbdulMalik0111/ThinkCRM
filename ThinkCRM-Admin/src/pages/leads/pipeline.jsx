@@ -93,7 +93,7 @@ const Pipeline = () => {
   const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Queries & Mutations
-  const { data: response, isLoading, isFetching, refetch } = useGetLeadsQuery({ limit: 1000 });
+  const { data: response, isLoading, isFetching, refetch } = useGetLeadsQuery({ limit: 1000, sort: "createdAt:desc" });
   const { data: staffData } = useGetStaffQuery({ page: 1, limit: 100 }, { skip: !isOwnerOrAdmin });
   const [updateLead] = useUpdateLeadMutation();
 

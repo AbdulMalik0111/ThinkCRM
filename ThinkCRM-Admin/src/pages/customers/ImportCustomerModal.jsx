@@ -197,8 +197,8 @@ const ImportCustomerModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const handleExecuteImport = async () => {
-    if (parsedData.length === 0) {
-      toast.error("No valid customer records to import.");
+    if (parsedData.length === 0 || isLoading) {
+      if (parsedData.length === 0) toast.error("No valid customer records to import.");
       return;
     }
 

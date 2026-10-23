@@ -1,8 +1,11 @@
 import React, { useState, useRef } from "react";
+import { useDispatch } from "react-redux";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { toast } from "react-toastify";
+import { apiSlice } from "@/store/api/apiSlice";
+import { uploadFileWithProgress } from "@/utils/uploadWithProgress";
 import { useAddCustomerDocumentMutation } from "@/store/api/customers/customersApiSlice";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
@@ -28,19 +31,23 @@ const formatBytes = (bytes) => {
 };
 
 const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
+  const dispatch = useDispatch();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Agreement");
   const [customCategory, setCustomCategory] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
   const [fileUrl, setFileUrl] = useState("");
   const [fileSize, setFileSize] = useState(0);
   const [fileType, setFileType] = useState("application/pdf");
   const [fileName, setFileName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fileInputRef = useRef(null);
 
-  const [addCustomerDocument, { isLoading }] = useAddCustomerDocumentMutation();
+  const [addCustomerDocument] = useAddCustomerDocumentMutation();
 
   const handleProcessFile = (file) => {
     setErrorMsg("");
@@ -62,6 +69,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
     }
 
     setFileName(file.name);
+    setSelectedFile(file);
     if (!name) {
       // Auto-populate document title without extension
       const baseName = file.name.replace(/\.[^/.]+$/, "");
@@ -70,11 +78,11 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
     setFileSize(file.size);
     setFileType(file.type || "application/octet-stream");
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setFileUrl(event.target.result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setFileUrl(URL.createObjectURL(file));
+    } catch (e) {
+      setFileUrl(file.name);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -104,6 +112,7 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
 
   const handleRemoveFile = () => {
     setFileName("");
+    setSelectedFile(null);
     setFileUrl("");
     setFileSize(0);
     setFileType("");
@@ -117,10 +126,14 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
       toast.error("Document title is required");
       return;
     }
-    if (!fileUrl) {
+    if (!selectedFile && !fileUrl) {
       toast.error("Please attach a document file");
       return;
     }
+    if (isUploading) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       const finalCategory =
@@ -128,17 +141,26 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
           ? customCategory.trim()
           : category;
 
-      await addCustomerDocument({
-        id: customerId,
-        documentData: {
-          name: name.trim(),
-          category: finalCategory,
-          type: finalCategory,
-          url: fileUrl,
-          fileType,
-          size: fileSize,
-        },
-      }).unwrap();
+      const payload = new FormData();
+      if (selectedFile) {
+        payload.append("file", selectedFile);
+      }
+      payload.append("name", name.trim());
+      payload.append("category", finalCategory);
+      payload.append("type", finalCategory);
+
+      await uploadFileWithProgress({
+        url: `customers/${customerId}/documents`,
+        formData: payload,
+        onProgress: (percent) => setUploadProgress(percent),
+      });
+
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: "Customer", id: customerId },
+          "Dashboard",
+        ])
+      );
 
       toast.success("Document uploaded successfully!");
       handleRemoveFile();
@@ -146,7 +168,10 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
       setCustomCategory("");
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || "Failed to upload document");
+      toast.error(err?.message || err?.data?.message || "Failed to upload document");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -304,17 +329,29 @@ const UploadDocumentModal = ({ isOpen, onClose, customerId }) => {
             type="button"
             className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
             onClick={onClose}
-            disabled={isLoading}
+            disabled={isUploading}
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60"
-            disabled={isLoading || !fileUrl}
+            className="relative overflow-hidden inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 min-w-[170px]"
+            disabled={isUploading || (!selectedFile && !fileUrl)}
           >
-            {isLoading && <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />}
-            <span>{isLoading ? "Compressing & Uploading..." : "Upload Document"}</span>
+            {isUploading && (
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-primary-500/40 transition-all duration-150 pointer-events-none"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            )}
+            {isUploading ? (
+              <div className="relative z-10 flex items-center gap-2">
+                <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+                <span>{uploadProgress === 100 ? "Processing..." : `Uploading ${uploadProgress}%...`}</span>
+              </div>
+            ) : (
+              <span className="relative z-10">Upload Document</span>
+            )}
           </button>
         </div>
       </form>

@@ -12,6 +12,7 @@ const ConvertLeadModal = ({ isOpen, lead, onClose, onSuccess }) => {
   if (!isOpen || !lead) return null;
 
   const handleConvert = async () => {
+    if (isLoading) return;
     try {
       const res = await convertLead(lead._id).unwrap();
       toast.success("Lead converted to customer successfully!");

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useDispatch } from "react-redux";
 import Card from "@/components/ui/Card";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
@@ -6,6 +7,8 @@ import Loading from "@/components/Loading";
 import Flatpickr from "react-flatpickr";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import { apiSlice } from "@/store/api/apiSlice";
+import { uploadFileWithProgress } from "@/utils/uploadWithProgress";
 import {
   useGetLeadQuotationsQuery,
   useCreateQuotationMutation,
@@ -14,10 +17,14 @@ import {
 } from "@/store/api/interactions/interactionsApiSlice";
 
 const LeadQuotations = ({ leadId, lead }) => {
+  const dispatch = useDispatch();
   const { data, isLoading, refetch } = useGetLeadQuotationsQuery(leadId);
   const [createQuotation, { isLoading: isCreating }] = useCreateQuotationMutation();
   const [sendQuotation, { isLoading: isSending }] = useSendQuotationMutation();
   const [deleteQuotation, { isLoading: isDeleting }] = useDeleteQuotationMutation();
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [downloadingFileId, setDownloadingFileId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,6 +67,10 @@ const LeadQuotations = ({ leadId, lead }) => {
       toast.error("Please select a quotation file (PDF or image) to upload");
       return;
     }
+    if (isUploading) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
 
     try {
       const quotationNumber = formData.quotationNumber || `QT-${Date.now().toString().slice(-6)}`;
@@ -91,10 +102,19 @@ const LeadQuotations = ({ leadId, lead }) => {
 
       dataPayload.append("data", JSON.stringify(details));
 
-      await createQuotation({
-        leadId,
+      await uploadFileWithProgress({
+        url: `leads/${leadId}/quotations`,
         formData: dataPayload,
-      }).unwrap();
+        onProgress: (percent) => setUploadProgress(percent),
+      });
+
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: "Quotation", id: `List-${leadId}` },
+          { type: "Lead", id: leadId },
+          "Dashboard",
+        ])
+      );
 
       toast.success(
         lead?.email
@@ -104,7 +124,10 @@ const LeadQuotations = ({ leadId, lead }) => {
       setIsModalOpen(false);
       refetch();
     } catch (err) {
-      toast.error(err?.data?.message || err?.message || "Failed to upload quotation");
+      toast.error(err?.message || err?.data?.message || "Failed to upload quotation");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -173,7 +196,7 @@ const LeadQuotations = ({ leadId, lead }) => {
   };
 
   const handleConfirmSend = async () => {
-    if (!confirmSendQuotation) return;
+    if (!confirmSendQuotation || isSending) return;
     try {
       await sendQuotation({
         leadId,
@@ -188,7 +211,7 @@ const LeadQuotations = ({ leadId, lead }) => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!confirmDeleteQuotation) return;
+    if (!confirmDeleteQuotation || isDeleting) return;
     try {
       await deleteQuotation({
         leadId,
@@ -409,19 +432,30 @@ const LeadQuotations = ({ leadId, lead }) => {
               type="button"
               className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs md:text-sm font-semibold transition"
               onClick={() => setIsModalOpen(false)}
+              disabled={isUploading}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 cursor-pointer"
+              className="relative overflow-hidden inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs md:text-sm font-semibold transition disabled:opacity-60 cursor-pointer min-w-[170px]"
               onClick={handleSubmit}
-              disabled={isCreating}
+              disabled={isUploading}
             >
-              {isCreating && (
-                <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+              {isUploading && (
+                <div
+                  className="absolute left-0 top-0 bottom-0 bg-emerald-500/40 transition-all duration-150 pointer-events-none"
+                  style={{ width: `${uploadProgress}%` }}
+                />
               )}
-              <span>Upload Quotation</span>
+              {isUploading ? (
+                <div className="relative z-10 flex items-center gap-2">
+                  <Icon icon="heroicons-outline:arrow-path" className="animate-spin text-sm" />
+                  <span>{uploadProgress === 100 ? "Processing..." : `Uploading ${uploadProgress}%...`}</span>
+                </div>
+              ) : (
+                <span className="relative z-10">Upload Quotation</span>
+              )}
             </button>
           </div>
         }
