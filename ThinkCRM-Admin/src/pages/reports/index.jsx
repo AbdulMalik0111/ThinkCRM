@@ -47,8 +47,8 @@ const Reports = () => {
   const [activeTab, setActiveTab] = useState("overview"); // 'overview', 'records', 'leads', 'sales'
 
   // Filters State
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-10-31");
+  const [startDate, setStartDate] = useState(dayjs().startOf("month").format("YYYY-MM-DD"));
+  const [endDate, setEndDate] = useState(dayjs().endOf("month").format("YYYY-MM-DD"));
   const [comparison, setComparison] = useState("previous_period");
   const [assignedStaff, setAssignedStaff] = useState("all");
   const [source, setSource] = useState("all");
@@ -96,19 +96,19 @@ const Reports = () => {
 
   const analytics = analyticsResponse?.data || {};
   const kpis = analytics.kpis || {
-    totalLeads: { value: 248, changePercent: 12.4, isPositive: true },
-    qualifiedLeads: { value: 86, changePercent: 8.2, isPositive: true },
-    wonDeals: { value: 24, changePercent: 15.7, isPositive: true },
-    revenue: { value: 1285000, changePercent: 17.5, isPositive: true },
+    totalLeads: { value: 0, changePercent: 0, isPositive: true },
+    qualifiedLeads: { value: 0, changePercent: 0, isPositive: true },
+    wonDeals: { value: 0, changePercent: 0, isPositive: true },
+    revenue: { value: 0, changePercent: 0, isPositive: true },
   };
   const trend = analytics.trend || { categories: [], leads: [], revenue: [] };
   const statusDistribution = analytics.statusDistribution || [];
   const sourceBreakdown = analytics.sourceBreakdown || [];
   const salesTeamPerformance = analytics.salesTeamPerformance || [];
   const followUpsOverview = analytics.followUpsOverview || {
-    dueToday: { count: 18, changePercent: 28, isPositive: true },
-    overdue: { count: 12, changePercent: 50, isPositive: false },
-    completed: { count: 76, changePercent: 18, isPositive: true },
+    dueToday: { count: 0, changePercent: 0, isPositive: true },
+    overdue: { count: 0, changePercent: 0, isPositive: true },
+    completed: { count: 0, changePercent: 0, isPositive: true },
   };
 
   const staffList = staffResponse?.data?.users || [];
@@ -134,8 +134,8 @@ const Reports = () => {
 
   // Filter Resets
   const handleClearFilters = () => {
-    setStartDate("2026-01-01");
-    setEndDate("2026-10-31");
+    setStartDate(dayjs().startOf("month").format("YYYY-MM-DD"));
+    setEndDate(dayjs().endOf("month").format("YYYY-MM-DD"));
     setAssignedStaff("all");
     setSource("all");
     setStatus("all");

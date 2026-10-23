@@ -63,9 +63,10 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
 
     const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
     if (user && !isOwnerOrAdmin && user._id) {
-      match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+      const uId = mongoose.Types.ObjectId.isValid(user._id)
         ? new mongoose.Types.ObjectId(user._id)
         : user._id;
+      match.$or = [{ assignedTo: uId }, { createdBy: uId }];
     } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
       match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
     }
@@ -171,7 +172,9 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
               $gte: new Date(startDate.getFullYear(), 0, 1),
               $lte: new Date(startDate.getFullYear(), 11, 31, 23, 59, 59),
             },
-            ...(query.assignedStaff && query.assignedStaff !== 'all'
+            ...(user && !isOwnerOrAdmin && user._id
+              ? { $or: [{ assignedTo: mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id }, { createdBy: mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id }] }
+              : query.assignedStaff && query.assignedStaff !== 'all'
               ? { assignedTo: new mongoose.Types.ObjectId(query.assignedStaff) }
               : {}),
           },
@@ -192,7 +195,9 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
               $gte: new Date(startDate.getFullYear(), 0, 1),
               $lte: new Date(startDate.getFullYear(), 11, 31, 23, 59, 59),
             },
-            ...(query.assignedStaff && query.assignedStaff !== 'all'
+            ...(user && !isOwnerOrAdmin && user._id
+              ? { $or: [{ assignedTo: mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id }, { createdBy: mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id }] }
+              : query.assignedStaff && query.assignedStaff !== 'all'
               ? { assignedTo: new mongoose.Types.ObjectId(query.assignedStaff) }
               : {}),
           },
@@ -299,8 +304,13 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
   }));
 
   // 5. Sales Team Performance
+  const staffFilter = { isDeleted: false, assignedTo: { $ne: null } };
+  if (user && !isOwnerOrAdmin && user._id) {
+    const uId = mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id;
+    staffFilter.assignedTo = uId;
+  }
   const staffPerfAgg = await Lead.aggregate([
-    { $match: { isDeleted: false, assignedTo: { $ne: null } } },
+    { $match: staffFilter },
     {
       $group: {
         _id: '$assignedTo',
@@ -359,11 +369,23 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
   const followUpMatch = {};
-  if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
+  if (user && !isOwnerOrAdmin && user._id) {
+    const uId = mongoose.Types.ObjectId.isValid(user._id) ? new mongoose.Types.ObjectId(user._id) : user._id;
+    const userLeads = await Lead.find({ isDeleted: false, $or: [{ assignedTo: uId }, { createdBy: uId }] }).select('_id');
+    const leadIds = userLeads.map((l) => l._id);
+    followUpMatch.$or = [
+      { assignedTo: uId },
+      { createdBy: uId },
+      { leadId: { $in: leadIds } },
+    ];
+  } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
     followUpMatch.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
   }
 
-  const [dueTodayCount, overdueCount, completedCount] = await Promise.all([
+  const prevDueTodayStart = new Date(todayStart.getTime() - durationMs);
+  const prevDueTodayEnd = new Date(todayEnd.getTime() - durationMs);
+
+  const [dueTodayCount, overdueCount, completedCount, prevDueTodayCount, prevCompletedCount] = await Promise.all([
     FollowUp.countDocuments({
       ...followUpMatch,
       scheduledAt: { $gte: todayStart, $lte: todayEnd },
@@ -379,25 +401,35 @@ export const getAnalyticsOverview = async (query = {}, user = null) => {
       completedAt: { $gte: startDate, $lte: endDate },
       status: 'completed',
     }),
+    FollowUp.countDocuments({
+      ...followUpMatch,
+      scheduledAt: { $gte: prevDueTodayStart, $lte: prevDueTodayEnd },
+      status: 'pending',
+    }),
+    FollowUp.countDocuments({
+      ...followUpMatch,
+      completedAt: { $gte: prevStartDate, $lte: prevEndDate },
+      status: 'completed',
+    }),
   ]);
 
   const followUpsOverview = {
     dueToday: {
       count: dueTodayCount,
-      changePercent: 28,
-      isPositive: true,
+      changePercent: calcPercentageChange(dueTodayCount, prevDueTodayCount),
+      isPositive: dueTodayCount >= prevDueTodayCount,
       description: 'Follow-ups scheduled for today',
     },
     overdue: {
       count: overdueCount,
-      changePercent: 50,
-      isPositive: false,
+      changePercent: 0,
+      isPositive: overdueCount === 0,
       description: 'Follow-ups past due date',
     },
     completed: {
       count: completedCount,
-      changePercent: 18,
-      isPositive: true,
+      changePercent: calcPercentageChange(completedCount, prevCompletedCount),
+      isPositive: completedCount >= prevCompletedCount,
       description: 'Follow-ups completed in this period',
     },
   };
@@ -434,9 +466,10 @@ export const getExportRecords = async (query = {}, user = null) => {
   }
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   if (user && !isOwnerOrAdmin && user._id) {
-    match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+    const uId = mongoose.Types.ObjectId.isValid(user._id)
       ? new mongoose.Types.ObjectId(user._id)
       : user._id;
+    match.$or = [{ assignedTo: uId }, { createdBy: uId }];
   } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
     match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
   }
@@ -491,9 +524,10 @@ export const getDetailedRecords = async (query = {}, user = null) => {
   }
   const isOwnerOrAdmin = user && (user.role === 'Owner' || user.role === 'Admin');
   if (user && !isOwnerOrAdmin && user._id) {
-    match.assignedTo = mongoose.Types.ObjectId.isValid(user._id)
+    const uId = mongoose.Types.ObjectId.isValid(user._id)
       ? new mongoose.Types.ObjectId(user._id)
       : user._id;
+    match.$or = [{ assignedTo: uId }, { createdBy: uId }];
   } else if (query.assignedStaff && query.assignedStaff !== 'all' && mongoose.Types.ObjectId.isValid(query.assignedStaff)) {
     match.assignedTo = new mongoose.Types.ObjectId(query.assignedStaff);
   }

@@ -22,6 +22,7 @@ const ExecutiveKpiCard = ({
   isPositive,
   accentBorderClass,
   onClick,
+  isLoading,
 }) => {
   return (
     <div
@@ -34,7 +35,9 @@ const ExecutiveKpiCard = ({
           {title}
         </span>
 
-        {trend && (
+        {isLoading ? (
+          <span className="h-5 w-12 rounded bg-slate-100 dark:bg-slate-800 animate-pulse" />
+        ) : trend ? (
           <span
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold ${
               isPositive
@@ -48,14 +51,18 @@ const ExecutiveKpiCard = ({
             />
             <span>{trend}</span>
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Bottom row: Value and Subtle Arrow */}
       <div className="mt-4 flex items-baseline justify-between">
-        <span className="text-3xl lg:text-[30px] font-bold text-slate-900 dark:text-white tracking-tight leading-none">
-          {typeof value === "number" ? value.toLocaleString() : value}
-        </span>
+        {isLoading ? (
+          <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+        ) : (
+          <span className="text-3xl lg:text-[30px] font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+            {typeof value === "number" ? value.toLocaleString() : value}
+          </span>
+        )}
         <Icon
           icon="heroicons:chevron-right"
           className="text-slate-300 dark:text-slate-600 text-base group-hover:text-slate-500 transition-colors"
@@ -68,10 +75,30 @@ const ExecutiveKpiCard = ({
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+  const isOwnerOrAdmin = user && (user.role === "Owner" || user.role === "Admin");
 
   // Date range filter state
   const [dateRange, setDateRange] = useState("Date Range");
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+
+  const getRangeParam = (label) => {
+    switch (label) {
+      case "Today":
+        return "today";
+      case "Last 7 Days":
+        return "last_7_days";
+      case "This Month":
+        return "this_month";
+      case "This Quarter":
+        return "this_quarter";
+      case "This Year":
+        return "this_year";
+      default:
+        return undefined;
+    }
+  };
+
+  const rangeParam = getRangeParam(dateRange);
 
   // Time-aware greeting
   const getGreeting = () => {
@@ -85,34 +112,41 @@ const Dashboard = () => {
     ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
     : user?.name || "Think Admin";
 
-  // Backend API Queries
-  const { data: metricsResponse } = useGetDashboardMetricsQuery();
-  const { data: leadsReport } = useGetReportsQuery("leads");
-  const { data: leadsResponse } = useGetLeadsQuery({ limit: 6 });
-  const { data: followUpsResponse } = useGetAllFollowUpsQuery();
+  // Backend API Queries with immediate refetch on mount or arg change
+  const { data: metricsResponse, isLoading: isMetricsLoading } = useGetDashboardMetricsQuery(
+    rangeParam ? { range: rangeParam } : undefined,
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+  const { data: leadsReport, isLoading: isReportLoading } = useGetReportsQuery(
+    rangeParam ? { type: "leads", params: { range: rangeParam } } : "leads",
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+  const { data: leadsResponse, isLoading: isLeadsLoading } = useGetLeadsQuery(
+    { limit: 6 },
+    { refetchOnMountOrArgChange: true }
+  );
+  const { data: followUpsResponse, isLoading: isFollowUpsLoading } = useGetAllFollowUpsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
 
   const m = metricsResponse?.data || {};
+  const trends = m.trends || {};
 
-  // Extract or Fallback Leads by Source for Pie/Donut Chart
+  // Extract Leads by Source for Pie/Donut Chart (Real database data only)
   const rawSources = leadsReport?.data?.leadsBySource || [];
-  const defaultSources = [
-    { name: "Website", count: 35, color: "#3B82F6" },
-    { name: "Facebook", count: 22, color: "#8B5CF6" },
-    { name: "Instagram", count: 15, color: "#EC4899" },
-    { name: "Referral", count: 12, color: "#F59E0B" },
-    { name: "Google Ads", count: 10, color: "#10B981" },
-    { name: "Others", count: 6, color: "#64748B" },
-  ];
+  const sourcePalette = ["#3B82F6", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981", "#64748B", "#06B6D4", "#6366F1"];
 
-  const sourceData = rawSources.length > 0
-    ? rawSources.map((item, idx) => ({
-        name: (item._id ? item._id.charAt(0).toUpperCase() + item._id.slice(1) : "Direct"),
-        count: item.count,
-        color: defaultSources[idx % defaultSources.length].color,
-      }))
-    : defaultSources;
+  const sourceData = rawSources.map((item, idx) => ({
+    name: item._id ? item._id.charAt(0).toUpperCase() + item._id.slice(1).replace(/_/g, " ") : "Direct",
+    count: item.count || 0,
+    color: sourcePalette[idx % sourcePalette.length],
+  }));
 
-  const totalSourceCount = sourceData.reduce((acc, curr) => acc + curr.count, 0) || 1;
+  const totalSourceCount = sourceData.reduce((acc, curr) => acc + curr.count, 0);
   const sourceChartSeries = sourceData.map((s) => s.count);
   const sourceChartLabels = sourceData.map((s) => s.name);
   const sourceChartColors = sourceData.map((s) => s.color);
@@ -168,28 +202,15 @@ const Dashboard = () => {
     },
   };
 
-  // Leads by Status for Bar Chart
-  const defaultStatusData = [
-    { label: "New", count: 52, color: "#38BDF8" },
-    { label: "Contacted", count: 38, color: "#06B6D4" },
-    { label: "Qualified", count: 62, color: "#10B981" },
-    { label: "Measurement", count: 44, color: "#3B82F6" },
-    { label: "Quotation", count: 24, color: "#F59E0B" },
-    { label: "Negotiation", count: 39, color: "#F97316" },
-    { label: "Won", count: 82, color: "#22C55E" },
-    { label: "Lost", count: 26, color: "#EF4444" },
-  ];
-
+  // Leads by Status for Bar Chart (Real database data only)
   const rawStatuses = leadsReport?.data?.leadsByStatus || [];
-  let statusCategories = defaultStatusData.map((d) => d.label);
-  let statusCounts = defaultStatusData.map((d) => d.count);
-  let statusColors = defaultStatusData.map((d) => d.color);
-
-  if (rawStatuses.length > 0) {
-    statusCategories = rawStatuses.map((s) => (s._id ? s._id.charAt(0).toUpperCase() + s._id.slice(1) : "Other"));
-    statusCounts = rawStatuses.map((s) => s.count);
-    statusColors = defaultStatusData.slice(0, rawStatuses.length).map((d) => d.color);
-  }
+  const statusPalette = ["#38BDF8", "#06B6D4", "#10B981", "#3B82F6", "#F59E0B", "#F97316", "#22C55E", "#EF4444"];
+  const statusCategories = rawStatuses.map((s) =>
+    s._id ? s._id.charAt(0).toUpperCase() + s._id.slice(1).replace(/_/g, " ") : "Other"
+  );
+  const statusCounts = rawStatuses.map((s) => s.count || 0);
+  const statusColors = statusPalette.slice(0, rawStatuses.length);
+  const totalStatusCount = statusCounts.reduce((acc, curr) => acc + curr, 0);
 
   const statusBarOptions = {
     chart: {
@@ -221,7 +242,8 @@ const Dashboard = () => {
       axisTicks: { show: false },
     },
     yaxis: {
-      max: Math.max(...statusCounts, 100),
+      forceNiceScale: true,
+      min: 0,
       labels: {
         style: {
           colors: "#64748B",
@@ -246,97 +268,24 @@ const Dashboard = () => {
 
   const statusBarSeries = [{ name: "Leads", data: statusCounts }];
 
-  // Recent Leads Data
-  const dbRecentLeads = leadsResponse?.data?.leads || [];
-  const fallbackRecentLeads = [
-    {
-      _id: "demo-1",
-      fullName: "Rahul Sharma",
-      phone: "+91 9876543210",
-      email: "rahul@example.com",
-      status: "new",
-      budget: 450000,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: "demo-2",
-      fullName: "Priya Patel",
-      phone: "+91 9811223344",
-      email: "priya@example.com",
-      status: "follow_up",
-      budget: 680000,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: "demo-3",
-      fullName: "Amit Singh",
-      phone: "+91 9755443322",
-      email: "amit@example.com",
-      status: "quotation",
-      budget: 320000,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      _id: "demo-4",
-      fullName: "Sneha Reddy",
-      phone: "+91 9644332211",
-      email: "sneha@example.com",
-      status: "won",
-      budget: 850000,
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  // Recent Leads Data (Pure database records, no demo dummy leads)
+  const recentLeadsList = leadsResponse?.data?.leads?.slice(0, 5) || [];
 
-  const recentLeadsList = dbRecentLeads.length > 0 ? dbRecentLeads.slice(0, 5) : fallbackRecentLeads;
-
-  // Upcoming Follow-ups Data
+  // Upcoming Follow-ups Data (Pure database records, no demo dummy follow-ups)
   const dbFollowUps = followUpsResponse?.data?.followUps || [];
-  const fallbackFollowUps = [
-    {
-      _id: "fu-1",
-      title: "Call with Rahul Sharma",
-      scheduledFormatted: "Today, 10:00 AM",
-      type: "call",
-      leadId: { _id: "demo-1", fullName: "Rahul Sharma" },
-    },
-    {
-      _id: "fu-2",
-      title: "Site visit - Priya Patel",
-      scheduledFormatted: "Today, 02:00 PM",
-      type: "site_visit",
-      leadId: { _id: "demo-2", fullName: "Priya Patel" },
-    },
-    {
-      _id: "fu-3",
-      title: "Follow up with Amit Singh",
-      scheduledFormatted: "Tomorrow, 11:00 AM",
-      type: "follow_up",
-      leadId: { _id: "demo-3", fullName: "Amit Singh" },
-    },
-    {
-      _id: "fu-4",
-      title: "Contract review with Sneha Reddy",
-      scheduledFormatted: "Tomorrow, 04:30 PM",
-      type: "contract",
-      leadId: { _id: "demo-4", fullName: "Sneha Reddy" },
-    },
-  ];
-
-  const upcomingFollowUpsList = dbFollowUps.length > 0
-    ? dbFollowUps.slice(0, 5).map((fu) => {
-        const date = dayjs(fu.scheduledAt);
-        let formattedDate = date.format("MMM D, h:mm A");
-        if (date.isToday()) formattedDate = `Today, ${date.format("h:mm A")}`;
-        else if (date.isTomorrow()) formattedDate = `Tomorrow, ${date.format("h:mm A")}`;
-        return {
-          _id: fu._id,
-          title: `${fu.type ? fu.type.charAt(0).toUpperCase() + fu.type.slice(1) : "Follow up"} with ${fu.leadId?.fullName || "Lead"}`,
-          scheduledFormatted: formattedDate,
-          type: fu.type || "call",
-          leadId: fu.leadId,
-        };
-      })
-    : fallbackFollowUps;
+  const upcomingFollowUpsList = dbFollowUps.slice(0, 5).map((fu) => {
+    const date = dayjs(fu.scheduledAt);
+    let formattedDate = date.format("MMM D, h:mm A");
+    if (date.isToday()) formattedDate = `Today, ${date.format("h:mm A")}`;
+    else if (date.isTomorrow()) formattedDate = `Tomorrow, ${date.format("h:mm A")}`;
+    return {
+      _id: fu._id,
+      title: `${fu.type ? fu.type.charAt(0).toUpperCase() + fu.type.slice(1).replace(/_/g, " ") : "Follow up"} with ${fu.leadId?.fullName || "Lead"}`,
+      scheduledFormatted: formattedDate,
+      type: fu.type || "call",
+      leadId: fu.leadId,
+    };
+  });
 
   // Status Badge Styling Helper with clean visible colors & dot indicators
   const getStatusBadge = (status) => {
@@ -494,7 +443,7 @@ const Dashboard = () => {
                     "Last 7 Days",
                     "This Month",
                     "This Quarter",
-                    "Jan 1, 2024 - Dec 31, 2024",
+                    "This Year",
                     "All Time",
                   ].map((range) => (
                     <button
@@ -526,14 +475,15 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2. TOP 8 KPI METRIC CARDS (Enlarged Labels, Large Bold Figures, 5px Accent Border) */}
+      {/* 2. TOP 8 KPI METRIC CARDS (Real figures with skeleton loading, no fake fallback glitch) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Leads */}
         <ExecutiveKpiCard
           title="Total Leads"
-          value={m.totalLeads ?? 248}
-          trend="+12%"
-          isPositive={true}
+          value={m.totalLeads ?? 0}
+          trend={trends.totalLeads?.value}
+          isPositive={trends.totalLeads?.isPositive}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-blue-500"
           onClick={() => navigate("/leads")}
         />
@@ -541,9 +491,10 @@ const Dashboard = () => {
         {/* Card 2: New Leads */}
         <ExecutiveKpiCard
           title="New Leads"
-          value={m.newLeads ?? 54}
-          trend="+23%"
-          isPositive={true}
+          value={m.newLeads ?? 0}
+          trend={trends.newLeads?.value}
+          isPositive={trends.newLeads?.isPositive}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-sky-500"
           onClick={() => navigate("/leads?status=new")}
         />
@@ -551,19 +502,17 @@ const Dashboard = () => {
         {/* Card 3: Follow-ups Today */}
         <ExecutiveKpiCard
           title="Follow-ups Today"
-          value={m.todaysFollowUps ?? 18}
-          trend="-2%"
-          isPositive={false}
+          value={m.todaysFollowUps ?? 0}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-amber-500"
           onClick={() => navigate("/leads/follow-ups")}
         />
 
-        {/* Card 4: Pending Quotations */}
+        {/* Card 4: Quotations */}
         <ExecutiveKpiCard
           title="Quotations"
-          value={m.pendingQuotations ?? 12}
-          trend="+4%"
-          isPositive={true}
+          value={(m.pendingQuotations ?? 0) + (m.sentQuotations ?? 0)}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-purple-500"
           onClick={() => navigate("/leads")}
         />
@@ -571,9 +520,10 @@ const Dashboard = () => {
         {/* Card 5: Won Deals */}
         <ExecutiveKpiCard
           title="Won Deals"
-          value={m.wonLeads ?? 86}
-          trend="+10%"
-          isPositive={true}
+          value={m.wonLeads ?? 0}
+          trend={trends.wonLeads?.value}
+          isPositive={trends.wonLeads?.isPositive}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-emerald-500"
           onClick={() => navigate("/leads?status=won")}
         />
@@ -581,9 +531,10 @@ const Dashboard = () => {
         {/* Card 6: Lost */}
         <ExecutiveKpiCard
           title="Lost"
-          value={m.lostLeads ?? 32}
-          trend="-5%"
-          isPositive={false}
+          value={m.lostLeads ?? 0}
+          trend={trends.lostLeads?.value}
+          isPositive={trends.lostLeads?.isPositive}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-rose-500"
           onClick={() => navigate("/leads?status=lost")}
         />
@@ -591,9 +542,10 @@ const Dashboard = () => {
         {/* Card 7: Conversion Rate */}
         <ExecutiveKpiCard
           title="Conversion Rate"
-          value={m.conversionRate ? `${m.conversionRate}%` : "34.7%"}
-          trend="+2.4%"
-          isPositive={true}
+          value={m.conversionRate ? `${m.conversionRate}%` : "0%"}
+          trend={trends.conversionRate?.value}
+          isPositive={trends.conversionRate?.isPositive}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-teal-500"
           onClick={() => navigate("/reports")}
         />
@@ -601,9 +553,8 @@ const Dashboard = () => {
         {/* Card 8: Active Customers */}
         <ExecutiveKpiCard
           title="Active Customers"
-          value={m.activeCustomers ?? 128}
-          trend="+11%"
-          isPositive={true}
+          value={m.activeCustomers ?? 0}
+          isLoading={isMetricsLoading}
           accentBorderClass="border-l-indigo-500"
           onClick={() => navigate("/customers")}
         />
@@ -627,47 +578,59 @@ const Dashboard = () => {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-6 my-auto">
-            {/* Donut Chart */}
-            <div className="sm:col-span-6 flex justify-center items-center h-[240px]">
-              <Chart
-                options={donutOptions}
-                series={sourceChartSeries}
-                type="donut"
-                width="100%"
-                height="100%"
-              />
+          {isReportLoading ? (
+            <div className="flex items-center justify-center h-[240px]">
+              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
             </div>
+          ) : sourceData.length === 0 || totalSourceCount === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[240px] text-slate-400">
+              <Icon icon="heroicons-outline:chart-pie" className="text-4xl mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No lead source data yet</p>
+              <p className="text-xs text-slate-400 mt-0.5">Acquisition sources will appear as leads are added.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-6 my-auto">
+              {/* Donut Chart */}
+              <div className="sm:col-span-6 flex justify-center items-center h-[240px]">
+                <Chart
+                  options={donutOptions}
+                  series={sourceChartSeries}
+                  type="donut"
+                  width="100%"
+                  height="100%"
+                />
+              </div>
 
-            {/* Structured Data Rows (14px & 15px Font) */}
-            <div className="sm:col-span-6 divide-y divide-slate-100 dark:divide-slate-800">
-              {sourceData.map((item, idx) => {
-                const percentage = Math.round((item.count / totalSourceCount) * 100);
-                return (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between py-2.5 text-sm hover:bg-slate-50/80 dark:hover:bg-slate-800/40 px-1 rounded transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-3 h-3 rounded-xs shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {item.name}
-                      </span>
+              {/* Structured Data Rows (14px & 15px Font) */}
+              <div className="sm:col-span-6 divide-y divide-slate-100 dark:divide-slate-800">
+                {sourceData.map((item, idx) => {
+                  const percentage = totalSourceCount > 0 ? Math.round((item.count / totalSourceCount) * 100) : 0;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between py-2.5 text-sm hover:bg-slate-50/80 dark:hover:bg-slate-800/40 px-1 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className="w-3 h-3 rounded-xs shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          {item.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-slate-500 font-medium font-mono">{item.count}</span>
+                        <span className="font-bold text-slate-900 dark:text-white w-12 text-right">
+                          {percentage}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-slate-500 font-medium font-mono">{item.count}</span>
-                      <span className="font-bold text-slate-900 dark:text-white w-12 text-right">
-                        {percentage}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Chart: Pipeline Stage Distribution */}
@@ -690,15 +653,27 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="h-[250px] w-full">
-            <Chart
-              options={statusBarOptions}
-              series={statusBarSeries}
-              type="bar"
-              width="100%"
-              height="100%"
-            />
-          </div>
+          {isReportLoading ? (
+            <div className="flex items-center justify-center h-[250px]">
+              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            </div>
+          ) : rawStatuses.length === 0 || totalStatusCount === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[250px] text-slate-400">
+              <Icon icon="heroicons-outline:chart-bar" className="text-4xl mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No pipeline stages recorded yet</p>
+              <p className="text-xs text-slate-400 mt-0.5">Stage distribution will appear as leads advance.</p>
+            </div>
+          ) : (
+            <div className="h-[250px] w-full">
+              <Chart
+                options={statusBarOptions}
+                series={statusBarSeries}
+                type="bar"
+                width="100%"
+                height="100%"
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -724,61 +699,79 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="overflow-x-auto -mx-2 sm:mx-0">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800/80 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  <th className="py-2.5 px-3">Customer</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3">Budget</th>
-                  <th className="py-2.5 px-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
-                {recentLeadsList.map((lead) => (
-                  <tr
-                    key={lead._id}
-                    onClick={() => navigate(`/leads/${lead._id}`)}
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors group"
-                  >
-                    <td className="py-3 px-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center font-bold text-xs text-slate-800 dark:text-slate-200 shrink-0 group-hover:border-blue-400 dark:group-hover:border-blue-600 transition-colors">
-                          {getLeadInitials(lead.fullName)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
-                            {lead.fullName}
-                          </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                            {lead.phone || lead.email || "No contact"}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3">
-                      {getStatusBadge(lead.status)}
-                    </td>
-                    <td className="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200 text-sm whitespace-nowrap">
-                      {lead.budget ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
-                    </td>
-                    <td className="py-3 px-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/leads/${lead._id}`);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded transition-colors"
-                      >
-                        <span>View</span>
-                        <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
-                      </button>
-                    </td>
+          {isLeadsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            </div>
+          ) : recentLeadsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <Icon icon="heroicons-outline:inbox" className="text-4xl mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                {!isOwnerOrAdmin ? "No leads assigned to you yet" : "No recent leads found"}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {!isOwnerOrAdmin
+                  ? "When an administrator assigns leads to you or you create one, they will appear here."
+                  : "Leads will appear here as they are added."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800/80 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    <th className="py-2.5 px-3">Customer</th>
+                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3">Budget</th>
+                    <th className="py-2.5 px-3 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+                  {recentLeadsList.map((lead) => (
+                    <tr
+                      key={lead._id}
+                      onClick={() => navigate(`/leads/${lead._id}`)}
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors group"
+                    >
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center font-bold text-xs text-slate-800 dark:text-slate-200 shrink-0 group-hover:border-blue-400 dark:group-hover:border-blue-600 transition-colors">
+                            {getLeadInitials(lead.fullName)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                              {lead.fullName}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                              {lead.phone || lead.email || "No contact"}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        {getStatusBadge(lead.status)}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200 text-sm whitespace-nowrap">
+                        {lead.budget ? `₹${Number(lead.budget).toLocaleString("en-IN")}` : "—"}
+                      </td>
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/leads/${lead._id}`);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded transition-colors"
+                        >
+                          <span>View</span>
+                          <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Overdue & Upcoming Follow-ups */}
@@ -801,50 +794,68 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
-            {upcomingFollowUpsList.map((fu) => {
-              const typeCfg = getFollowUpTypeConfig(fu.type, fu.title);
-              return (
-                <div
-                  key={fu._id}
-                  onClick={() => {
-                    if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
-                    else navigate("/leads/follow-ups");
-                  }}
-                  className="py-3 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${typeCfg.colorClass}`}>
-                      <Icon icon={typeCfg.icon} className="text-lg" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
-                        {fu.title}
+          {isFollowUpsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            </div>
+          ) : upcomingFollowUpsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+              <Icon icon="heroicons-outline:calendar-days" className="text-4xl mb-2 text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                {!isOwnerOrAdmin ? "No tasks assigned to you" : "No upcoming follow-ups"}
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {!isOwnerOrAdmin
+                  ? "When follow-up tasks are assigned to you or scheduled, they will appear here."
+                  : "Upcoming tasks and meetings will appear here."}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {upcomingFollowUpsList.map((fu) => {
+                const typeCfg = getFollowUpTypeConfig(fu.type, fu.title);
+                return (
+                  <div
+                    key={fu._id}
+                    onClick={() => {
+                      if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
+                      else navigate("/leads/follow-ups");
+                    }}
+                    className="py-3 px-2 flex items-center justify-between hover:bg-slate-50/80 dark:hover:bg-slate-800/40 rounded transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 ${typeCfg.colorClass}`}>
+                        <Icon icon={typeCfg.icon} className="text-lg" />
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        <Icon icon="heroicons:clock" className="text-xs text-slate-400 shrink-0" />
-                        <span className="truncate">{fu.scheduledFormatted}</span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
+                          {fu.title}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          <Icon icon="heroicons:clock" className="text-xs text-slate-400 shrink-0" />
+                          <span className="truncate">{fu.scheduledFormatted}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 shrink-0 ml-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
-                        else navigate("/leads/follow-ups");
-                      }}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 rounded transition-colors"
-                    >
-                      <span>Open Lead</span>
-                      <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (fu.leadId?._id) navigate(`/leads/${fu.leadId._id}`);
+                          else navigate("/leads/follow-ups");
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 rounded transition-colors"
+                      >
+                        <span>Open Lead</span>
+                        <Icon icon="heroicons:chevron-right" className="text-xs text-slate-400 group-hover:text-blue-600" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

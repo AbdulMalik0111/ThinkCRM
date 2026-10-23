@@ -678,7 +678,16 @@ const Customers = () => {
           setPage(1);
         }}
         isLoading={isFetching}
-        emptyMessage="No customers found matching your filters"
+        emptyMessage={
+          !isOwnerOrAdmin && !search && projectType === "all" && status === "all"
+            ? "No customers assigned to you yet"
+            : "No customers found matching your filters"
+        }
+        emptySubtitle={
+          !isOwnerOrAdmin && !search && projectType === "all" && status === "all"
+            ? "When an administrator assigns customers to you or you add one, they will appear here."
+            : "Try adjusting your filters or search terms."
+        }
       />
 
       {/* Modals */}

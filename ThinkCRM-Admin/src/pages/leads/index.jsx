@@ -1402,7 +1402,16 @@ const Leads = () => {
         }}
         onRowClicked={(params) => navigate(`/leads/${params.data._id}`)}
         isLoading={isLeadsLoading}
-        emptyMessage="No leads found matching your criteria."
+        emptyMessage={
+          !isOwnerOrAdmin && activeFiltersCount === 0
+            ? "No leads assigned to you yet"
+            : "No leads found matching your criteria."
+        }
+        emptySubtitle={
+          !isOwnerOrAdmin && activeFiltersCount === 0
+            ? "When an administrator assigns leads to you or you create a new lead, it will appear here."
+            : "Try adjusting your filters or search terms."
+        }
         entityName="leads"
       />
 

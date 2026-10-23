@@ -48,10 +48,15 @@ export const managementApi = apiSlice.injectEndpoints({
       invalidatesTags: ["MedicineRequest"],
     }),
     getReports: builder.query({
-      query: (type) => ({
-        url: `reports/${type}`,
-        method: "GET",
-      }),
+      query: (arg) => {
+        const type = typeof arg === "object" && arg !== null ? arg.type : arg;
+        const params = typeof arg === "object" && arg !== null ? arg.params : undefined;
+        return {
+          url: `reports/${type}`,
+          method: "GET",
+          params,
+        };
+      },
       providesTags: ["Report"],
     }),
     getNotifications: builder.query({

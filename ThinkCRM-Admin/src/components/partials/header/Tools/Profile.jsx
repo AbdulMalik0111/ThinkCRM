@@ -7,6 +7,7 @@ import { Fragment, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logOut } from "@/store/api/auth/authSlice";
+import { apiSlice } from "@/store/api/apiSlice";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Profile = () => {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const handleLogout = () => {
+    dispatch(apiSlice.util.resetApiState());
     dispatch(logOut());
     navigate('/login');
     setIsLogoutModalOpen(false);

@@ -535,10 +535,14 @@ const FollowUpsCalendar = () => {
             <Icon icon="heroicons-outline:calendar-days" className="text-3xl" />
           </div>
           <h4 className="text-base font-bold text-slate-800 dark:text-white mb-1">
-            No Follow-Ups Found
+            {!isOwnerOrAdmin && !searchTerm && typeFilter === "all" && activeTab === "all"
+              ? "No tasks assigned to you"
+              : "No Follow-Ups Found"}
           </h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5">
-            {searchTerm || typeFilter !== "all" || (isOwnerOrAdmin && staffFilter !== "all")
+            {!isOwnerOrAdmin && !searchTerm && typeFilter === "all" && activeTab === "all"
+              ? "You currently have no follow-up tasks scheduled. When an admin assigns leads or follow-ups to you, they will appear here."
+              : searchTerm || typeFilter !== "all" || (isOwnerOrAdmin && staffFilter !== "all")
               ? "No tasks match your selected filter criteria. Try adjusting or clearing your filters."
               : "No follow-up tasks scheduled in this category yet."}
           </p>

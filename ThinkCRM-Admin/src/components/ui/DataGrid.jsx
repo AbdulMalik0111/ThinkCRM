@@ -20,6 +20,7 @@ const DataGrid = ({
   onPageSizeChange = null,
   isLoading = false,
   emptyMessage = "No records found",
+  emptySubtitle = "Try adjusting your filters or search terms.",
   enableSelection = false,
   entityName = "customers",
   onRowClicked = null,
@@ -206,9 +207,11 @@ const DataGrid = ({
                     <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                       {emptyMessage}
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Try adjusting your filters or search terms.
-                    </p>
+                    {emptySubtitle && (
+                      <p className="text-xs text-slate-400 mt-1">
+                        {emptySubtitle}
+                      </p>
+                    )}
                   </div>
                 </td>
               </tr>

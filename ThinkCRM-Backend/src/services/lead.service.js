@@ -14,11 +14,8 @@ import { uploadToCloudinary, deleteFromCloudinary, formatDocumentFileUrl } from 
 import { normalizePhone, normalizeEmail } from '../utils/normalize.js';
 import { validateAndNormalizePhone } from '../utils/phoneValidator.js';
 import { sendEmail } from '../integrations/email/email.service.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger.js'
 
-/**
- * Calculate KPI Stats for Leads Dashboard (Real database counts & historical comparison)
- */
 export const getLeadStats = async (user = null) => {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

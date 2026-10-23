@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useLoginMutation } from "@/store/api/auth/authApiSlice";
 import { setUser } from "@/store/api/auth/authSlice";
+import { apiSlice } from "@/store/api/apiSlice";
 import { toast } from "react-toastify";
 import Icon from "@/components/ui/Icon";
 import { validateEmail } from "@/utils/validation";
@@ -46,6 +47,7 @@ const Login = () => {
       const response = await login({ email: trimmedEmail, password }).unwrap();
       
       if (response.success) {
+        dispatch(apiSlice.util.resetApiState());
         dispatch(setUser({ 
           user: response.data.user, 
           token: response.data.accessToken,
