@@ -1,4 +1,5 @@
 import cron from 'node-cron';
+import axios from 'axios';
 import { FollowUp } from '../models/FollowUp.js';
 import { User } from '../models/User.js';
 import { Lead } from '../models/Lead.js';
@@ -6,6 +7,23 @@ import { Customer } from '../models/Customer.js';
 import { Setting } from '../models/Setting.js';
 import { sendEmail } from './email.service.js';
 import { logger } from '../utils/logger.js';
+
+/**
+ * Auto-Keepalive to prevent cloud hosting (e.g., Render Free Tier) from sleeping/suspending cron
+ */
+const startKeepAlive = () => {
+  const url = process.env.BACKEND_URL || 'https://thinkcrm.onrender.com/api/v1/health';
+  logger.info(`Keep-alive heartbeat active for ${url}`);
+
+  // Ping every 4 minutes (240,000 ms)
+  setInterval(async () => {
+    try {
+      await axios.get(url, { timeout: 10000 });
+    } catch (err) {
+      // Quietly ignore transient network errors
+    }
+  }, 4 * 60 * 1000);
+};
 
 /**
  * Format date in business / local timezone (defaults to Asia/Kolkata / IST)
@@ -162,6 +180,9 @@ const sendReminder = async (followup, timeLabel, reminderType = '10m') => {
 export const startCronJobs = () => {
   logger.info('Starting FollowUp reminder cron jobs...');
 
+  // Start self-ping keep-alive so cloud instances (Render) never sleep
+  startKeepAlive();
+
   // Run every minute
   cron.schedule('* * * * *', async () => {
     try {
@@ -186,29 +207,24 @@ export const startCronJobs = () => {
           const diffMinutes = (scheduledTime.getTime() - now.getTime()) / (1000 * 60);
 
           // 1) 10-Minute Reminder
-          // Triggers when 10.5 to 4 minutes remain
-          if (!followup.reminder10mSent && diffMinutes <= 10.5 && diffMinutes > 4) {
+          // Fires when between 11 and 6 minutes remain
+          if (!followup.reminder10mSent && diffMinutes <= 11 && diffMinutes > 6) {
             await sendReminder(followup, 'in 10 minutes', '10m');
-            followup.reminder10mSent = true;
-            await followup.save();
+            await FollowUp.findByIdAndUpdate(followup._id, { $set: { reminder10mSent: true } });
             logger.info(`10m reminder sent for followup ${followup._id} to ${followup.assignedTo.email}`);
           }
-
           // 2) 5-Minute Reminder
-          // Triggers when 5.5 to 0 minutes remain
-          if (!followup.reminder5mSent && diffMinutes <= 5.5 && diffMinutes > 0) {
+          // Fires when between 6 and 1 minutes remain
+          else if (!followup.reminder5mSent && diffMinutes <= 6 && diffMinutes > 1) {
             await sendReminder(followup, 'in 5 minutes', '5m');
-            followup.reminder5mSent = true;
-            await followup.save();
+            await FollowUp.findByIdAndUpdate(followup._id, { $set: { reminder5mSent: true } });
             logger.info(`5m reminder sent for followup ${followup._id} to ${followup.assignedTo.email}`);
           }
-
           // 3) At Scheduled Time (Due Now) Reminder
-          // Triggers when scheduled time has arrived or within 15 minutes grace window
-          if (!followup.reminder0mSent && diffMinutes <= 0.5 && diffMinutes >= -15) {
+          // Fires when 1 minute or less remains, or within 120 minutes overdue
+          else if (!followup.reminder0mSent && diffMinutes <= 1 && diffMinutes >= -120) {
             await sendReminder(followup, 'NOW', '0m');
-            followup.reminder0mSent = true;
-            await followup.save();
+            await FollowUp.findByIdAndUpdate(followup._id, { $set: { reminder0mSent: true } });
             logger.info(`0m (NOW) reminder sent for followup ${followup._id} to ${followup.assignedTo.email}`);
           }
         } catch (itemErr) {
